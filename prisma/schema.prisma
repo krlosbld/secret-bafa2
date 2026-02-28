@@ -1,0 +1,43 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Secret {
+  id              String       @id @default(cuid())
+  publicNumber    Int          @unique @default(autoincrement())
+  content         String
+  authorFirstName String
+  status          SecretStatus  @default(PENDING)
+  isRevealed      Boolean      @default(false)
+  buzzCount       Int          @default(0)
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  buzzes          Buzz[]
+}
+
+model Buzz {
+  id          String   @id @default(cuid())
+  secretId    String
+  visitorHash String
+  ipHash      String
+  createdAt   DateTime @default(now())
+
+  secret      Secret   @relation(fields: [secretId], references: [id], onDelete: Cascade)
+
+  @@unique([secretId, visitorHash])
+  @@index([secretId])
+}
+
+enum SecretStatus {
+  PENDING
+  PUBLISHED
+  REJECTED
+  HIDDEN
+}
