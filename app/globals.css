@@ -294,3 +294,60 @@ body {
   opacity: 1;
   max-height: 100px;
 }
+/* ================= MOBILE ================= */
+@media (max-width: 768px) {
+
+  html {
+    font-size: 14px;
+  }
+
+  .navbar {
+    height: 56px;
+  }
+
+  .nav-container {
+    padding: 0 12px;
+  }
+
+  .nav-links {
+    gap: 6px;
+  }
+
+  .nav-link,
+  .nav-button {
+    padding: 6px 8px;
+    font-size: 0.8rem;
+  }
+
+  .page {
+    padding: 20px 12px;
+  }
+
+  .container {
+    max-width: 100%;
+  }
+
+  .h1 {
+    font-size: 22px;
+  }
+
+  .card {
+    padding: 16px;
+    border-radius: 14px;
+  }
+
+  .row {
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  .label {
+    width: auto;
+    font-size: 0.85rem;
+  }
+
+  .value {
+    font-size: 0.95rem;
+  }
+
+}
