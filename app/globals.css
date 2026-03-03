@@ -351,3 +351,49 @@ body {
   }
 
 }
+/* ====== RANKING (mobile friendly) ====== */
+.ranking-card {
+  padding: 18px; /* évite les gros paddings sur mobile */
+}
+
+.ranking-row {
+  display: grid;
+  grid-template-columns: 64px 1fr 72px; /* # | nom | points */
+  align-items: center;
+  gap: 12px;
+}
+
+.ranking-rank {
+  font-weight: 900;
+  color: #0f172a;
+  font-size: 1rem;
+}
+
+.ranking-name {
+  font-weight: 900;
+  color: #0f172a;
+  font-size: 1.05rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ranking-points {
+  text-align: right;
+  font-weight: 900;
+  color: #0f766e;
+  font-size: 1.1rem;
+}
+
+/* Mobile */
+@media (max-width: 520px) {
+  .ranking-row {
+    grid-template-columns: 52px 1fr 60px;
+  }
+  .ranking-name {
+    font-size: 1rem;
+  }
+  .ranking-points {
+    font-size: 1.05rem;
+  }
+}
