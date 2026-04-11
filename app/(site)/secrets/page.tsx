@@ -6,13 +6,15 @@ export const revalidate = 0;
 export default async function SecretsPage() {
   const secrets = await prisma.secret.findMany({
     where: { status: "PUBLISHED" },
-    orderBy: { createdAt: "desc" },
     include: {
       buzzes: {
         orderBy: { createdAt: "desc" },
       },
     },
   });
+
+  // 🎲 Mélange aléatoire
+  const shuffledSecrets = [...secrets].sort(() => Math.random() - 0.5);
 
   return (
     <main className="page">
@@ -23,7 +25,7 @@ export default async function SecretsPage() {
         </p>
 
         <div className="cards">
-          {secrets.map((s) => (
+          {shuffledSecrets.map((s) => (
             <div className="card" key={s.id}>
               <div className="row">
                 <div className="label">Nom</div>
@@ -73,7 +75,7 @@ export default async function SecretsPage() {
             </div>
           ))}
 
-          {secrets.length === 0 && (
+          {shuffledSecrets.length === 0 && (
             <div className="card">
               Aucun secret publié pour le moment.
             </div>
