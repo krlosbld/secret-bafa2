@@ -22,20 +22,3 @@ export async function GET() {
     return NextResponse.json({ error: "Erreur serveur" }, { status: 500 });
   }
 }
-
-export async function DELETE() {
-  try {
-    const result = await prisma.buzz.deleteMany({});
-
-    return NextResponse.json({
-      ok: true,
-      deleted: result.count,
-    });
-  } catch (error) {
-    console.error(error);
-    return NextResponse.json(
-      { error: "Erreur lors de la suppression globale" },
-      { status: 500 }
-    );
-  }
-}

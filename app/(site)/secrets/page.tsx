@@ -3,6 +3,18 @@ import { prisma } from "@/lib/prisma";
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+// 🔥 fonction pour gérer proprement les dates
+function formatDate(date: Date | string) {
+  return new Date(date).toLocaleString("fr-FR", {
+    timeZone: "Europe/Paris",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
 export default async function SecretsPage() {
   const secrets = await prisma.secret.findMany({
     where: { status: "PUBLISHED" },
@@ -65,7 +77,7 @@ export default async function SecretsPage() {
                         <strong>{b.toName}</strong>
                         <span style={{ color: "#666", fontSize: 12 }}>
                           {" "}
-                          — {new Date(b.createdAt).toLocaleString("fr-FR")}
+                          — {formatDate(b.createdAt)}
                         </span>
                       </div>
                     ))}

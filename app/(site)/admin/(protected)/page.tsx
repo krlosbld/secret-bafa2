@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import AdminButtonsClient from "../AdminButtonsClient";
+import BuzzAdmin from "../BuzzAdmin";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -19,7 +20,6 @@ export default async function AdminPage() {
         <div className="cards">
           {secrets.map((s) => (
             <div className="card admin-card" key={s.id}>
-              {/* ✅ pastille statut */}
               <span
                 className={`status-dot ${
                   s.status === "PUBLISHED" ? "status-dot--green" : "status-dot--red"
@@ -27,7 +27,6 @@ export default async function AdminPage() {
                 title={s.status}
               />
 
-              {/* ✅ visible */}
               <div className="row">
                 <div className="label">Nom</div>
                 <div className="value">{s.authorFirstName}</div>
@@ -43,7 +42,6 @@ export default async function AdminPage() {
                 <div className="value">{s.point}</div>
               </div>
 
-              {/* ✅ infos cachées mais visibles au hover */}
               <div className="admin-meta">
                 <div>Statut : {s.status}</div>
                 <div>Nom public : {s.showName ? "Oui" : "Non"}</div>
@@ -68,7 +66,10 @@ export default async function AdminPage() {
             </div>
           )}
         </div>
+
+        <BuzzAdmin />
       </div>
     </main>
   );
 }
+
