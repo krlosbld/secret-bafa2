@@ -1,20 +1,31 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-export async function DELETE(
-  _req: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(req: Request) {
   try {
-    const { id } = await params;
+    const { secretId, fromName, toName } = await req.json();
 
-    await prisma.buzz.delete({
-      where: { id },
+    if (!secretId || !fromName || !toName) {
+      return NextResponse.json(
+        { error: "Champs manquants" },
+        { status: 400 }
+      );
+    }
+
+    const buzz = await prisma.buzz.create({
+      data: {
+        secretId,
+        fromName,
+        toName,
+      },
     });
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, buzz });
   } catch (error) {
-    console.error(error);
-    return NextResponse.json({ error: "Impossible de supprimer ce buzz" }, { status: 500 });
+    console.error("Erreur POST /api/buzz :", error);
+    return NextResponse.json(
+      { error: "Erreur serveur" },
+      { status: 500 }
+    );
   }
 }
