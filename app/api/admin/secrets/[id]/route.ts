@@ -21,6 +21,9 @@ export async function PATCH(req: Request, { params }: Params) {
   if (typeof body.bonus === "number" && Number.isInteger(body.bonus) && body.bonus >= 1 && body.bonus <= 5) {
     data.bonus = body.bonus;
   }
+  if (typeof body.content === "string" && body.content.trim().length > 0) {
+    data.content = body.content.trim();
+  }
 
   if (Object.keys(data).length === 0) {
     return NextResponse.json({ error: "Aucun champ valide." }, { status: 400 });

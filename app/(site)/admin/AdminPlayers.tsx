@@ -23,6 +23,8 @@ export default function AdminPlayers({
   const [loading, setLoading] = useState<string | null>(null);
   const [newQuota, setNewQuota] = useState(quota);
   const [savingQuota, setSavingQuota] = useState(false);
+  const [editingName, setEditingName] = useState<string | null>(null);
+  const [nameValue, setNameValue] = useState("");
 
   async function patchPlayer(id: string, data: object) {
     setLoading(id);
@@ -39,6 +41,19 @@ export default function AdminPlayers({
     if (!confirm(`Supprimer ${name} et toutes ses données ?`)) return;
     setLoading(id);
     await fetch(`/api/admin/players/${id}`, { method: "DELETE" });
+    router.refresh();
+    setLoading(null);
+  }
+
+  async function saveName(id: string) {
+    if (!nameValue.trim()) return;
+    setLoading(id);
+    await fetch(`/api/admin/players/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ firstName: nameValue.trim() }),
+    });
+    setEditingName(null);
     router.refresh();
     setLoading(null);
   }
@@ -91,8 +106,25 @@ export default function AdminPlayers({
           <div className="card admin-card" key={p.id}>
             <div className="row">
               <div className="label">Joueur</div>
-              <div className="value">
-                {p.firstName} · <span style={{ color: "#0f766e", fontWeight: 900 }}>#{p.code}</span>
+              <div className="value" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                {editingName === p.id ? (
+                  <>
+                    <input
+                      value={nameValue}
+                      onChange={(e) => setNameValue(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") saveName(p.id); if (e.key === "Escape") setEditingName(null); }}
+                      style={{ border: "1px solid #0f766e", borderRadius: 6, padding: "2px 8px", fontSize: 14, width: 140 }}
+                      autoFocus
+                    />
+                    <button className="btn btn-main" style={{ padding: "2px 10px" }} onClick={() => saveName(p.id)} disabled={loading === p.id}>✓</button>
+                    <button className="btn btn-ghost" style={{ padding: "2px 10px" }} onClick={() => setEditingName(null)}>✕</button>
+                  </>
+                ) : (
+                  <>
+                    {p.firstName} · <span style={{ color: "#0f766e", fontWeight: 900 }}>#{p.code}</span>
+                    <button className="btn btn-ghost" style={{ padding: "1px 8px", fontSize: 12 }} onClick={() => { setEditingName(p.id); setNameValue(p.firstName); }}>✏️</button>
+                  </>
+                )}
               </div>
             </div>
             <div className="row">

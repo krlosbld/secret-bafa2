@@ -17,6 +17,8 @@ export function AdminSecretsPending({ secrets }: { secrets: Secret[] }) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
   const [loadingAll, setLoadingAll] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
 
   async function patch(id: string, data: object) {
     setLoading(id);
@@ -25,6 +27,19 @@ export function AdminSecretsPending({ secrets }: { secrets: Secret[] }) {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(data),
     });
+    router.refresh();
+    setLoading(null);
+  }
+
+  async function saveContent(id: string) {
+    if (!editValue.trim()) return;
+    setLoading(id);
+    await fetch(`/api/admin/secrets/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: editValue.trim() }),
+    });
+    setEditingId(null);
     router.refresh();
     setLoading(null);
   }
@@ -59,7 +74,26 @@ export function AdminSecretsPending({ secrets }: { secrets: Secret[] }) {
           </div>
           <div className="row">
             <div className="label">Secret</div>
-            <div className="value">{s.content}</div>
+            <div className="value" style={{ display: "flex", alignItems: "flex-start", gap: 8, flexWrap: "wrap" }}>
+              {editingId === s.id ? (
+                <>
+                  <textarea
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    rows={3}
+                    style={{ border: "1px solid #0f766e", borderRadius: 6, padding: "4px 8px", fontSize: 14, width: "100%", resize: "vertical" }}
+                    autoFocus
+                  />
+                  <button className="btn btn-main" style={{ padding: "2px 10px" }} onClick={() => saveContent(s.id)} disabled={loading === s.id}>✓</button>
+                  <button className="btn btn-ghost" style={{ padding: "2px 10px" }} onClick={() => setEditingId(null)}>✕</button>
+                </>
+              ) : (
+                <>
+                  <span>{s.content}</span>
+                  <button className="btn btn-ghost" style={{ padding: "1px 8px", fontSize: 12 }} onClick={() => { setEditingId(s.id); setEditValue(s.content); }}>✏️</button>
+                </>
+              )}
+            </div>
           </div>
           <div className="row">
             <div className="label">Bonus</div>
@@ -91,6 +125,21 @@ export function AdminSecretsPending({ secrets }: { secrets: Secret[] }) {
 export function AdminSecretsPublished({ secrets }: { secrets: Secret[] }) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
+
+  async function saveContent(id: string) {
+    if (!editValue.trim()) return;
+    setLoading(id);
+    await fetch(`/api/admin/secrets/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: editValue.trim() }),
+    });
+    setEditingId(null);
+    router.refresh();
+    setLoading(null);
+  }
 
   async function del(id: string) {
     if (!confirm("Supprimer ce secret ?")) return;
@@ -121,7 +170,26 @@ export function AdminSecretsPublished({ secrets }: { secrets: Secret[] }) {
           </div>
           <div className="row">
             <div className="label">Secret</div>
-            <div className="value">{s.content}</div>
+            <div className="value" style={{ display: "flex", alignItems: "flex-start", gap: 8, flexWrap: "wrap" }}>
+              {editingId === s.id ? (
+                <>
+                  <textarea
+                    value={editValue}
+                    onChange={(e) => setEditValue(e.target.value)}
+                    rows={3}
+                    style={{ border: "1px solid #0f766e", borderRadius: 6, padding: "4px 8px", fontSize: 14, width: "100%", resize: "vertical" }}
+                    autoFocus
+                  />
+                  <button className="btn btn-main" style={{ padding: "2px 10px" }} onClick={() => saveContent(s.id)} disabled={loading === s.id}>✓</button>
+                  <button className="btn btn-ghost" style={{ padding: "2px 10px" }} onClick={() => setEditingId(null)}>✕</button>
+                </>
+              ) : (
+                <>
+                  <span>{s.content}</span>
+                  <button className="btn btn-ghost" style={{ padding: "1px 8px", fontSize: 12 }} onClick={() => { setEditingId(s.id); setEditValue(s.content); }}>✏️</button>
+                </>
+              )}
+            </div>
           </div>
           <div className="row">
             <div className="label">Statut</div>

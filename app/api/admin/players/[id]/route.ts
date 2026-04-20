@@ -23,6 +23,9 @@ export async function PATCH(req: Request, { params }: Params) {
   if (body.resetBuzz === true) {
     data.buzzCount = 0;
   }
+  if (typeof body.firstName === "string" && body.firstName.trim().length > 0) {
+    data.firstName = body.firstName.trim();
+  }
 
   if (Object.keys(data).length === 0) {
     return NextResponse.json({ error: "Aucun champ valide." }, { status: 400 });
