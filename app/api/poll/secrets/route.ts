@@ -15,7 +15,7 @@ export async function GET() {
       player: { select: { firstName: true } },
       foundBy: { select: { firstName: true } },
     },
-    orderBy: { createdAt: "asc" },
+    orderBy: { player: { firstName: "asc" } },
   });
 
   return NextResponse.json({ secrets });
