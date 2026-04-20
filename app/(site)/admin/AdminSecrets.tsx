@@ -133,6 +133,8 @@ export function AdminSecretsPublished({ secrets }: { secrets: Secret[] }) {
   const [loading, setLoading] = useState<string | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [showAll, setShowAll] = useState(false);
+  const visible = showAll ? secrets : secrets.slice(0, 5);
 
   async function saveContent(id: string) {
     if (!editValue.trim()) return;
@@ -159,8 +161,9 @@ export function AdminSecretsPublished({ secrets }: { secrets: Secret[] }) {
     return <p style={{ color: "#64748b", fontSize: 14 }}>Aucun secret validé.</p>;
 
   return (
+    <>
     <div className="cards">
-      {secrets.map((s) => (
+      {visible.map((s) => (
         <div
           className="card admin-card"
           key={s.id}
@@ -226,5 +229,15 @@ export function AdminSecretsPublished({ secrets }: { secrets: Secret[] }) {
         </div>
       ))}
     </div>
+    {secrets.length > 5 && (
+      <button
+        className="btn btn-ghost"
+        onClick={() => setShowAll((v) => !v)}
+        style={{ marginTop: 12 }}
+      >
+        {showAll ? "Afficher moins ▲" : `Afficher plus (${secrets.length - 5} de plus) ▼`}
+      </button>
+    )}
+    </>
   );
 }

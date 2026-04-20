@@ -97,6 +97,11 @@ export default async function AdminPage() {
           {superAdmin ? "Super-admin" : "Gestionnaire"} · Session 10 min
         </p>
 
+        <Section title={`Buzz à valider (${pendingBuzzes.length})`}>
+          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+          <AdminBuzzPending buzzes={pendingBuzzes as any} />
+        </Section>
+
         <Section title={`Secrets en attente (${pendingSecrets.length})`}>
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           <AdminSecretsPending secrets={pendingSecrets as any} />
@@ -105,11 +110,6 @@ export default async function AdminPage() {
         <Section title={`Secrets validés (${publishedSecrets.length})`}>
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           <AdminSecretsPublished secrets={publishedSecrets as any} />
-        </Section>
-
-        <Section title={`Buzz à valider (${pendingBuzzes.length})`}>
-          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-          <AdminBuzzPending buzzes={pendingBuzzes as any} />
         </Section>
 
         {superAdmin && (
