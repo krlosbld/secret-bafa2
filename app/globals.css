@@ -4,19 +4,55 @@
 }
 
 html {
-  font-size: 16px;
+  font-size: 14px;
 }
 
 body {
   margin: 0;
   font-family: system-ui, -apple-system, sans-serif;
+  line-height: 1.4;
   background: #f5f7f6;
   color: #111;
 }
 
+a,
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+/* ================= TYPO GLOBALE ================= */
+h1 {
+  font-size: 2rem;
+  line-height: 1.15;
+}
+
+h2 {
+  font-size: 1.2rem;
+  line-height: 1.25;
+}
+
+h3 {
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+p,
+li,
+span,
+label,
+input,
+textarea,
+button,
+a {
+  font-size: 0.92rem;
+}
+
 /* ================= NAVBAR ================= */
 .navbar {
-  height: 64px;
+  height: 56px;
   background: white;
   border-bottom: 1px solid #eaeaea;
   display: flex;
@@ -25,7 +61,7 @@ body {
 
 .nav-container {
   width: 100%;
-  max-width: 980px;
+  max-width: 1000px;
   margin: 0 auto;
   padding: 0 16px;
   display: flex;
@@ -37,22 +73,22 @@ body {
   font-weight: 800;
   text-decoration: none;
   color: #111;
-  font-size: 1rem;
+  font-size: 0.95rem;
 }
 
 .nav-links {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .nav-link {
   text-decoration: none;
   color: #333;
   font-weight: 700;
-  padding: 8px 12px;
-  border-radius: 10px;
-  font-size: 0.95rem;
+  padding: 6px 8px;
+  border-radius: 8px;
+  font-size: 0.85rem;
 }
 
 .nav-link:hover {
@@ -65,10 +101,10 @@ body {
   background: #0f766e;
   color: white;
   font-weight: 800;
-  padding: 8px 14px;
-  border-radius: 10px;
+  padding: 6px 10px;
+  border-radius: 8px;
   cursor: pointer;
-  font-size: 0.95rem;
+  font-size: 0.85rem;
 }
 
 .nav-button:hover {
@@ -77,67 +113,69 @@ body {
 
 /* ================= LAYOUT ================= */
 .page {
-  min-height: calc(100vh - 64px);
-  padding: 28px 16px;
-  display: flex;
-  justify-content: center;
-  align-items: flex-start;
+  min-height: calc(100vh - 56px);
+  padding: 24px 16px;
 }
 
 .container {
   width: 100%;
-  max-width: 980px;
+  max-width: 880px;
+  margin: 0 auto;
 }
 
 /* ================= TITRES ================= */
 .h1 {
-  font-size: 34px;
+  font-size: 2.2rem;
   margin: 0 0 8px;
   text-align: center;
 }
 
 .sub {
-  margin: 0 0 24px;
+  margin: 0 0 20px;
   text-align: center;
   color: #444;
-  font-size: 1rem;
+  font-size: 0.95rem;
+  line-height: 1.45;
 }
 
 /* ================= CARDS ================= */
 .cards {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
 }
 
 .card {
   background: white;
-  border-radius: 16px;
-  padding: 22px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
-  border-left: 5px solid #0f766e;
+  border-radius: 14px;
+  padding: 16px 18px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.05);
+  border-left: 4px solid #0f766e;
+  width: 100%;
 }
 
 .row {
   display: flex;
-  gap: 12px;
-  margin: 10px 0;
+  gap: 10px;
+  margin: 8px 0;
   line-height: 1.5;
   align-items: flex-start;
 }
 
 .label {
-  width: 95px;
+  width: 72px;
+  flex-shrink: 0;
   font-weight: 800;
   color: #334155;
-  font-size: 1rem;
+  font-size: 0.82rem;
 }
 
 .value {
   font-weight: 700;
   color: #0f172a;
-  font-size: 1.1rem;
-  line-height: 1.6;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  word-break: break-word;
 }
 
 /* ================= MODAL ================= */
@@ -148,17 +186,17 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 16px;
+  padding: 12px;
   z-index: 50;
 }
 
 .sb-modal {
   width: 100%;
-  max-width: 620px;
+  max-width: 560px;
   background: white;
-  border-radius: 16px;
+  border-radius: 14px;
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
-  padding: 20px;
+  padding: 18px;
 }
 
 .sb-modal__header {
@@ -169,20 +207,20 @@ body {
 
 .sb-modal__header h2 {
   margin: 0;
-  font-size: 20px;
+  font-size: 1.1rem;
 }
 
 .sb-x {
   border: none;
   background: transparent;
-  font-size: 18px;
+  font-size: 1rem;
   cursor: pointer;
 }
 
 .sb-help {
-  margin: 8px 0 14px;
+  margin: 8px 0 12px;
   color: #555;
-  font-size: 14px;
+  font-size: 0.85rem;
 }
 
 .sb-form {
@@ -198,7 +236,7 @@ body {
 }
 
 .sb-field span {
-  font-size: 14px;
+  font-size: 0.85rem;
   font-weight: 700;
 }
 
@@ -206,14 +244,14 @@ body {
 .sb-field textarea {
   width: 100%;
   border: 1px solid #ddd;
-  border-radius: 10px;
+  border-radius: 8px;
   padding: 10px 12px;
   outline: none;
-  font-size: 14px;
+  font-size: 0.9rem;
 }
 
 .sb-field textarea {
-  min-height: 130px;
+  min-height: 120px;
   resize: vertical;
 }
 
@@ -231,11 +269,11 @@ body {
 
 .sb-btn {
   border: none;
-  border-radius: 10px;
-  padding: 8px 14px;
+  border-radius: 8px;
+  padding: 7px 12px;
   cursor: pointer;
   font-weight: 700;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
 }
 
 .sb-btn--main {
@@ -256,6 +294,57 @@ body {
   background: #f2f2f2;
 }
 
+/* ================= BOUTONS ADMIN ================= */
+.btn {
+  border: none;
+  border-radius: 8px;
+  padding: 7px 12px;
+  cursor: pointer;
+  font-weight: 700;
+  font-size: 0.82rem;
+  transition: opacity 0.1s;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-main {
+  background: #0f766e;
+  color: white;
+}
+
+.btn-main:hover:not(:disabled) {
+  background: #115e59;
+}
+
+.btn-ghost {
+  background: transparent;
+  border: 1px solid #ddd;
+  color: #333;
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: #f2f2f2;
+}
+
+.btn-danger {
+  background: #dc2626;
+  color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #b91c1c;
+}
+
+.admin-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+
 /* ================= ADMIN ================= */
 .admin-card {
   position: relative;
@@ -263,10 +352,10 @@ body {
 
 .status-dot {
   position: absolute;
-  top: 14px;
-  right: 16px;
-  width: 12px;
-  height: 12px;
+  top: 12px;
+  right: 14px;
+  width: 10px;
+  height: 10px;
   border-radius: 999px;
 }
 
@@ -279,10 +368,10 @@ body {
 }
 
 .admin-meta {
-  margin-top: 10px;
-  padding-top: 10px;
+  margin-top: 8px;
+  padding-top: 8px;
   border-top: 1px dashed rgba(15, 118, 110, 0.25);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
   color: #475569;
   opacity: 0;
   max-height: 0;
@@ -294,85 +383,27 @@ body {
   opacity: 1;
   max-height: 100px;
 }
-/* ================= MOBILE ================= */
-@media (max-width: 768px) {
 
-  html {
-    font-size: 14px;
-  }
-
-  .navbar {
-    height: 56px;
-  }
-
-  .nav-container {
-    padding: 0 12px;
-  }
-
-  .nav-links {
-    gap: 6px;
-  }
-
-  .nav-link,
-  .nav-button {
-    padding: 6px 8px;
-    font-size: 0.8rem;
-  }
-
-  .page {
-    padding: 20px 12px;
-  }
-
-  .container {
-    max-width: 100%;
-  }
-
-  .h1 {
-    font-size: 22px;
-  }
-
-  .card {
-    padding: 16px;
-    border-radius: 14px;
-  }
-
-  .row {
-    flex-direction: column;
-    gap: 4px;
-  }
-
-  .label {
-    width: auto;
-    font-size: 0.85rem;
-  }
-
-  .value {
-    font-size: 0.95rem;
-  }
-
-}
-/* ====== RANKING (mobile friendly) ====== */
+/* ================= RANKING ================= */
 .ranking-card {
-  padding: 18px; /* évite les gros paddings sur mobile */
+  padding: 16px;
 }
 
 .ranking-row {
   display: grid;
-  grid-template-columns: 64px 1fr 72px; /* # | nom | points */
+  grid-template-columns: 52px 1fr 60px;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
 }
 
 .ranking-rank {
   font-weight: 900;
-  color: #0f172a;
-  font-size: 1rem;
+  font-size: 0.95rem;
 }
 
 .ranking-name {
   font-weight: 900;
-  color: #0f172a;
-  font-size: 1.05rem;
+  font-size: 0.95rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -382,18 +413,73 @@ body {
   text-align: right;
   font-weight: 900;
   color: #0f766e;
-  font-size: 1.1rem;
+  font-size: 1rem;
 }
 
-/* Mobile */
-@media (max-width: 520px) {
+/* ================= MOBILE ================= */
+@media (max-width: 768px) {
+  html {
+    font-size: 13px;
+  }
+
+  .navbar {
+    height: 52px;
+  }
+
+  .nav-container {
+    padding: 0 10px;
+  }
+
+  .nav-links {
+    gap: 5px;
+  }
+
+  .nav-link,
+  .nav-button {
+    padding: 5px 7px;
+    font-size: 0.8rem;
+  }
+
+  .page {
+    padding: 18px 10px;
+  }
+
+  .container {
+    max-width: 100%;
+  }
+
+  .h1 {
+    font-size: 1.8rem;
+  }
+
+  .sub {
+    font-size: 0.9rem;
+  }
+
+  .cards {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .card {
+    padding: 14px;
+  }
+
+  .row {
+    flex-direction: column;
+    gap: 3px;
+  }
+
+  .label {
+    width: auto;
+    font-size: 0.8rem;
+  }
+
+  .value {
+    font-size: 0.92rem;
+  }
+
   .ranking-row {
-    grid-template-columns: 52px 1fr 60px;
-  }
-  .ranking-name {
-    font-size: 1rem;
-  }
-  .ranking-points {
-    font-size: 1.05rem;
+    grid-template-columns: 46px 1fr 54px;
   }
 }

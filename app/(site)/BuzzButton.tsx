@@ -5,29 +5,42 @@ import { useState } from "react";
 export default function BuzzButton({ secretId }: { secretId: string }) {
   const [open, setOpen] = useState(false);
   const [fromName, setFromName] = useState("");
-  const [toName, setToName] = useState("");
+  const [fromCode, setFromCode] = useState("");
+  const [guessedName, setGuessedName] = useState("");
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState(false);
+
+  function handleOpen() {
+    setError("");
+    setSuccess(false);
+    setOpen(true);
+  }
 
   async function sendBuzz() {
-    if (!fromName.trim() || !toName.trim()) return;
-
+    setError("");
+    if (!fromName.trim() || !fromCode.trim() || !guessedName.trim()) {
+      setError("Tous les champs sont requis.");
+      return;
+    }
     setLoading(true);
-
     try {
       const res = await fetch("/api/buzz", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ secretId, fromName, toName }),
+        body: JSON.stringify({ secretId, fromName, fromCode, guessedName }),
       });
-
-      if (!res.ok) throw new Error();
-
-      alert("Buzz envoyé 🔥");
-      setOpen(false);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data?.error || "Erreur.");
+        return;
+      }
+      setSuccess(true);
       setFromName("");
-      setToName("");
+      setFromCode("");
+      setGuessedName("");
     } catch {
-      alert("Erreur lors de l’envoi");
+      setError("Erreur réseau.");
     } finally {
       setLoading(false);
     }
@@ -36,15 +49,16 @@ export default function BuzzButton({ secretId }: { secretId: string }) {
   return (
     <>
       <button
-        onClick={() => setOpen(true)}
+        onClick={handleOpen}
         style={{
           background: "#e11d48",
           color: "white",
           border: "none",
-          padding: "10px 14px",
+          padding: "10px 16px",
           borderRadius: 14,
           fontWeight: 900,
           cursor: "pointer",
+          fontSize: "0.9rem",
         }}
       >
         BUZZ 🔥
@@ -66,47 +80,110 @@ export default function BuzzButton({ secretId }: { secretId: string }) {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{
-              background: "white",
-              padding: 20,
-              borderRadius: 16,
-              width: "100%",
-              maxWidth: 420,
-            }}
+            className="sb-modal"
+            style={{ maxWidth: 460 }}
           >
-            <h3 style={{ marginTop: 0 }}>Envoyer un BUZZ</h3>
+            <div className="sb-modal__header">
+              <h2>Envoyer un BUZZ 🔥</h2>
+              <button className="sb-x" onClick={() => setOpen(false)}>✕</button>
+            </div>
 
-            <input
-              placeholder="Ton nom"
-              value={fromName}
-              onChange={(e) => setFromName(e.target.value)}
-              style={{ width: "100%", marginBottom: 10, padding: 10 }}
-            />
+            {success ? (
+              <div style={{ textAlign: "center", padding: "20px 0" }}>
+                <div style={{ fontSize: 40, marginBottom: 8 }}>🎉</div>
+                <p style={{ fontWeight: 700 }}>Buzz envoyé ! En attente de validation.</p>
+                <button
+                  className="sb-btn sb-btn--main"
+                  onClick={() => setOpen(false)}
+                  style={{ marginTop: 16 }}
+                >
+                  Fermer
+                </button>
+              </div>
+            ) : (
+              <div className="sb-form" style={{ marginTop: 12 }}>
+                <p className="sb-help">
+                  Utilise le code reçu quand tu as soumis ton secret.
+                </p>
 
-            <input
-              placeholder="Qui tu buzz ?"
-              value={toName}
-              onChange={(e) => setToName(e.target.value)}
-              style={{ width: "100%", marginBottom: 14, padding: 10 }}
-            />
+                <label className="sb-field">
+                  <span>Ton prénom</span>
+                  <input
+                    value={fromName}
+                    onChange={(e) => setFromName(e.target.value)}
+                    placeholder="Ex : Lucas"
+                    maxLength={40}
+                    disabled={loading}
+                  />
+                </label>
 
-            <button
-              onClick={sendBuzz}
-              disabled={loading}
-              style={{
-                background: "#e11d48",
-                color: "white",
-                border: "none",
-                padding: "10px 12px",
-                borderRadius: 12,
-                fontWeight: 800,
-                width: "100%",
-                cursor: "pointer",
-                opacity: loading ? 0.7 : 1,
-              }}
-            >
-              {loading ? "Envoi..." : "Envoyer"}
-            </button>
+                <label className="sb-field">
+                  <span>Ton code personnel</span>
+                  <input
+                    value={fromCode}
+                    onChange={(e) => setFromCode(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                    placeholder="Ex : 4823"
+                    inputMode="numeric"
+                    maxLength={4}
+                    disabled={loading}
+                    style={{ letterSpacing: 4, fontWeight: 700, fontSize: 18 }}
+                  />
+                </label>
+
+                <label className="sb-field">
+                  <span>À qui appartient ce secret ?</span>
+                  <input
+                    value={guessedName}
+                    onChange={(e) => setGuessedName(e.target.value)}
+                    placeholder="Prénom de la personne"
+                    maxLength={40}
+                    disabled={loading}
+                  />
+                </label>
+
+                {error && (
+                  <div
+                    style={{
+                      background: "#fef2f2",
+                      border: "1px solid #fecaca",
+                      borderRadius: 10,
+                      padding: 10,
+                      color: "#dc2626",
+                      fontWeight: 600,
+                      fontSize: 14,
+                    }}
+                  >
+                    {error}
+                  </div>
+                )}
+
+                <div className="sb-actions">
+                  <button
+                    className="sb-btn sb-btn--ghost"
+                    onClick={() => setOpen(false)}
+                    disabled={loading}
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    onClick={sendBuzz}
+                    disabled={loading}
+                    style={{
+                      background: "#e11d48",
+                      color: "white",
+                      border: "none",
+                      padding: "8px 16px",
+                      borderRadius: 10,
+                      fontWeight: 800,
+                      cursor: "pointer",
+                      opacity: loading ? 0.7 : 1,
+                    }}
+                  >
+                    {loading ? "Envoi..." : "Envoyer le buzz"}
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -1,5 +1,5 @@
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { getSession } from "@/lib/auth";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -9,17 +9,7 @@ export default async function AdminProtectedLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const store = await cookies();
-
-  const auth = store.get("admin_auth")?.value;
-  const untilStr = store.get("admin_until")?.value;
-
-  const until = Number(untilStr || "0");
-  const ok = auth === "1" && Number.isFinite(until) && Date.now() < until;
-
-  if (!ok) {
-    redirect("/admin/login");
-  }
-
+  const session = await getSession();
+  if (!session) redirect("/admin/login");
   return <>{children}</>;
 }

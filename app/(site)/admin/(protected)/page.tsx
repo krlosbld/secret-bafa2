@@ -1,75 +1,130 @@
 import { prisma } from "@/lib/prisma";
-import AdminButtonsClient from "../AdminButtonsClient";
-import BuzzAdmin from "../BuzzAdmin";
+import { getSession, isSuperAdmin } from "@/lib/auth";
+import { AdminSecretsPending, AdminSecretsPublished } from "../AdminSecrets";
+import AdminBuzzPending from "../AdminBuzzPending";
+import AdminPlayers from "../AdminPlayers";
+import AdminManagers from "../AdminManagers";
+import LogoutClient from "../LogoutClient";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section style={{ marginBottom: 40 }}>
+      <h2 style={{ fontSize: 20, fontWeight: 800, margin: "0 0 14px", color: "#0f172a" }}>
+        {title}
+      </h2>
+      {children}
+    </section>
+  );
+}
+
 export default async function AdminPage() {
-  const secrets = await prisma.secret.findMany({
-    where: { status: { in: ["PENDING", "PUBLISHED"] } },
-    orderBy: { createdAt: "desc" },
-  });
+  const session = await getSession();
+  const superAdmin = isSuperAdmin(session);
+
+  const [pendingSecrets, publishedSecrets, pendingBuzzes] = await Promise.all([
+    prisma.secret.findMany({
+      where: { status: "PENDING" },
+      orderBy: { createdAt: "asc" },
+      include: {
+        player: { select: { firstName: true, code: true } },
+        foundBy: { select: { firstName: true } },
+      },
+    }),
+    prisma.secret.findMany({
+      where: { status: { in: ["PUBLISHED", "FOUND"] } },
+      orderBy: { createdAt: "desc" },
+      include: {
+        player: { select: { firstName: true, code: true } },
+        foundBy: { select: { firstName: true } },
+      },
+    }),
+    prisma.buzz.findMany({
+      where: { status: "PENDING" },
+      orderBy: { createdAt: "asc" },
+      include: {
+        fromPlayer: { select: { firstName: true, code: true } },
+        secret: {
+          select: {
+            content: true,
+            bonus: true,
+            player: { select: { firstName: true } },
+          },
+        },
+      },
+    }),
+  ]);
+
+  const players = superAdmin
+    ? await prisma.player.findMany({
+        orderBy: { firstName: "asc" },
+        include: { secret: { select: { status: true, content: true, bonus: true } } },
+      })
+    : [];
+
+  const managers = superAdmin
+    ? await prisma.manager.findMany({
+        select: { id: true, username: true, createdAt: true },
+        orderBy: { createdAt: "asc" },
+      })
+    : [];
+
+  const quotaConfig = superAdmin
+    ? await prisma.config.findUnique({ where: { key: "buzzQuota" } })
+    : null;
+  const quota = Number(quotaConfig?.value ?? 3);
 
   return (
     <main className="page">
       <div className="container">
-        <h1 className="h1">Admin</h1>
-        <p className="sub">Secrets en base : {secrets.length}</p>
-
-        <div className="cards">
-          {secrets.map((s) => (
-            <div className="card admin-card" key={s.id}>
-              <span
-                className={`status-dot ${
-                  s.status === "PUBLISHED" ? "status-dot--green" : "status-dot--red"
-                }`}
-                title={s.status}
-              />
-
-              <div className="row">
-                <div className="label">Nom</div>
-                <div className="value">{s.authorFirstName}</div>
-              </div>
-
-              <div className="row">
-                <div className="label">Secret</div>
-                <div className="value">{s.content}</div>
-              </div>
-
-              <div className="row">
-                <div className="label">Points</div>
-                <div className="value">{s.point}</div>
-              </div>
-
-              <div className="admin-meta">
-                <div>Statut : {s.status}</div>
-                <div>Nom public : {s.showName ? "Oui" : "Non"}</div>
-                <div>Date : {new Date(s.createdAt).toLocaleString("fr-FR")}</div>
-              </div>
-
-              <AdminButtonsClient
-                id={s.id}
-                status={s.status}
-                showName={s.showName}
-                point={s.point}
-              />
-            </div>
-          ))}
-
-          {secrets.length === 0 && (
-            <div className="card">
-              <div className="row">
-                <div className="label">Info</div>
-                <div className="value">Aucun secret.</div>
-              </div>
-            </div>
-          )}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            marginBottom: 4,
+          }}
+        >
+          <h1 className="h1" style={{ margin: 0 }}>
+            Administration
+          </h1>
+          <LogoutClient />
         </div>
+        <p className="sub" style={{ marginBottom: 32 }}>
+          {superAdmin ? "Super-admin" : "Gestionnaire"} · Session 10 min
+        </p>
 
-        <BuzzAdmin />
+        <Section title={`Secrets en attente (${pendingSecrets.length})`}>
+          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+          <AdminSecretsPending secrets={pendingSecrets as any} />
+        </Section>
+
+        <Section title={`Secrets validés (${publishedSecrets.length})`}>
+          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+          <AdminSecretsPublished secrets={publishedSecrets as any} />
+        </Section>
+
+        <Section title={`Buzz à valider (${pendingBuzzes.length})`}>
+          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+          <AdminBuzzPending buzzes={pendingBuzzes as any} />
+        </Section>
+
+        {superAdmin && (
+          <>
+            <Section title={`Joueurs (${players.length})`}>
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+              <AdminPlayers players={players as any} quota={quota} />
+            </Section>
+
+            <Section title="Gestionnaires">
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+              <AdminManagers managers={managers as any} />
+            </Section>
+          </>
+        )}
       </div>
     </main>
   );
 }
-

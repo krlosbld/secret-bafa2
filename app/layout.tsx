@@ -1,8 +1,8 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "Secret BAFA",
-  description: "Secrets anonymes",
+  title: "KiCéKi 🤫",
+  description: "Le jeu des secrets anonymes",
 };
 
 export default function RootLayout({

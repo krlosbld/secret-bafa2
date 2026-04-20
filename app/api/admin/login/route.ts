@@ -1,43 +1,48 @@
 import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { setSessionCookies } from "@/lib/auth";
+import crypto from "crypto";
+
+export const runtime = "nodejs";
 
 export async function POST(req: Request) {
-  const { code } = await req.json();
+  try {
+    const { username, password } = await req.json();
 
-  const adminCode = process.env.ADMIN_CODE;
-  if (!adminCode) {
+    if (!username || !password) {
+      return NextResponse.json(
+        { ok: false, error: "Identifiant et mot de passe requis." },
+        { status: 400 }
+      );
+    }
+
+    // Super-admin
+    if (
+      username === process.env.SUPER_ADMIN_USERNAME &&
+      password === process.env.SUPER_ADMIN_PASSWORD
+    ) {
+      const res = NextResponse.json({ ok: true, role: "superadmin" });
+      setSessionCookies(res, { role: "superadmin" });
+      return res;
+    }
+
+    // Gestionnaire
+    const manager = await prisma.manager.findUnique({ where: { username } });
+    if (manager) {
+      const hash = crypto.createHash("sha256").update(password).digest("hex");
+      if (hash === manager.passwordHash) {
+        const res = NextResponse.json({ ok: true, role: "manager" });
+        setSessionCookies(res, { role: "manager", managerId: manager.id });
+        return res;
+      }
+    }
+
     return NextResponse.json(
-      { ok: false, error: "ADMIN_CODE manquant dans .env" },
-      { status: 500 }
+      { ok: false, error: "Identifiants invalides." },
+      { status: 401 }
     );
+  } catch (e) {
+    console.error("LOGIN ERROR:", e);
+    return NextResponse.json({ ok: false, error: "Erreur serveur." }, { status: 500 });
   }
-
-  if (String(code || "").trim() !== adminCode) {
-    return NextResponse.json({ ok: false, error: "Code invalide" }, { status: 401 });
-  }
-
-  // ✅ TEST RAPIDE : 10 secondes
-  const ttlSeconds = 60 * 3;
-
-  const untilMs = Date.now() + ttlSeconds * 1000;
-
-  const res = NextResponse.json({ ok: true });
-
-  res.cookies.set("admin_auth", "1", {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: ttlSeconds,
-    expires: new Date(untilMs),
-  });
-
-  // ✅ horodatage serveur (la vraie sécurité)
-  res.cookies.set("admin_until", String(untilMs), {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: ttlSeconds,
-    expires: new Date(untilMs),
-  });
-
-  return res;
 }

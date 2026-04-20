@@ -7,25 +7,56 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Player {
+  id           String   @id @default(cuid())
+  firstName    String
+  code         String   @unique
+  points       Int      @default(0)
+  buzzCount    Int      @default(0)
+  createdAt    DateTime @default(now())
+  secret       Secret?
+  buzzesSent   Buzz[]   @relation("BuzzFrom")
+  foundSecrets Secret[] @relation("FoundBy")
+}
+
 model Secret {
   id              String   @id @default(cuid())
-  authorFirstName String
+  playerId        String   @unique
   content         String
-  status          String   @default("PENDING")
-  showName        Boolean  @default(false)
-  point           Int      @default(0)
+  bonus           Int      @default(1)
+  status          String   @default("PENDING") // PENDING | PUBLISHED | FOUND
+  foundByPlayerId String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  player          Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  foundBy         Player?  @relation("FoundBy", fields: [foundByPlayerId], references: [id])
   buzzes          Buzz[]
 }
 
 model Buzz {
-  id        String   @id @default(cuid())
-  secretId  String
-  fromName  String
-  toName    String
-  createdAt DateTime @default(now())
-  secret    Secret   @relation(fields: [secretId], references: [id], onDelete: Cascade)
+  id           String   @id @default(cuid())
+  secretId     String
+  fromPlayerId String
+  guessedName  String
+  status       String   @default("PENDING") // PENDING | VALIDATED | REJECTED
+  isCorrect    Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  secret       Secret   @relation(fields: [secretId], references: [id], onDelete: Cascade)
+  fromPlayer   Player   @relation("BuzzFrom", fields: [fromPlayerId], references: [id])
 
+  @@unique([secretId, fromPlayerId])
   @@index([secretId])
+  @@index([fromPlayerId])
+}
+
+model Manager {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
+
+model Config {
+  key   String @id
+  value String
 }
