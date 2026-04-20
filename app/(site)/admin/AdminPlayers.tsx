@@ -22,6 +22,8 @@ export default function AdminPlayers({
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
   const [newQuota, setNewQuota] = useState(quota);
+  const [showAll, setShowAll] = useState(false);
+  const visible = showAll ? players : players.slice(0, 5);
   const [savingQuota, setSavingQuota] = useState(false);
   const [editingName, setEditingName] = useState<string | null>(null);
   const [nameValue, setNameValue] = useState("");
@@ -102,7 +104,7 @@ export default function AdminPlayers({
 
       {/* Liste joueurs */}
       <div className="cards">
-        {players.map((p) => (
+        {visible.map((p) => (
           <div className="card admin-card" key={p.id}>
             <div className="row">
               <div className="label">Joueur</div>
@@ -187,6 +189,15 @@ export default function AdminPlayers({
           </div>
         ))}
       </div>
+      {players.length > 5 && (
+        <button
+          className="btn btn-ghost"
+          onClick={() => setShowAll((v) => !v)}
+          style={{ marginTop: 12 }}
+        >
+          {showAll ? "Afficher moins ▲" : `Afficher plus (${players.length - 5} de plus) ▼`}
+        </button>
+      )}
     </>
   );
 }
