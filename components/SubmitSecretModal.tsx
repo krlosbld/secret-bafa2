@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { isFlagged } from "@/lib/contentFilter";
 
 type State = "form" | "loading" | "success";
 
@@ -119,6 +120,20 @@ export default function SubmitSecretModal({
                   disabled={state === "loading"}
                 />
               </label>
+
+              {isFlagged(content) && (
+                <div style={{
+                  background: "#fffbeb",
+                  border: "1px solid #f59e0b",
+                  borderRadius: 10,
+                  padding: "10px 14px",
+                  color: "#92400e",
+                  fontSize: 13,
+                  fontWeight: 600,
+                }}>
+                  ⚠️ Ton secret semble contenir du contenu potentiellement illégal. Tu peux quand même l'envoyer, mais il sera examiné attentivement par l'animateur avant validation.
+                </div>
+              )}
 
               <label className="sb-field">
                 <span>Points bonus (1 à 5) — difficulté de ton secret</span>

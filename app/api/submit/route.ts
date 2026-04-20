@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { fuzzyMatch } from "@/lib/fuzzy";
+import { isFlagged } from "@/lib/contentFilter";
 
 export const runtime = "nodejs";
 
@@ -54,13 +55,14 @@ export async function POST(req: Request) {
     }
 
     const code = await generateUniqueCode();
+    const flagged = isFlagged(content);
 
     await prisma.player.create({
       data: {
         firstName,
         code,
         secret: {
-          create: { content, bonus, status: "PENDING" },
+          create: { content, bonus, status: "PENDING", flagged },
         },
       },
     });

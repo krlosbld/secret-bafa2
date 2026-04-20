@@ -8,6 +8,7 @@ type Secret = {
   content: string;
   bonus: number;
   status: string;
+  flagged: boolean;
   createdAt: string;
   player: { firstName: string; code: string };
   foundBy: { firstName: string } | null;
@@ -67,7 +68,12 @@ export function AdminSecretsPending({ secrets }: { secrets: Secret[] }) {
       </button>
     <div className="cards">
       {secrets.map((s) => (
-        <div className="card admin-card" key={s.id}>
+        <div className="card admin-card" key={s.id} style={s.flagged ? { borderLeftColor: "#f59e0b", background: "#fffbeb" } : undefined}>
+          {s.flagged && (
+            <div style={{ background: "#f59e0b", color: "#fff", fontWeight: 800, fontSize: 12, borderRadius: 6, padding: "3px 10px", marginBottom: 8, display: "inline-block" }}>
+              ⚠️ Contenu à vérifier
+            </div>
+          )}
           <div className="row">
             <div className="label">Auteur</div>
             <div className="value">{s.player.firstName} · #{s.player.code}</div>
@@ -158,8 +164,13 @@ export function AdminSecretsPublished({ secrets }: { secrets: Secret[] }) {
         <div
           className="card admin-card"
           key={s.id}
-          style={{ borderLeftColor: s.status === "FOUND" ? "#16a34a" : "#0f766e" }}
+          style={{ borderLeftColor: s.flagged ? "#f59e0b" : s.status === "FOUND" ? "#16a34a" : "#0f766e", background: s.flagged ? "#fffbeb" : undefined }}
         >
+          {s.flagged && (
+            <div style={{ background: "#f59e0b", color: "#fff", fontWeight: 800, fontSize: 12, borderRadius: 6, padding: "3px 10px", marginBottom: 8, display: "inline-block" }}>
+              ⚠️ Contenu à vérifier
+            </div>
+          )}
           <span
             className={`status-dot ${s.status === "FOUND" ? "status-dot--green" : "status-dot--green"}`}
             title={s.status}
