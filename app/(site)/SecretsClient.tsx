@@ -23,6 +23,13 @@ function shuffle<T>(arr: T[]): T[] {
 
 export default function SecretsClient({ initial }: { initial: SecretItem[] }) {
   const [secrets, setSecrets] = useState<SecretItem[]>(() => shuffle(initial));
+  const [toast, setToast] = useState(() => initial.some((s) => s.status === "FOUND"));
+
+  useEffect(() => {
+    if (!toast) return;
+    const t = setTimeout(() => setToast(false), 10000);
+    return () => clearTimeout(t);
+  }, [toast]);
 
   const refresh = useCallback(async () => {
     try {
@@ -53,6 +60,25 @@ export default function SecretsClient({ initial }: { initial: SecretItem[] }) {
   const found = secrets.filter((s) => s.status === "FOUND");
 
   return (
+    <>
+    {toast && (
+      <div style={{
+        position: "fixed",
+        bottom: 80,
+        left: 24,
+        zIndex: 999,
+        background: "#0f766e",
+        color: "#fff",
+        borderRadius: 12,
+        padding: "12px 20px",
+        fontWeight: 700,
+        fontSize: 15,
+        boxShadow: "0 4px 16px rgba(0,0,0,0.18)",
+        animation: "fadeIn 0.3s ease",
+      }}>
+        🎯 Un secret a été trouvé !
+      </div>
+    )}
     <div className="cards">
       {notFound.map((s) => (
         <div className="card" key={s.id}>
@@ -123,5 +149,6 @@ export default function SecretsClient({ initial }: { initial: SecretItem[] }) {
         </>
       )}
     </div>
+    </>
   );
 }
