@@ -5,6 +5,7 @@ import AdminBuzzPending from "../AdminBuzzPending";
 import AdminPlayers from "../AdminPlayers";
 import AdminManagers from "../AdminManagers";
 import LogoutClient from "../LogoutClient";
+import AdminReset from "../AdminReset";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -121,6 +122,10 @@ export default async function AdminPage() {
             <Section title="Gestionnaires">
               {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
               <AdminManagers managers={managers as any} />
+            </Section>
+
+            <Section title="Réinitialisation">
+              <AdminReset />
             </Section>
           </>
         )}
