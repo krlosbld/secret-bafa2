@@ -16,6 +16,7 @@ type Secret = {
 export function AdminSecretsPending({ secrets }: { secrets: Secret[] }) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
+  const [loadingAll, setLoadingAll] = useState(false);
 
   async function patch(id: string, data: object) {
     setLoading(id);
@@ -28,10 +29,27 @@ export function AdminSecretsPending({ secrets }: { secrets: Secret[] }) {
     setLoading(null);
   }
 
+  async function publishAll() {
+    if (!confirm(`Valider les ${secrets.length} secrets en attente ?`)) return;
+    setLoadingAll(true);
+    await fetch("/api/admin/secrets/publish-all", { method: "POST" });
+    router.refresh();
+    setLoadingAll(false);
+  }
+
   if (secrets.length === 0)
     return <p style={{ color: "#64748b", fontSize: 14 }}>Aucun secret en attente.</p>;
 
   return (
+    <>
+      <button
+        className="btn btn-main"
+        onClick={publishAll}
+        disabled={loadingAll}
+        style={{ marginBottom: 14 }}
+      >
+        {loadingAll ? "Validation…" : `✅ Tout valider (${secrets.length})`}
+      </button>
     <div className="cards">
       {secrets.map((s) => (
         <div className="card admin-card" key={s.id}>
@@ -66,6 +84,7 @@ export function AdminSecretsPending({ secrets }: { secrets: Secret[] }) {
         </div>
       ))}
     </div>
+    </>
   );
 }
 
