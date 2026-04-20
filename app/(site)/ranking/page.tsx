@@ -20,7 +20,7 @@ export default function RankingPage() {
       const res = await fetch("/api/poll/ranking", { cache: "no-store" });
       if (!res.ok) return;
       const data = await res.json();
-      setPlayers(data.players);
+      setPlayers(data.players.filter((p: PlayerRow) => p.points > 0));
     } catch {
       // silencieux
     } finally {
