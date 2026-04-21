@@ -44,7 +44,7 @@ export default async function AdminPage() {
     }),
     prisma.buzz.findMany({
       where: { status: "PENDING" },
-      orderBy: { createdAt: "desc" },
+      orderBy: { createdAt: "asc" },
       include: {
         fromPlayer: { select: { firstName: true, code: true } },
         secret: {
