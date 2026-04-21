@@ -11,6 +11,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 
+  // Reset du compteur de buzz pour tous les joueurs
+  await prisma.player.updateMany({ data: { buzzCount: 0 } });
+
   // +1 pt à chaque auteur dont le secret est PUBLISHED (pas encore trouvé)
   const unpublished = await prisma.secret.findMany({
     where: { status: "PUBLISHED" },

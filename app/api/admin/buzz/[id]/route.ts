@@ -31,7 +31,7 @@ export async function PATCH(req: Request, { params }: Params) {
   if (action === "validate") {
     await prisma.buzz.update({ where: { id }, data: { status: "VALIDATED" } });
 
-    if (buzz.isCorrect) {
+    if (buzz.isCorrect && buzz.secret.status !== "FOUND") {
       await prisma.$transaction([
         prisma.player.update({
           where: { id: buzz.fromPlayerId },
@@ -40,6 +40,11 @@ export async function PATCH(req: Request, { params }: Params) {
         prisma.secret.update({
           where: { id: buzz.secretId },
           data: { status: "FOUND", foundByPlayerId: buzz.fromPlayerId },
+        }),
+        // Rejeter tous les autres buzz en attente sur ce secret
+        prisma.buzz.updateMany({
+          where: { secretId: buzz.secretId, status: "PENDING" },
+          data: { status: "REJECTED" },
         }),
       ]);
     }
