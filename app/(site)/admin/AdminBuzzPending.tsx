@@ -46,7 +46,12 @@ export default function AdminBuzzPending({ buzzes }: { buzzes: BuzzItem[] }) {
         >
           <div className="row">
             <div className="label">Buzzeur</div>
-            <div className="value">{b.fromPlayer.firstName} · #{b.fromPlayer.code}</div>
+            <div className="value">
+              {b.fromPlayer.firstName} · #{b.fromPlayer.code}
+              <span style={{ marginLeft: 8, fontSize: 12, color: "#94a3b8" }}>
+                {new Date(b.createdAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+              </span>
+            </div>
           </div>
           <div className="row">
             <div className="label">Secret</div>
