@@ -66,19 +66,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // Buzz déjà envoyé sur ce secret
-    const existing = await prisma.buzz.findUnique({
-      where: {
-        secretId_fromPlayerId: { secretId, fromPlayerId: player.id },
-      },
-    });
-    if (existing) {
-      return NextResponse.json(
-        { error: "Tu as déjà buzzé ce secret." },
-        { status: 400 }
-      );
-    }
-
     // Calculer si la réponse est correcte
     const isCorrect = fuzzyMatch(guessedName, secret.player.firstName);
 
