@@ -45,7 +45,6 @@ model Buzz {
   secret       Secret   @relation(fields: [secretId], references: [id], onDelete: Cascade)
   fromPlayer   Player   @relation("BuzzFrom", fields: [fromPlayerId], references: [id])
 
-  @@unique([secretId, fromPlayerId])
   @@index([secretId])
   @@index([fromPlayerId])
 }
