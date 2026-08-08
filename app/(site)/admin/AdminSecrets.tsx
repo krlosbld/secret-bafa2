@@ -157,6 +157,18 @@ export function AdminSecretsPublished({ secrets }: { secrets: Secret[] }) {
     setLoading(null);
   }
 
+  async function unpublish(id: string) {
+    if (!confirm("Repasser ce secret en attente ? Il ne sera plus visible sur la page publique.")) return;
+    setLoading(id);
+    await fetch(`/api/admin/secrets/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "PENDING" }),
+    });
+    router.refresh();
+    setLoading(null);
+  }
+
   if (secrets.length === 0)
     return <p style={{ color: "#64748b", fontSize: 14 }}>Aucun secret validé.</p>;
 
@@ -218,6 +230,13 @@ export function AdminSecretsPublished({ secrets }: { secrets: Secret[] }) {
             <div className="value">+{s.bonus} pt{s.bonus > 1 ? "s" : ""}</div>
           </div>
           <div className="admin-actions" style={{ marginTop: 10 }}>
+            <button
+              className="btn btn-ghost"
+              disabled={loading === s.id}
+              onClick={() => unpublish(s.id)}
+            >
+              ↩️ Repasser en attente
+            </button>
             <button
               className="btn btn-danger"
               disabled={loading === s.id}
