@@ -130,6 +130,8 @@ async function PersonalSpace({
   backHref,
   showLogout,
   canEditEvaluations,
+  prevId,
+  nextId,
 }: {
   playerId: string;
   firstName: string;
@@ -138,6 +140,8 @@ async function PersonalSpace({
   backHref?: string;
   showLogout: boolean;
   canEditEvaluations: boolean;
+  prevId?: string | null;
+  nextId?: string | null;
 }) {
   const { evalBlocks, postes, criteria, startDate, dayCount, notes, ratingValues } = await getEvaluationData(playerId);
 
@@ -149,15 +153,29 @@ async function PersonalSpace({
           alignItems: "center",
           justifyContent: "space-between",
           marginBottom: 4,
+          flexWrap: "wrap",
+          gap: 8,
         }}
       >
         <h1 className="h1" style={{ margin: 0, fontWeight: 900 }}>
           Espace stagiaire ({firstName})
         </h1>
         {backHref ? (
-          <Link className="btn btn-ghost" href={backHref}>
-            ← Liste des stagiaires
-          </Link>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            {prevId && (
+              <Link className="btn btn-ghost" href={`/bafa?as=${prevId}`}>
+                ← Précédent
+              </Link>
+            )}
+            {nextId && (
+              <Link className="btn btn-ghost" href={`/bafa?as=${nextId}`}>
+                Suivant →
+              </Link>
+            )}
+            <Link className="btn btn-ghost" href={backHref}>
+              Liste des stagiaires
+            </Link>
+          </div>
         ) : showLogout ? (
           <BafaLogoutClient />
         ) : null}
@@ -329,11 +347,22 @@ export default async function BafaPage({
 
   if (isStaff) {
     if (as) {
-      const target = await prisma.player.findUnique({
-        where: { id: as },
-        select: { firstName: true, code: true },
-      });
+      const [target, roster] = await Promise.all([
+        prisma.player.findUnique({
+          where: { id: as },
+          select: { firstName: true, code: true },
+        }),
+        prisma.player.findMany({
+          where: { role: "STAGIAIRE" },
+          orderBy: { firstName: "asc" },
+          select: { id: true },
+        }),
+      ]);
       if (target) {
+        const idx = roster.findIndex((p) => p.id === as);
+        const prevId = idx > 0 ? roster[idx - 1].id : null;
+        const nextId = idx >= 0 && idx < roster.length - 1 ? roster[idx + 1].id : null;
+
         return (
           <main className="page">
             <div className="container">
@@ -346,6 +375,8 @@ export default async function BafaPage({
                 backHref="/bafa"
                 showLogout={false}
                 canEditEvaluations={true}
+                prevId={prevId}
+                nextId={nextId}
               />
             </div>
           </main>
