@@ -43,21 +43,42 @@ export default function EvaluationBoard({
     stateRef.current = { notes, drafts };
   }, [notes, drafts]);
 
+  async function persist(blockId: string, note: string) {
+    setSaving(blockId);
+    await fetch("/api/evaluations", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playerId, blockId, note }),
+    });
+    setNotes((n) => ({ ...n, [blockId]: note }));
+    setSaving(null);
+    setSavedFlash(blockId);
+    setTimeout(() => setSavedFlash((v) => (v === blockId ? null : v)), 1500);
+  }
+
+  // Toutes les 5s : sauvegarde les brouillons modifiés, puis récupère les notes des autres formateurs.
   useEffect(() => {
     const id = setInterval(async () => {
+      const { notes: curNotes, drafts: curDrafts } = stateRef.current;
+
+      const dirty = Object.entries(curDrafts).filter(([blockId, val]) => (val ?? "") !== (curNotes[blockId] ?? ""));
+      for (const [blockId, note] of dirty) {
+        await persist(blockId, note);
+      }
+
       try {
         const res = await fetch(`/api/evaluations?playerId=${playerId}`, { cache: "no-store" });
         const data = await res.json().catch(() => null);
         if (!data?.ok) return;
 
         const fresh: Record<string, string> = data.notes;
-        const { notes: curNotes, drafts: curDrafts } = stateRef.current;
-        const nextNotes = { ...curNotes };
-        const nextDrafts = { ...curDrafts };
+        const { notes: latestNotes, drafts: latestDrafts } = stateRef.current;
+        const nextNotes = { ...latestNotes };
+        const nextDrafts = { ...latestDrafts };
         let changed = false;
 
         for (const [blockId, note] of Object.entries(fresh)) {
-          const hasUnsavedEdit = (curDrafts[blockId] ?? "") !== (curNotes[blockId] ?? "");
+          const hasUnsavedEdit = (latestDrafts[blockId] ?? "") !== (latestNotes[blockId] ?? "");
           if (hasUnsavedEdit) continue;
           if (nextNotes[blockId] !== note) {
             nextNotes[blockId] = note;
@@ -73,23 +94,10 @@ export default function EvaluationBoard({
       } catch {
         // ignore transient network errors, will retry on next tick
       }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     }, 5000);
     return () => clearInterval(id);
   }, [playerId]);
-
-  async function save(blockId: string) {
-    const note = drafts[blockId] ?? "";
-    setSaving(blockId);
-    await fetch("/api/evaluations", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ playerId, blockId, note }),
-    });
-    setNotes((n) => ({ ...n, [blockId]: note }));
-    setSaving(null);
-    setSavedFlash(blockId);
-    setTimeout(() => setSavedFlash((v) => (v === blockId ? null : v)), 1500);
-  }
 
   const dayBlocks = blocks.filter((b) => b.day === activeDay).sort((a, b) => a.startMin - b.startMin);
 
@@ -121,16 +129,20 @@ export default function EvaluationBoard({
                   style={{ width: "100%", border: "1px solid #ddd", borderRadius: 8, padding: 8, fontSize: 14, resize: "vertical" }}
                 />
                 <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8, marginTop: 6 }}>
-                  {savedFlash === b.id && (
+                  {saving === b.id ? (
+                    <span style={{ color: "#64748b", fontSize: 12, fontWeight: 700 }}>Enregistrement…</span>
+                  ) : savedFlash === b.id ? (
                     <span style={{ color: "#16a34a", fontSize: 12, fontWeight: 700 }}>Enregistré ✓</span>
-                  )}
+                  ) : (drafts[b.id] ?? "") !== (notes[b.id] ?? "") ? (
+                    <span style={{ color: "#94a3b8", fontSize: 12 }}>Sauvegarde automatique…</span>
+                  ) : null}
                   <button
-                    className="btn btn-main"
+                    className="btn btn-ghost"
                     style={{ padding: "4px 12px", fontSize: 13 }}
                     disabled={saving === b.id || (drafts[b.id] ?? "") === (notes[b.id] ?? "")}
-                    onClick={() => save(b.id)}
+                    onClick={() => persist(b.id, drafts[b.id] ?? "")}
                   >
-                    {saving === b.id ? "…" : "Enregistrer"}
+                    Enregistrer maintenant
                   </button>
                 </div>
               </>
