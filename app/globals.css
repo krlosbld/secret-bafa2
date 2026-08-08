@@ -114,12 +114,12 @@ a {
 /* ================= LAYOUT ================= */
 .page {
   min-height: calc(100vh - 56px);
-  padding: 24px 16px;
+  padding: 24px 3cm;
 }
 
 .container {
   width: 100%;
-  max-width: 880px;
+  max-width: 100%;
   margin: 0 auto;
 }
 

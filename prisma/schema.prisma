@@ -8,15 +8,18 @@ datasource db {
 }
 
 model Player {
-  id           String   @id @default(cuid())
-  firstName    String
-  code         String   @unique
-  points       Int      @default(0)
-  buzzCount    Int      @default(0)
-  createdAt    DateTime @default(now())
-  secret       Secret?
-  buzzesSent   Buzz[]   @relation("BuzzFrom")
-  foundSecrets Secret[] @relation("FoundBy")
+  id               String            @id @default(cuid())
+  firstName        String
+  code             String            @unique
+  role             String            @default("STAGIAIRE") // STAGIAIRE | FORMATEUR | DIRECTEUR
+  points           Int               @default(0)
+  buzzCount        Int               @default(0)
+  createdAt        DateTime          @default(now())
+  secret           Secret?
+  buzzesSent       Buzz[]            @relation("BuzzFrom")
+  foundSecrets     Secret[]          @relation("FoundBy")
+  evaluations      Evaluation[]
+  criterionRatings CriterionRating[]
 }
 
 model Secret {
@@ -59,4 +62,63 @@ model Manager {
 model Config {
   key   String @id
   value String
+}
+
+model PlanningBlock {
+  id          String       @id @default(cuid())
+  day         Int // 0 = premier jour de la formation, etc.
+  startMin    Int // minutes depuis minuit
+  endMin      Int
+  label       String
+  type        String // id du PosteType
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  evaluations Evaluation[]
+
+  @@index([day])
+}
+
+model PosteType {
+  id        String   @id @default(cuid())
+  label     String
+  color     String
+  order     Int      @default(0)
+  evaluable Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model Evaluation {
+  id        String        @id @default(cuid())
+  playerId  String
+  blockId   String
+  note      String        @default("")
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+  player    Player        @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  block     PlanningBlock @relation(fields: [blockId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, blockId])
+}
+
+model Criterion {
+  id        String            @id @default(cuid())
+  label     String
+  order     Int               @default(0)
+  createdAt DateTime          @default(now())
+  ratings   CriterionRating[]
+}
+
+model CriterionRating {
+  id          String    @id @default(cuid())
+  playerId    String
+  criterionId String
+  day         Int
+  value       String // ACQUIS | EN_COURS | A_TRAVAILLER | NON_OBSERVE
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  player      Player    @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  criterion   Criterion @relation(fields: [criterionId], references: [id], onDelete: Cascade)
+
+  @@unique([playerId, criterionId, day])
+  @@index([playerId, day])
 }

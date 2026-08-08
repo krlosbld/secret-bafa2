@@ -7,9 +7,16 @@ type Player = {
   id: string;
   firstName: string;
   code: string;
+  role: string;
   points: number;
   buzzCount: number;
   secret: { status: string; content: string; bonus: number } | null;
+};
+
+const ROLE_LABELS: Record<string, string> = {
+  STAGIAIRE: "Stagiaire",
+  FORMATEUR: "Formateur",
+  DIRECTEUR: "Directeur",
 };
 
 export default function AdminPlayers({
@@ -127,6 +134,23 @@ export default function AdminPlayers({
                     <button className="btn btn-ghost" style={{ padding: "1px 8px", fontSize: 12 }} onClick={() => { setEditingName(p.id); setNameValue(p.firstName); }}>✏️</button>
                   </>
                 )}
+              </div>
+            </div>
+            <div className="row">
+              <div className="label">Rôle</div>
+              <div className="value">
+                <select
+                  value={p.role}
+                  disabled={loading === p.id}
+                  onChange={(e) => patchPlayer(p.id, { role: e.target.value })}
+                  style={{ border: "1px solid #ddd", borderRadius: 6, padding: "3px 6px", fontSize: 13 }}
+                >
+                  {Object.entries(ROLE_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
             <div className="row">

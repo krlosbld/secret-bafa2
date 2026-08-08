@@ -61,7 +61,15 @@ export default async function AdminPage() {
   const players = superAdmin
     ? await prisma.player.findMany({
         orderBy: { firstName: "asc" },
-        include: { secret: { select: { status: true, content: true, bonus: true } } },
+        select: {
+          id: true,
+          firstName: true,
+          code: true,
+          role: true,
+          points: true,
+          buzzCount: true,
+          secret: { select: { status: true, content: true, bonus: true } },
+        },
       })
     : [];
 

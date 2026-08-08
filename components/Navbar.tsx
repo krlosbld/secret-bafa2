@@ -23,6 +23,9 @@ export default async function Navbar() {
           <Link className="nav-link" href="/ranking">
             Classement
           </Link>
+          <Link className="nav-link" href="/bafa">
+            BAFA
+          </Link>
           <Link className="nav-link" href="/admin" title="Administration">
             ⚙️
           </Link>
