@@ -1,5 +1,6 @@
 import Navbar from "@/components/Navbar";
 import RulesModal from "@/components/RulesModal";
+import PersonalNoteGate from "@/components/PersonalNoteGate";
 
 export default function SiteLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -7,6 +8,7 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
       <Navbar />
       {children}
       <RulesModal />
+      <PersonalNoteGate />
     </>
   );
 }

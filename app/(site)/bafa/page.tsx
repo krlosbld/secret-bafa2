@@ -6,7 +6,9 @@ import BafaLoginForm from "./BafaLoginForm";
 import BafaLogoutClient from "./BafaLogoutClient";
 import PlanningTab from "./PlanningTab";
 import DayEvaluationPanel from "./DayEvaluationPanel";
+import PlayerNotesPanel from "./PlayerNotesPanel";
 import { DEFAULT_SESSION_TYPE, todayISO, daysForType, todayDayIndex } from "@/lib/planningConfig";
+import { getPlayerNotes } from "@/lib/playerNotes";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -243,6 +245,7 @@ async function PersonalSpace({
 }) {
   const { evalBlocks, postes, criteria, startDate, dayCount, notes, ratingValues } = await getEvaluationData(playerId);
   const { dailyFillRatio, dailyTrend } = await getStagiaireIndicators(dayCount, [playerId]);
+  const playerNotes = await getPlayerNotes(playerId, canEditEvaluations);
 
   const initialDay =
     requestedDay !== undefined && Number.isInteger(requestedDay) && requestedDay >= 0 && requestedDay < dayCount
@@ -290,40 +293,60 @@ async function PersonalSpace({
         {subLabel ? `${subLabel} · ` : ""}#{code}
       </p>
 
-      <div style={{ display: "flex", gap: 4, marginBottom: 16 }}>
-        {Array.from({ length: dayCount }, (_, d) => d).map((d) => {
-          const ratio = dailyFillRatio(playerId, d);
-          return (
-            <div
-              key={d}
-              title={`J${d + 1} : ${Math.round(ratio * 100)}% rempli`}
-              style={{ width: 26, height: 8, borderRadius: 4, background: "#e2e8f0", overflow: "hidden" }}
-            >
-              <div style={{ width: `${Math.round(ratio * 100)}%`, height: "100%", background: "#0f766e" }} />
-            </div>
-          );
-        })}
-      </div>
+      <div style={{ display: "flex", gap: 24, alignItems: "flex-start", flexWrap: "wrap" }}>
+        <div style={{ flex: "2 1 480px", minWidth: 0 }}>
+          <div style={{ display: "flex", gap: 4, marginBottom: 16 }}>
+            {Array.from({ length: dayCount }, (_, d) => d).map((d) => {
+              const ratio = dailyFillRatio(playerId, d);
+              return (
+                <div
+                  key={d}
+                  title={`J${d + 1} : ${Math.round(ratio * 100)}% rempli`}
+                  style={{ width: 26, height: 8, borderRadius: 4, background: "#e2e8f0", overflow: "hidden" }}
+                >
+                  <div style={{ width: `${Math.round(ratio * 100)}%`, height: "100%", background: "#0f766e" }} />
+                </div>
+              );
+            })}
+          </div>
 
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 32 }}>
-        {Array.from({ length: dayCount }, (_, d) => d).map((d) => (
-          <TrendArrow key={d} day={d} score={dailyTrend(playerId, d)} href={`${dayLinkBase}${dayLinkBase.includes("?") ? "&" : "?"}day=${d}`} />
-        ))}
-      </div>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 32 }}>
+            {Array.from({ length: dayCount }, (_, d) => d).map((d) => (
+              <TrendArrow
+                key={d}
+                day={d}
+                score={dailyTrend(playerId, d)}
+                href={`${dayLinkBase}${dayLinkBase.includes("?") ? "&" : "?"}day=${d}`}
+              />
+            ))}
+          </div>
 
-      <DayEvaluationPanel
-        key={initialDay}
-        blocks={evalBlocks}
-        postes={postes}
-        criteria={criteria}
-        startDate={startDate}
-        dayCount={dayCount}
-        initialDay={initialDay}
-        initialNotes={notes}
-        initialRatingValues={ratingValues}
-        canEdit={canEditEvaluations}
-        playerId={playerId}
-      />
+          <DayEvaluationPanel
+            key={initialDay}
+            blocks={evalBlocks}
+            postes={postes}
+            criteria={criteria}
+            startDate={startDate}
+            dayCount={dayCount}
+            initialDay={initialDay}
+            initialNotes={notes}
+            initialRatingValues={ratingValues}
+            canEdit={canEditEvaluations}
+            playerId={playerId}
+          />
+        </div>
+
+        <div style={{ flex: "1 1 280px", minWidth: 260 }}>
+          {playerNotes && (
+            <PlayerNotesPanel
+              playerId={playerId}
+              canEditPersonal={!canEditEvaluations}
+              canEditStaffNotes={canEditEvaluations}
+              initialNotes={playerNotes}
+            />
+          )}
+        </div>
+      </div>
     </>
   );
 }

@@ -20,6 +20,15 @@ model Player {
   foundSecrets     Secret[]          @relation("FoundBy")
   evaluations      Evaluation[]
   criterionRatings CriterionRating[]
+
+  // Panneau latéral de la page stagiaire
+  personalNote          String  @default("") // écrit par le stagiaire lui-même
+  ems                   String  @default("") // entretien de mi-stage
+  emsVisible            Boolean @default(false)
+  complementaryNote     String  @default("") // entretien complémentaire
+  complementaryVisible  Boolean @default(false)
+  finalAppraisal        String  @default("") // appréciation finale
+  finalAppraisalVisible Boolean @default(false)
 }
 
 model Secret {
