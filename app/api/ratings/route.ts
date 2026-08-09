@@ -6,8 +6,6 @@ import { getPlayerSession } from "@/lib/playerAuth";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const VALID_VALUES = ["ACQUIS", "EN_COURS", "A_TRAVAILLER", "NON_OBSERVE"];
-
 export async function GET(req: Request) {
   const playerId = new URL(req.url).searchParams.get("playerId");
   if (!playerId) {
@@ -43,16 +41,17 @@ export async function POST(req: Request) {
   if (!playerId || !criterionId || !Number.isInteger(day) || day < 0) {
     return NextResponse.json({ error: "Champs manquants." }, { status: 400 });
   }
-  if (!VALID_VALUES.includes(value)) {
-    return NextResponse.json({ error: "Valeur invalide." }, { status: 400 });
-  }
 
-  const [player, criterion] = await Promise.all([
+  const [player, criterion, state] = await Promise.all([
     prisma.player.findUnique({ where: { id: playerId } }),
     prisma.criterion.findUnique({ where: { id: criterionId } }),
+    prisma.criterionState.findUnique({ where: { id: value } }),
   ]);
   if (!player || !criterion) {
     return NextResponse.json({ error: "Introuvable." }, { status: 404 });
+  }
+  if (!state) {
+    return NextResponse.json({ error: "Valeur invalide." }, { status: 400 });
   }
 
   const rating = await prisma.criterionRating.upsert({

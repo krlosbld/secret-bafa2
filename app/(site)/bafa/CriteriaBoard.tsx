@@ -3,27 +3,28 @@
 import { useEffect, useRef, useState } from "react";
 import type { Criterion } from "./PlanningTab";
 
-export type RatingValue = "ACQUIS" | "EN_COURS" | "A_TRAVAILLER" | "NON_OBSERVE";
+export type CriterionState = {
+  id: string;
+  label: string;
+  color: string;
+  score: number | null;
+  order: number;
+};
 
-const STATES: { value: RatingValue; label: string; bg: string; fg: string; border: string }[] = [
-  { value: "ACQUIS", label: "🟢 Acquis", bg: "#16a34a", fg: "#fff", border: "#16a34a" },
-  { value: "EN_COURS", label: "⚪ En cours", bg: "#f1f5f9", fg: "#334155", border: "#cbd5e1" },
-  { value: "A_TRAVAILLER", label: "🟠 À travailler", bg: "#f59e0b", fg: "#fff", border: "#f59e0b" },
-  { value: "NON_OBSERVE", label: "○ Non observé", bg: "#fff", fg: "#94a3b8", border: "#cbd5e1" },
-];
-
-function stateOf(value: string | undefined) {
-  return STATES.find((s) => s.value === value);
+function stateOf(states: CriterionState[], value: string | undefined) {
+  return states.find((s) => s.id === value);
 }
 
 export default function CriteriaBoard({
   criteria,
+  states,
   activeDay,
   initialValues,
   canEdit,
   playerId,
 }: {
   criteria: Criterion[];
+  states: CriterionState[];
   activeDay: number;
   initialValues: Record<string, string>;
   canEdit: boolean;
@@ -59,7 +60,7 @@ export default function CriteriaBoard({
     return () => clearInterval(id);
   }, [playerId]);
 
-  async function setValue(criterionId: string, value: RatingValue) {
+  async function setValue(criterionId: string, value: string) {
     const key = `${criterionId}:${activeDay}`;
     setValues((v) => ({ ...v, [key]: value }));
     pendingRef.current.add(key);
@@ -84,23 +85,23 @@ export default function CriteriaBoard({
         {criteria.map((c) => {
           const key = `${c.id}:${activeDay}`;
           const current = values[key];
-          const currentState = stateOf(current);
+          const currentState = stateOf(states, current);
 
           return (
             <div key={c.id}>
               <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6 }}>{c.label}</div>
               {canEdit ? (
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                  {STATES.map((s) => {
-                    const active = current === s.value;
+                  {states.map((s) => {
+                    const active = current === s.id;
                     return (
                       <button
-                        key={s.value}
-                        onClick={() => setValue(c.id, s.value)}
+                        key={s.id}
+                        onClick={() => setValue(c.id, s.id)}
                         style={{
-                          background: active ? s.bg : "#fff",
-                          color: active ? s.fg : "#475569",
-                          border: `2px solid ${active ? s.border : "#e2e8f0"}`,
+                          background: active ? s.color : "#fff",
+                          color: active ? "#fff" : "#475569",
+                          border: `2px solid ${active ? s.color : "#e2e8f0"}`,
                           borderRadius: 10,
                           padding: "5px 10px",
                           fontWeight: 700,
@@ -117,9 +118,9 @@ export default function CriteriaBoard({
                 <span
                   style={{
                     display: "inline-block",
-                    background: currentState ? currentState.bg : "#fff",
-                    color: currentState ? currentState.fg : "#94a3b8",
-                    border: `2px solid ${currentState ? currentState.border : "#e2e8f0"}`,
+                    background: currentState ? currentState.color : "#fff",
+                    color: currentState ? "#fff" : "#94a3b8",
+                    border: `2px solid ${currentState ? currentState.color : "#e2e8f0"}`,
                     borderRadius: 10,
                     padding: "5px 10px",
                     fontWeight: 700,

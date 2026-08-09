@@ -35,6 +35,14 @@ export type Criterion = {
   order: number;
 };
 
+export type CriterionStateDef = {
+  id: string;
+  label: string;
+  color: string;
+  score: number | null;
+  order: number;
+};
+
 const DAY_START = 9 * 60; // 09:00
 const DAY_END = 18 * 60 + 30; // 18:30
 const PX_PER_MIN = 1.2;
@@ -125,6 +133,7 @@ export default function PlanningTab({
   initialBlocks,
   initialPostes,
   initialCriteria,
+  initialCriterionStates,
   canEdit,
   sessionType,
   startDate,
@@ -132,6 +141,7 @@ export default function PlanningTab({
   initialBlocks: Block[];
   initialPostes: Poste[];
   initialCriteria: Criterion[];
+  initialCriterionStates: CriterionStateDef[];
   canEdit: boolean;
   sessionType: string;
   startDate: string;
@@ -140,6 +150,7 @@ export default function PlanningTab({
   const [blocks, setBlocks] = useState<Block[]>(initialBlocks);
   const [postes, setPostes] = useState<Poste[]>(initialPostes);
   const [criteria, setCriteria] = useState<Criterion[]>(initialCriteria);
+  const [criterionStates, setCriterionStates] = useState<CriterionStateDef[]>(initialCriterionStates);
   const [selectedPoste, setSelectedPoste] = useState<string>(initialPostes[0]?.id ?? "");
   const [eraser, setEraser] = useState(false);
   const [drag, setDrag] = useState<DragState | null>(null);
@@ -384,6 +395,39 @@ export default function PlanningTab({
     const data = await res.json().catch(() => ({}));
     if (!res.ok) return data.error || "Erreur.";
     setCriteria((cs) => cs.filter((c) => c.id !== id));
+    return null;
+  }
+
+  async function addCriterionState(label: string, color: string, score: number | null) {
+    const tmpId = `tmp-${Date.now()}`;
+    setCriterionStates((ss) => [...ss, { id: tmpId, label, color, score, order: ss.length }]);
+    const res = await fetch("/api/criterion-states", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label, color, score }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.state) {
+      setCriterionStates((ss) => ss.map((s) => (s.id === tmpId ? data.state : s)));
+    } else {
+      setCriterionStates((ss) => ss.filter((s) => s.id !== tmpId));
+    }
+  }
+
+  async function updateCriterionState(id: string, patch: { label?: string; color?: string; score?: number | null }) {
+    setCriterionStates((ss) => ss.map((s) => (s.id === id ? { ...s, ...patch } : s)));
+    await fetch(`/api/criterion-states/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+  }
+
+  async function removeCriterionState(id: string): Promise<string | null> {
+    const res = await fetch(`/api/criterion-states/${id}`, { method: "DELETE" });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return data.error || "Erreur.";
+    setCriterionStates((ss) => ss.filter((s) => s.id !== id));
     return null;
   }
 
@@ -680,6 +724,16 @@ export default function PlanningTab({
             <div style={{ borderTop: "1px solid #eee", marginTop: 20, paddingTop: 16 }}>
               <div style={{ fontWeight: 800, marginBottom: 10 }}>Critères d'évaluation quotidiens</div>
               <CriteriaManager criteria={criteria} onAdd={addCriterion} onRename={renameCriterion} onRemove={removeCriterion} />
+            </div>
+
+            <div style={{ borderTop: "1px solid #eee", marginTop: 20, paddingTop: 16 }}>
+              <div style={{ fontWeight: 800, marginBottom: 10 }}>États de notation des critères</div>
+              <CriterionStateManager
+                states={criterionStates}
+                onAdd={addCriterionState}
+                onUpdate={updateCriterionState}
+                onRemove={removeCriterionState}
+              />
             </div>
           </div>
         </div>
@@ -1018,6 +1072,133 @@ function CriteriaManager({
           placeholder="Nouveau critère…"
           style={{ flex: 1, border: "1px solid #ddd", borderRadius: 8, padding: "6px 8px", fontSize: 14 }}
         />
+        <button className="btn btn-main" onClick={handleAdd} disabled={busy === "new" || !newLabel.trim()} style={{ padding: "6px 12px" }}>
+          + Ajouter
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function CriterionStateManager({
+  states,
+  onAdd,
+  onUpdate,
+  onRemove,
+}: {
+  states: CriterionStateDef[];
+  onAdd: (label: string, color: string, score: number | null) => Promise<void>;
+  onUpdate: (id: string, patch: { label?: string; color?: string; score?: number | null }) => Promise<void>;
+  onRemove: (id: string) => Promise<string | null>;
+}) {
+  const [newLabel, setNewLabel] = useState("");
+  const [newColor, setNewColor] = useState("#0f766e");
+  const [newScore, setNewScore] = useState("0");
+  const [newExcluded, setNewExcluded] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState<string | null>(null);
+
+  async function handleAdd() {
+    if (!newLabel.trim()) return;
+    setBusy("new");
+    await onAdd(newLabel.trim(), newColor, newExcluded ? null : Number(newScore));
+    setNewLabel("");
+    setNewScore("0");
+    setNewExcluded(false);
+    setBusy(null);
+  }
+
+  async function handleRemove(id: string) {
+    setError(null);
+    setBusy(id);
+    const err = await onRemove(id);
+    if (err) setError(err);
+    setBusy(null);
+  }
+
+  return (
+    <div>
+      <p style={{ fontSize: 12, color: "#64748b", marginTop: 0, marginBottom: 10 }}>
+        Le score (-1 à 1) détermine le sens de la flèche de tendance quotidienne. Coche "Exclure" pour un état comme
+        "Non observé" qui ne doit pas compter dans le calcul.
+      </p>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+        {states.map((s) => (
+          <div key={s.id} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <input
+              type="color"
+              value={s.color}
+              onChange={(e) => onUpdate(s.id, { color: e.target.value })}
+              style={{ width: 32, height: 32, padding: 0, border: "none", borderRadius: 6, cursor: "pointer" }}
+            />
+            <input
+              value={s.label}
+              onChange={(e) => onUpdate(s.id, { label: e.target.value })}
+              style={{ flex: 1, border: "1px solid #ddd", borderRadius: 8, padding: "6px 8px", fontSize: 14 }}
+            />
+            <input
+              type="number"
+              min={-1}
+              max={1}
+              step={0.5}
+              value={s.score ?? ""}
+              disabled={s.score === null}
+              onChange={(e) => onUpdate(s.id, { score: Number(e.target.value) })}
+              style={{ width: 56, border: "1px solid #ddd", borderRadius: 8, padding: "6px 4px", fontSize: 13 }}
+            />
+            <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "#475569", whiteSpace: "nowrap" }}>
+              <input
+                type="checkbox"
+                checked={s.score === null}
+                onChange={(e) => onUpdate(s.id, { score: e.target.checked ? null : 0 })}
+              />
+              Exclure
+            </label>
+            <button
+              onClick={() => handleRemove(s.id)}
+              disabled={busy === s.id}
+              className="btn btn-ghost"
+              style={{ padding: "4px 10px", color: "#dc2626" }}
+            >
+              ✕
+            </button>
+          </div>
+        ))}
+      </div>
+
+      {error && (
+        <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: 10, color: "#dc2626", fontWeight: 600, fontSize: 13, marginBottom: 10 }}>
+          {error}
+        </div>
+      )}
+
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <input
+          type="color"
+          value={newColor}
+          onChange={(e) => setNewColor(e.target.value)}
+          style={{ width: 32, height: 32, padding: 0, border: "none", borderRadius: 6, cursor: "pointer" }}
+        />
+        <input
+          value={newLabel}
+          onChange={(e) => setNewLabel(e.target.value)}
+          placeholder="Nouvel état…"
+          style={{ flex: 1, border: "1px solid #ddd", borderRadius: 8, padding: "6px 8px", fontSize: 14 }}
+        />
+        <input
+          type="number"
+          min={-1}
+          max={1}
+          step={0.5}
+          value={newScore}
+          disabled={newExcluded}
+          onChange={(e) => setNewScore(e.target.value)}
+          style={{ width: 56, border: "1px solid #ddd", borderRadius: 8, padding: "6px 4px", fontSize: 13 }}
+        />
+        <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "#475569", whiteSpace: "nowrap" }}>
+          <input type="checkbox" checked={newExcluded} onChange={(e) => setNewExcluded(e.target.checked)} />
+          Exclure
+        </label>
         <button className="btn btn-main" onClick={handleAdd} disabled={busy === "new" || !newLabel.trim()} style={{ padding: "6px 12px" }}>
           + Ajouter
         </button>

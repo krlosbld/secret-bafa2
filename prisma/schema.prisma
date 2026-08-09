@@ -123,7 +123,7 @@ model CriterionRating {
   playerId    String
   criterionId String
   day         Int
-  value       String // ACQUIS | EN_COURS | A_TRAVAILLER | NON_OBSERVE
+  value       String // id d'un CriterionState
   createdAt   DateTime  @default(now())
   updatedAt   DateTime  @updatedAt
   player      Player    @relation(fields: [playerId], references: [id], onDelete: Cascade)
@@ -131,4 +131,13 @@ model CriterionRating {
 
   @@unique([playerId, criterionId, day])
   @@index([playerId, day])
+}
+
+model CriterionState {
+  id        String   @id @default(cuid())
+  label     String
+  color     String
+  score     Float? // -1..1, null = exclu du calcul de tendance
+  order     Int      @default(0)
+  createdAt DateTime @default(now())
 }

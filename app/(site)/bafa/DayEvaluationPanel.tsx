@@ -3,13 +3,14 @@
 import { useState } from "react";
 import type { Poste, Criterion } from "./PlanningTab";
 import EvaluationBoard, { type EvalBlock } from "./EvaluationBoard";
-import CriteriaBoard from "./CriteriaBoard";
+import CriteriaBoard, { type CriterionState } from "./CriteriaBoard";
 import { dateForDayIndex, formatDayHeader } from "@/lib/planningConfig";
 
 export default function DayEvaluationPanel({
   blocks,
   postes,
   criteria,
+  criterionStates,
   startDate,
   dayCount,
   initialDay,
@@ -21,6 +22,7 @@ export default function DayEvaluationPanel({
   blocks: EvalBlock[];
   postes: Poste[];
   criteria: Criterion[];
+  criterionStates: CriterionState[];
   startDate: string;
   dayCount: number;
   initialDay: number;
@@ -81,7 +83,14 @@ export default function DayEvaluationPanel({
 
       <div>
         <div style={{ fontWeight: 800, marginBottom: 10, color: "#0f172a" }}>Critères du jour</div>
-        <CriteriaBoard criteria={criteria} activeDay={activeDay} initialValues={initialRatingValues} canEdit={canEdit} playerId={playerId} />
+        <CriteriaBoard
+          criteria={criteria}
+          states={criterionStates}
+          activeDay={activeDay}
+          initialValues={initialRatingValues}
+          canEdit={canEdit}
+          playerId={playerId}
+        />
       </div>
     </div>
   );

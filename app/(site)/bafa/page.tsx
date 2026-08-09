@@ -47,11 +47,12 @@ function TabNav({ active }: { active: "espace" | "planning" }) {
 }
 
 async function getEvaluationData(playerId: string) {
-  const [blocks, configRows, postes, criteria, evaluations, ratings] = await Promise.all([
+  const [blocks, configRows, postes, criteria, criterionStates, evaluations, ratings] = await Promise.all([
     prisma.planningBlock.findMany({ orderBy: [{ day: "asc" }, { startMin: "asc" }] }),
     prisma.config.findMany({ where: { key: { in: ["planningSessionType", "planningStartDate"] } } }),
     prisma.posteType.findMany({ orderBy: { order: "asc" } }),
     prisma.criterion.findMany({ orderBy: { order: "asc" } }),
+    prisma.criterionState.findMany({ orderBy: { order: "asc" } }),
     prisma.evaluation.findMany({ where: { playerId } }),
     prisma.criterionRating.findMany({ where: { playerId } }),
   ]);
@@ -67,15 +68,13 @@ async function getEvaluationData(playerId: string) {
   const ratingValues: Record<string, string> = {};
   for (const r of ratings) ratingValues[`${r.criterionId}:${r.day}`] = r.value;
 
-  return { evalBlocks, postes, criteria, startDate, dayCount, notes, ratingValues };
+  return { evalBlocks, postes, criteria, criterionStates, startDate, dayCount, notes, ratingValues };
 }
-
-const CRITERION_SCORE: Record<string, number> = { ACQUIS: 1, EN_COURS: 0, A_TRAVAILLER: -1 };
 
 async function getStagiaireIndicators(dayCount: number, playerIds?: string[]) {
   const playerFilter = playerIds ? { in: playerIds } : undefined;
 
-  const [postes, blocks, evaluations, ratings] = await Promise.all([
+  const [postes, blocks, evaluations, ratings, criterionStates] = await Promise.all([
     prisma.posteType.findMany({ where: { evaluable: true }, select: { id: true } }),
     prisma.planningBlock.findMany({ select: { id: true, day: true, type: true } }),
     prisma.evaluation.findMany({
@@ -86,7 +85,10 @@ async function getStagiaireIndicators(dayCount: number, playerIds?: string[]) {
       where: playerFilter ? { playerId: playerFilter } : undefined,
       select: { playerId: true, day: true, criterionId: true, value: true },
     }),
+    prisma.criterionState.findMany({ select: { id: true, score: true } }),
   ]);
+
+  const scoreByStateId = new Map(criterionStates.map((s) => [s.id, s.score]));
 
   const evaluableIds = new Set(postes.map((p) => p.id));
   const evalBlocksByDay = new Map<number, Set<string>>();
@@ -130,10 +132,9 @@ async function getStagiaireIndicators(dayCount: number, playerIds?: string[]) {
 
   function dailyTrend(playerId: string, day: number): number | null {
     const values = ratingsByPlayerDay.get(playerId)?.get(day) ?? [];
-    const scored = values.filter((v) => v !== "NON_OBSERVE");
-    if (scored.length === 0) return null;
-    const sum = scored.reduce((s, v) => s + (CRITERION_SCORE[v] ?? 0), 0);
-    return sum / scored.length;
+    const scores = values.map((v) => scoreByStateId.get(v)).filter((s): s is number => s !== null && s !== undefined);
+    if (scores.length === 0) return null;
+    return scores.reduce((s, v) => s + v, 0) / scores.length;
   }
 
   return { dailyFillRatio, dailyTrend };
@@ -230,7 +231,8 @@ async function PersonalSpace({
   nextId?: string | null;
   requestedDay?: number;
 }) {
-  const { evalBlocks, postes, criteria, startDate, dayCount, notes, ratingValues } = await getEvaluationData(playerId);
+  const { evalBlocks, postes, criteria, criterionStates, startDate, dayCount, notes, ratingValues } =
+    await getEvaluationData(playerId);
   const { dailyFillRatio, dailyTrend } = await getStagiaireIndicators(dayCount, [playerId]);
   const playerNotes = await getPlayerNotes(playerId, canEditEvaluations);
 
@@ -313,6 +315,7 @@ async function PersonalSpace({
             blocks={evalBlocks}
             postes={postes}
             criteria={criteria}
+            criterionStates={criterionStates}
             startDate={startDate}
             dayCount={dayCount}
             initialDay={initialDay}
@@ -428,13 +431,14 @@ export default async function BafaPage({
   }
 
   if (showPlanning) {
-    const [blocks, configRows, postes, criteria] = await Promise.all([
+    const [blocks, configRows, postes, criteria, criterionStates] = await Promise.all([
       prisma.planningBlock.findMany({ orderBy: { startMin: "asc" } }),
       prisma.config.findMany({
         where: { key: { in: ["planningSessionType", "planningStartDate", "planningHoursTablePos"] } },
       }),
       prisma.posteType.findMany({ orderBy: { order: "asc" } }),
       prisma.criterion.findMany({ orderBy: { order: "asc" } }),
+      prisma.criterionState.findMany({ orderBy: { order: "asc" } }),
     ]);
     const sessionType = configRows.find((r) => r.key === "planningSessionType")?.value ?? DEFAULT_SESSION_TYPE;
     const startDate = configRows.find((r) => r.key === "planningStartDate")?.value ?? todayISO();
@@ -478,6 +482,7 @@ export default async function BafaPage({
             initialBlocks={blocks}
             initialPostes={postes}
             initialCriteria={criteria}
+            initialCriterionStates={criterionStates}
             canEdit={isStaff}
             sessionType={sessionType}
             startDate={startDate}
