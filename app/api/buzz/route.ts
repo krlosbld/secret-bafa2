@@ -4,8 +4,30 @@ import { fuzzyMatch } from "@/lib/fuzzy";
 
 export const runtime = "nodejs";
 
+function isWithinBuzzHours(): boolean {
+  const parts = new Intl.DateTimeFormat("fr-FR", {
+    timeZone: "Europe/Paris",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date());
+
+  const hour = Number(parts.find((p) => p.type === "hour")?.value ?? "0");
+  const minute = Number(parts.find((p) => p.type === "minute")?.value ?? "0");
+  const totalMin = hour * 60 + minute;
+
+  return totalMin >= 9 * 60 && totalMin < 18 * 60; // 09h00 à 17h59
+}
+
 export async function POST(req: Request) {
   try {
+    if (!isWithinBuzzHours()) {
+      return NextResponse.json(
+        { error: "Les buzz ne sont possibles qu'entre 9h00 et 17h59." },
+        { status: 403 }
+      );
+    }
+
     const body = await req.json();
     const secretId = String(body.secretId ?? "").trim();
     const fromName = String(body.fromName ?? "").trim();
