@@ -6,7 +6,7 @@ import BafaLoginForm from "./BafaLoginForm";
 import BafaLogoutClient from "./BafaLogoutClient";
 import PlanningTab from "./PlanningTab";
 import DayEvaluationPanel from "./DayEvaluationPanel";
-import { DEFAULT_SESSION_TYPE, todayISO, daysForType } from "@/lib/planningConfig";
+import { DEFAULT_SESSION_TYPE, todayISO, daysForType, todayDayIndex } from "@/lib/planningConfig";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -67,13 +67,23 @@ async function getEvaluationData(playerId: string) {
   return { evalBlocks, postes, criteria, startDate, dayCount, notes, ratingValues };
 }
 
-async function getCompletionByDay(dayCount: number) {
+const CRITERION_SCORE: Record<string, number> = { ACQUIS: 1, EN_COURS: 0, A_TRAVAILLER: -1 };
+
+async function getStagiaireIndicators(dayCount: number, playerIds?: string[]) {
+  const playerFilter = playerIds ? { in: playerIds } : undefined;
+
   const [postes, blocks, criteriaCount, evaluations, ratings] = await Promise.all([
     prisma.posteType.findMany({ where: { evaluable: true }, select: { id: true } }),
     prisma.planningBlock.findMany({ select: { id: true, day: true, type: true } }),
     prisma.criterion.count(),
-    prisma.evaluation.findMany({ where: { note: { not: "" } }, select: { playerId: true, blockId: true } }),
-    prisma.criterionRating.findMany({ select: { playerId: true, day: true, criterionId: true } }),
+    prisma.evaluation.findMany({
+      where: { note: { not: "" }, ...(playerFilter ? { playerId: playerFilter } : {}) },
+      select: { playerId: true, blockId: true },
+    }),
+    prisma.criterionRating.findMany({
+      where: playerFilter ? { playerId: playerFilter } : undefined,
+      select: { playerId: true, day: true, criterionId: true, value: true },
+    }),
   ]);
 
   const evaluableIds = new Set(postes.map((p) => p.id));
@@ -85,41 +95,108 @@ async function getCompletionByDay(dayCount: number) {
     if (!evalBlocksByDay.has(b.day)) evalBlocksByDay.set(b.day, new Set());
     evalBlocksByDay.get(b.day)!.add(b.id);
   }
+  const totalBlockSlots = [...evalBlocksByDay.values()].reduce((sum, set) => sum + set.size, 0);
+  const totalPossible = totalBlockSlots + criteriaCount * dayCount;
 
-  const filledBlocks = new Map<string, Set<string>>();
+  const filledBlocksByPlayer = new Map<string, Set<string>>();
   for (const e of evaluations) {
     if (!blockToDay.has(e.blockId)) continue;
-    if (!filledBlocks.has(e.playerId)) filledBlocks.set(e.playerId, new Set());
-    filledBlocks.get(e.playerId)!.add(e.blockId);
+    if (!filledBlocksByPlayer.has(e.playerId)) filledBlocksByPlayer.set(e.playerId, new Set());
+    filledBlocksByPlayer.get(e.playerId)!.add(e.blockId);
   }
 
-  const filledCriteria = new Map<string, Map<number, Set<string>>>();
+  const ratingsByPlayerDay = new Map<string, Map<number, string[]>>();
   for (const r of ratings) {
     if (r.day >= dayCount) continue;
-    if (!filledCriteria.has(r.playerId)) filledCriteria.set(r.playerId, new Map());
-    const dayMap = filledCriteria.get(r.playerId)!;
-    if (!dayMap.has(r.day)) dayMap.set(r.day, new Set());
-    dayMap.get(r.day)!.add(r.criterionId);
+    if (!ratingsByPlayerDay.has(r.playerId)) ratingsByPlayerDay.set(r.playerId, new Map());
+    const dayMap = ratingsByPlayerDay.get(r.playerId)!;
+    if (!dayMap.has(r.day)) dayMap.set(r.day, []);
+    dayMap.get(r.day)!.push(r.value);
   }
 
-  function statusFor(playerId: string, day: number): "green" | "orange" | "red" {
-    const dayBlocks = evalBlocksByDay.get(day) ?? new Set<string>();
-    const total = dayBlocks.size + criteriaCount;
-    if (total === 0) return "green";
-
-    let filled = 0;
-    const playerFilledBlocks = filledBlocks.get(playerId);
-    for (const blockId of dayBlocks) {
-      if (playerFilledBlocks?.has(blockId)) filled++;
+  function fillRatio(playerId: string): number {
+    if (totalPossible === 0) return 1;
+    let filled = filledBlocksByPlayer.get(playerId)?.size ?? 0;
+    const dayMap = ratingsByPlayerDay.get(playerId);
+    if (dayMap) {
+      for (const values of dayMap.values()) filled += values.length;
     }
-    filled += filledCriteria.get(playerId)?.get(day)?.size ?? 0;
-
-    if (filled === 0) return "red";
-    if (filled === total) return "green";
-    return "orange";
+    return Math.min(1, filled / totalPossible);
   }
 
-  return statusFor;
+  function dailyTrend(playerId: string, day: number): number | null {
+    const values = ratingsByPlayerDay.get(playerId)?.get(day) ?? [];
+    const scored = values.filter((v) => v !== "NON_OBSERVE");
+    if (scored.length === 0) return null;
+    const sum = scored.reduce((s, v) => s + (CRITERION_SCORE[v] ?? 0), 0);
+    return sum / scored.length;
+  }
+
+  return { fillRatio, dailyTrend };
+}
+
+function lerpColor(a: string, b: string, t: number): string {
+  const pa = parseInt(a.slice(1), 16);
+  const pb = parseInt(b.slice(1), 16);
+  const ar = (pa >> 16) & 255, ag = (pa >> 8) & 255, ab = pa & 255;
+  const br = (pb >> 16) & 255, bg = (pb >> 8) & 255, bb = pb & 255;
+  const r = Math.round(ar + (br - ar) * t);
+  const g = Math.round(ag + (bg - ag) * t);
+  const bl = Math.round(ab + (bb - ab) * t);
+  return `rgb(${r},${g},${bl})`;
+}
+
+function NameGauge({ firstName, code, ratio }: { firstName: string; code: string; ratio: number }) {
+  const pct = Math.round(ratio * 100);
+  return (
+    <div>
+      <div>
+        {firstName} · #{code}
+      </div>
+      <div
+        title={`${pct}% rempli`}
+        style={{ marginTop: 6, width: 140, height: 7, borderRadius: 4, background: "#e2e8f0", overflow: "hidden" }}
+      >
+        <div style={{ width: `${pct}%`, height: "100%", background: "#0f766e" }} />
+      </div>
+    </div>
+  );
+}
+
+function TrendArrow({ score, day, href }: { score: number | null; day: number; href?: string }) {
+  const label = score === null ? `J${day + 1} : pas encore noté` : `J${day + 1} : ${Math.round(score * 100)}%`;
+  const color =
+    score === null ? "#cbd5e1" : score >= 0 ? lerpColor("#f59e0b", "#16a34a", score) : lerpColor("#f59e0b", "#dc2626", -score);
+  const glyph = score === null ? "→" : "↑";
+  const transform = score === null ? undefined : `rotate(${90 - score * 90}deg)`;
+
+  const arrow = (
+    <span
+      style={{
+        display: "inline-block",
+        width: 24,
+        height: 24,
+        fontSize: 20,
+        lineHeight: "24px",
+        textAlign: "center",
+        fontWeight: 900,
+        color,
+        transform,
+      }}
+    >
+      {glyph}
+    </span>
+  );
+
+  if (href) {
+    return (
+      <Link href={href} title={label} style={{ display: "inline-block" }}>
+        {arrow}
+      </Link>
+    );
+  }
+
+  return <span title={label}>{arrow}</span>;
 }
 
 async function PersonalSpace({
@@ -132,6 +209,7 @@ async function PersonalSpace({
   canEditEvaluations,
   prevId,
   nextId,
+  requestedDay,
 }: {
   playerId: string;
   firstName: string;
@@ -142,8 +220,17 @@ async function PersonalSpace({
   canEditEvaluations: boolean;
   prevId?: string | null;
   nextId?: string | null;
+  requestedDay?: number;
 }) {
   const { evalBlocks, postes, criteria, startDate, dayCount, notes, ratingValues } = await getEvaluationData(playerId);
+  const { fillRatio, dailyTrend } = await getStagiaireIndicators(dayCount, [playerId]);
+
+  const initialDay =
+    requestedDay !== undefined && Number.isInteger(requestedDay) && requestedDay >= 0 && requestedDay < dayCount
+      ? requestedDay
+      : todayDayIndex(startDate, dayCount);
+
+  const dayLinkBase = backHref ? `/bafa?as=${playerId}` : "/bafa";
 
   return (
     <>
@@ -180,16 +267,38 @@ async function PersonalSpace({
           <BafaLogoutClient />
         ) : null}
       </div>
-      <p className="sub" style={{ marginBottom: 32 }}>
+      <p className="sub" style={{ marginBottom: 12 }}>
         {subLabel ? `${subLabel} · ` : ""}#{code}
       </p>
 
+      <div
+        style={{
+          width: 240,
+          height: 8,
+          borderRadius: 4,
+          background: "#e2e8f0",
+          overflow: "hidden",
+          marginBottom: 16,
+        }}
+        title={`${Math.round(fillRatio(playerId) * 100)}% rempli`}
+      >
+        <div style={{ width: `${Math.round(fillRatio(playerId) * 100)}%`, height: "100%", background: "#0f766e" }} />
+      </div>
+
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 32 }}>
+        {Array.from({ length: dayCount }, (_, d) => d).map((d) => (
+          <TrendArrow key={d} day={d} score={dailyTrend(playerId, d)} href={`${dayLinkBase}${dayLinkBase.includes("?") ? "&" : "?"}day=${d}`} />
+        ))}
+      </div>
+
       <DayEvaluationPanel
+        key={initialDay}
         blocks={evalBlocks}
         postes={postes}
         criteria={criteria}
         startDate={startDate}
         dayCount={dayCount}
+        initialDay={initialDay}
         initialNotes={notes}
         initialRatingValues={ratingValues}
         canEdit={canEditEvaluations}
@@ -199,22 +308,18 @@ async function PersonalSpace({
   );
 }
 
-const DOT_COLOR: Record<"green" | "orange" | "red", string> = {
-  green: "#16a34a",
-  orange: "#f59e0b",
-  red: "#dc2626",
-};
-
 function StagiaireList({
   players,
   showLogout,
   dayCount,
-  statusFor,
+  fillRatio,
+  dailyTrend,
 }: {
   players: { id: string; firstName: string; code: string }[];
   showLogout: boolean;
   dayCount: number;
-  statusFor: (playerId: string, day: number) => "green" | "orange" | "red";
+  fillRatio: (playerId: string) => number;
+  dailyTrend: (playerId: string, day: number) => number | null;
 }) {
   return (
     <>
@@ -237,33 +342,18 @@ function StagiaireList({
 
       <div className="cards">
         {players.map((p) => (
-          <Link
-            key={p.id}
-            href={`/bafa?as=${p.id}`}
-            className="card admin-card"
-            style={{ display: "block", textDecoration: "none", color: "inherit" }}
-          >
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
-              <div style={{ flexShrink: 0 }}>
-                {p.firstName} · #{p.code}
-              </div>
-              <div style={{ display: "flex", gap: 8 }}>
+          <div key={p.id} className="card admin-card">
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+              <Link href={`/bafa?as=${p.id}`} style={{ textDecoration: "none", color: "inherit" }}>
+                <NameGauge firstName={p.firstName} code={p.code} ratio={fillRatio(p.id)} />
+              </Link>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                 {Array.from({ length: dayCount }, (_, d) => d).map((d) => (
-                  <span
-                    key={d}
-                    title={`J${d + 1}`}
-                    style={{
-                      display: "inline-block",
-                      width: 26,
-                      height: 26,
-                      borderRadius: "50%",
-                      background: DOT_COLOR[statusFor(p.id, d)],
-                    }}
-                  />
+                  <TrendArrow key={d} day={d} score={dailyTrend(p.id, d)} href={`/bafa?as=${p.id}&day=${d}`} />
                 ))}
               </div>
             </div>
-          </Link>
+          </div>
         ))}
       </div>
     </>
@@ -273,10 +363,11 @@ function StagiaireList({
 export default async function BafaPage({
   searchParams,
 }: {
-  searchParams: Promise<{ as?: string; tab?: string }>;
+  searchParams: Promise<{ as?: string; tab?: string; day?: string }>;
 }) {
-  const { as, tab } = await searchParams;
+  const { as, tab, day } = await searchParams;
   const showPlanning = tab === "planning";
+  const requestedDay = day !== undefined ? Number(day) : undefined;
 
   const playerSession = await getPlayerSession();
   const player = playerSession
@@ -377,6 +468,7 @@ export default async function BafaPage({
                 canEditEvaluations={true}
                 prevId={prevId}
                 nextId={nextId}
+                requestedDay={requestedDay}
               />
             </div>
           </main>
@@ -394,13 +486,13 @@ export default async function BafaPage({
     ]);
     const sessionType = configRows.find((r) => r.key === "planningSessionType")?.value ?? DEFAULT_SESSION_TYPE;
     const dayCount = daysForType(sessionType);
-    const statusFor = await getCompletionByDay(dayCount);
+    const { fillRatio, dailyTrend } = await getStagiaireIndicators(dayCount);
 
     return (
       <main className="page">
         <div className="container">
           <TabNav active="espace" />
-          <StagiaireList players={players} showLogout={!!player} dayCount={dayCount} statusFor={statusFor} />
+          <StagiaireList players={players} showLogout={!!player} dayCount={dayCount} fillRatio={fillRatio} dailyTrend={dailyTrend} />
         </div>
       </main>
     );
@@ -416,6 +508,7 @@ export default async function BafaPage({
           code={player!.code}
           showLogout={true}
           canEditEvaluations={false}
+          requestedDay={requestedDay}
         />
       </div>
     </main>

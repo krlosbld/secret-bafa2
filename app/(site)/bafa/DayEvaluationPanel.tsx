@@ -12,6 +12,7 @@ export default function DayEvaluationPanel({
   criteria,
   startDate,
   dayCount,
+  initialDay,
   initialNotes,
   initialRatingValues,
   canEdit,
@@ -22,13 +23,13 @@ export default function DayEvaluationPanel({
   criteria: Criterion[];
   startDate: string;
   dayCount: number;
+  initialDay: number;
   initialNotes: Record<string, string>;
   initialRatingValues: Record<string, string>;
   canEdit: boolean;
   playerId: string;
 }) {
-  const firstDayWithContent = blocks.length > 0 ? Math.min(...blocks.map((b) => b.day)) : 0;
-  const [activeDay, setActiveDay] = useState(firstDayWithContent);
+  const [activeDay, setActiveDay] = useState(initialDay);
 
   return (
     <div>

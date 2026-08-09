@@ -10,8 +10,7 @@ export function daysForType(type: string): number {
 }
 
 export function todayISO(): string {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  return new Intl.DateTimeFormat("en-CA", { timeZone: "Europe/Paris" }).format(new Date());
 }
 
 const WEEKDAY_SHORT = ["Dim", "Lun", "Mar", "Mer", "Jeu", "Ven", "Sam"];
@@ -27,4 +26,11 @@ export function formatDayHeader(d: Date): string {
   const dd = String(d.getDate()).padStart(2, "0");
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   return `${wd} ${dd}/${mm}`;
+}
+
+export function todayDayIndex(startDateISO: string, dayCount: number): number {
+  const start = new Date(`${startDateISO}T00:00:00`);
+  const today = new Date(`${todayISO()}T00:00:00`);
+  const diffDays = Math.round((today.getTime() - start.getTime()) / 86400000);
+  return Math.min(Math.max(diffDays, 0), dayCount - 1);
 }
