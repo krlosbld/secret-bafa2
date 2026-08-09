@@ -93,6 +93,7 @@ model PosteType {
   color     String
   order     Int      @default(0)
   evaluable Boolean  @default(false)
+  category  String   @default("AUTRE") // THEORIE | ANIMATION | PREPARATION | AUTRE
   createdAt DateTime @default(now())
 }
 

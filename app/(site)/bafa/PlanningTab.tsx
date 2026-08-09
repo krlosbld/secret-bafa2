@@ -2,7 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { SESSION_TYPES, daysForType, dateForDayIndex, formatDayHeader } from "@/lib/planningConfig";
+import {
+  SESSION_TYPES,
+  daysForType,
+  dateForDayIndex,
+  formatDayHeader,
+  POSTE_CATEGORIES,
+  DEFAULT_POSTE_CATEGORY,
+} from "@/lib/planningConfig";
 
 export type Block = {
   id: string;
@@ -19,6 +26,7 @@ export type Poste = {
   color: string;
   order: number;
   evaluable: boolean;
+  category: string;
 };
 
 export type Criterion = {
@@ -32,7 +40,14 @@ const DAY_END = 18 * 60 + 30; // 18:30
 const PX_PER_MIN = 1.2;
 const GRID_HEIGHT = (DAY_END - DAY_START) * PX_PER_MIN;
 
-const FALLBACK_POSTE: Poste = { id: "", label: "Inconnu", color: "#94a3b8", order: 999, evaluable: false };
+const FALLBACK_POSTE: Poste = {
+  id: "",
+  label: "Inconnu",
+  color: "#94a3b8",
+  order: 999,
+  evaluable: false,
+  category: DEFAULT_POSTE_CATEGORY,
+};
 
 function posteOf(postes: Poste[], type: string): Poste {
   return postes.find((p) => p.id === type) ?? FALLBACK_POSTE;
@@ -287,13 +302,13 @@ export default function PlanningTab({
     setDrag({ kind: "resize", id: b.id, day: b.day, startMin: b.startMin, endMin: b.endMin });
   }
 
-  async function addPoste(label: string, color: string, evaluable: boolean) {
+  async function addPoste(label: string, color: string, evaluable: boolean, category: string) {
     const tmpId = `tmp-${Date.now()}`;
-    setPostes((ps) => [...ps, { id: tmpId, label, color, order: ps.length, evaluable }]);
+    setPostes((ps) => [...ps, { id: tmpId, label, color, order: ps.length, evaluable, category }]);
     const res = await fetch("/api/planning/postes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ label, color, evaluable }),
+      body: JSON.stringify({ label, color, evaluable, category }),
     });
     const data = await res.json().catch(() => ({}));
     if (res.ok && data.poste) {
@@ -303,7 +318,7 @@ export default function PlanningTab({
     }
   }
 
-  async function updatePoste(id: string, patch: { label?: string; color?: string; evaluable?: boolean }) {
+  async function updatePoste(id: string, patch: { label?: string; color?: string; evaluable?: boolean; category?: string }) {
     setPostes((ps) => ps.map((p) => (p.id === id ? { ...p, ...patch } : p)));
     await fetch(`/api/planning/postes/${id}`, {
       method: "PATCH",
@@ -791,22 +806,24 @@ function PosteManager({
   onRemove,
 }: {
   postes: Poste[];
-  onAdd: (label: string, color: string, evaluable: boolean) => Promise<void>;
-  onUpdate: (id: string, patch: { label?: string; color?: string; evaluable?: boolean }) => Promise<void>;
+  onAdd: (label: string, color: string, evaluable: boolean, category: string) => Promise<void>;
+  onUpdate: (id: string, patch: { label?: string; color?: string; evaluable?: boolean; category?: string }) => Promise<void>;
   onRemove: (id: string) => Promise<string | null>;
 }) {
   const [newLabel, setNewLabel] = useState("");
   const [newColor, setNewColor] = useState("#0f766e");
   const [newEvaluable, setNewEvaluable] = useState(false);
+  const [newCategory, setNewCategory] = useState(DEFAULT_POSTE_CATEGORY);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
   async function handleAdd() {
     if (!newLabel.trim()) return;
     setBusy("new");
-    await onAdd(newLabel.trim(), newColor, newEvaluable);
+    await onAdd(newLabel.trim(), newColor, newEvaluable, newCategory);
     setNewLabel("");
     setNewEvaluable(false);
+    setNewCategory(DEFAULT_POSTE_CATEGORY);
     setBusy(null);
   }
 
@@ -837,6 +854,17 @@ function PosteManager({
               onChange={(e) => onUpdate(p.id, { label: e.target.value })}
               style={{ flex: 1, border: "1px solid #ddd", borderRadius: 8, padding: "6px 8px", fontSize: 14 }}
             />
+            <select
+              value={p.category}
+              onChange={(e) => onUpdate(p.id, { category: e.target.value })}
+              style={{ border: "1px solid #ddd", borderRadius: 6, padding: "5px 6px", fontSize: 12 }}
+            >
+              {Object.entries(POSTE_CATEGORIES).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
             <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "#475569", whiteSpace: "nowrap" }}>
               <input
                 type="checkbox"
@@ -876,6 +904,17 @@ function PosteManager({
           placeholder="Nouveau type…"
           style={{ flex: 1, border: "1px solid #ddd", borderRadius: 8, padding: "6px 8px", fontSize: 14 }}
         />
+        <select
+          value={newCategory}
+          onChange={(e) => setNewCategory(e.target.value)}
+          style={{ border: "1px solid #ddd", borderRadius: 6, padding: "5px 6px", fontSize: 12 }}
+        >
+          {Object.entries(POSTE_CATEGORIES).map(([value, label]) => (
+            <option key={value} value={value}>
+              {label}
+            </option>
+          ))}
+        </select>
         <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "#475569", whiteSpace: "nowrap" }}>
           <input type="checkbox" checked={newEvaluable} onChange={(e) => setNewEvaluable(e.target.checked)} />
           Évaluable

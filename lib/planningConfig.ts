@@ -1,3 +1,12 @@
+export const POSTE_CATEGORIES: Record<string, string> = {
+  THEORIE: "Théorie",
+  ANIMATION: "Temps d'animation",
+  PREPARATION: "Temps de préparation",
+  AUTRE: "Autre",
+};
+
+export const DEFAULT_POSTE_CATEGORY = "AUTRE";
+
 export const SESSION_TYPES: Record<string, { label: string; days: number }> = {
   BAFA: { label: "Formation générale (BAFA)", days: 8 },
   APPRO: { label: "Approfondissement", days: 6 },

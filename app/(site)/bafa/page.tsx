@@ -5,6 +5,7 @@ import { getSession } from "@/lib/auth";
 import BafaLoginForm from "./BafaLoginForm";
 import BafaLogoutClient from "./BafaLogoutClient";
 import PlanningTab from "./PlanningTab";
+import PlanningHoursTable from "./PlanningHoursTable";
 import DayEvaluationPanel from "./DayEvaluationPanel";
 import PlayerNotesPanel from "./PlayerNotesPanel";
 import { DEFAULT_SESSION_TYPE, todayISO, daysForType, todayDayIndex } from "@/lib/planningConfig";
@@ -74,10 +75,9 @@ const CRITERION_SCORE: Record<string, number> = { ACQUIS: 1, EN_COURS: 0, A_TRAV
 async function getStagiaireIndicators(dayCount: number, playerIds?: string[]) {
   const playerFilter = playerIds ? { in: playerIds } : undefined;
 
-  const [postes, blocks, criteriaCount, evaluations, ratings] = await Promise.all([
+  const [postes, blocks, evaluations, ratings] = await Promise.all([
     prisma.posteType.findMany({ where: { evaluable: true }, select: { id: true } }),
     prisma.planningBlock.findMany({ select: { id: true, day: true, type: true } }),
-    prisma.criterion.count(),
     prisma.evaluation.findMany({
       where: { note: { not: "" }, ...(playerFilter ? { playerId: playerFilter } : {}) },
       select: { playerId: true, blockId: true },
@@ -97,8 +97,6 @@ async function getStagiaireIndicators(dayCount: number, playerIds?: string[]) {
     if (!evalBlocksByDay.has(b.day)) evalBlocksByDay.set(b.day, new Set());
     evalBlocksByDay.get(b.day)!.add(b.id);
   }
-  const totalBlockSlots = [...evalBlocksByDay.values()].reduce((sum, set) => sum + set.size, 0);
-  const totalPossible = totalBlockSlots + criteriaCount * dayCount;
 
   const filledBlocksByPlayer = new Map<string, Set<string>>();
   for (const e of evaluations) {
@@ -116,19 +114,9 @@ async function getStagiaireIndicators(dayCount: number, playerIds?: string[]) {
     dayMap.get(r.day)!.push(r.value);
   }
 
-  function fillRatio(playerId: string): number {
-    if (totalPossible === 0) return 1;
-    let filled = filledBlocksByPlayer.get(playerId)?.size ?? 0;
-    const dayMap = ratingsByPlayerDay.get(playerId);
-    if (dayMap) {
-      for (const values of dayMap.values()) filled += values.length;
-    }
-    return Math.min(1, filled / totalPossible);
-  }
-
   function dailyFillRatio(playerId: string, day: number): number {
     const dayBlocks = evalBlocksByDay.get(day) ?? new Set<string>();
-    const total = dayBlocks.size + criteriaCount;
+    const total = dayBlocks.size;
     if (total === 0) return 1;
 
     let filled = 0;
@@ -136,7 +124,6 @@ async function getStagiaireIndicators(dayCount: number, playerIds?: string[]) {
     for (const blockId of dayBlocks) {
       if (playerFilledBlocks?.has(blockId)) filled++;
     }
-    filled += ratingsByPlayerDay.get(playerId)?.get(day)?.length ?? 0;
 
     return Math.min(1, filled / total);
   }
@@ -149,7 +136,7 @@ async function getStagiaireIndicators(dayCount: number, playerIds?: string[]) {
     return sum / scored.length;
   }
 
-  return { fillRatio, dailyFillRatio, dailyTrend };
+  return { dailyFillRatio, dailyTrend };
 }
 
 function lerpColor(a: string, b: string, t: number): string {
@@ -443,12 +430,23 @@ export default async function BafaPage({
   if (showPlanning) {
     const [blocks, configRows, postes, criteria] = await Promise.all([
       prisma.planningBlock.findMany({ orderBy: { startMin: "asc" } }),
-      prisma.config.findMany({ where: { key: { in: ["planningSessionType", "planningStartDate"] } } }),
+      prisma.config.findMany({
+        where: { key: { in: ["planningSessionType", "planningStartDate", "planningHoursTablePos"] } },
+      }),
       prisma.posteType.findMany({ orderBy: { order: "asc" } }),
       prisma.criterion.findMany({ orderBy: { order: "asc" } }),
     ]);
     const sessionType = configRows.find((r) => r.key === "planningSessionType")?.value ?? DEFAULT_SESSION_TYPE;
     const startDate = configRows.find((r) => r.key === "planningStartDate")?.value ?? todayISO();
+    const hoursTablePosRaw = configRows.find((r) => r.key === "planningHoursTablePos")?.value;
+    let hoursTablePos: { x: number; y: number } | null = null;
+    if (hoursTablePosRaw) {
+      try {
+        hoursTablePos = JSON.parse(hoursTablePosRaw);
+      } catch {
+        hoursTablePos = null;
+      }
+    }
 
     return (
       <main className="page">
@@ -466,9 +464,15 @@ export default async function BafaPage({
             </h1>
             {player && <BafaLogoutClient />}
           </div>
-          <p className="sub" style={{ marginBottom: 20 }}>
-            {isStaff ? "Glisse-dépose pour créer et organiser les créneaux." : "Consultation seule."}
-          </p>
+          {isStaff && (
+            <PlanningHoursTable
+              initialBlocks={blocks}
+              initialPostes={postes}
+              dayCount={daysForType(sessionType)}
+              canEdit={isStaff}
+              initialPosition={hoursTablePos}
+            />
+          )}
           <TabNav active="planning" />
           <PlanningTab
             initialBlocks={blocks}

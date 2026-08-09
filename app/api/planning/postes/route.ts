@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { canEditPlanning } from "@/lib/planningAuth";
+import { POSTE_CATEGORIES, DEFAULT_POSTE_CATEGORY } from "@/lib/planningConfig";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,6 +20,8 @@ export async function POST(req: Request) {
   const label = String(body.label ?? "").trim().slice(0, 40);
   const color = String(body.color ?? "").trim();
   const evaluable = body.evaluable === true;
+  const category =
+    typeof body.category === "string" && body.category in POSTE_CATEGORIES ? body.category : DEFAULT_POSTE_CATEGORY;
 
   if (!label) {
     return NextResponse.json({ error: "Nom requis." }, { status: 400 });
@@ -29,7 +32,7 @@ export async function POST(req: Request) {
 
   const count = await prisma.posteType.count();
   const poste = await prisma.posteType.create({
-    data: { label, color, order: count, evaluable },
+    data: { label, color, order: count, evaluable, category },
   });
 
   return NextResponse.json({ ok: true, poste });

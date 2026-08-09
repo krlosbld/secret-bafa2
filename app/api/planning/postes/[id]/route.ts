@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { canEditPlanning } from "@/lib/planningAuth";
+import { POSTE_CATEGORIES } from "@/lib/planningConfig";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -24,6 +25,9 @@ export async function PATCH(req: Request, { params }: Params) {
   }
   if (typeof body.evaluable === "boolean") {
     data.evaluable = body.evaluable;
+  }
+  if (typeof body.category === "string" && body.category in POSTE_CATEGORIES) {
+    data.category = body.category;
   }
 
   if (Object.keys(data).length === 0) {
