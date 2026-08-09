@@ -24,8 +24,8 @@ export async function PATCH(req: Request, { params }: Params) {
   }
   if ("score" in body) {
     const score = body.score === null ? null : Number(body.score);
-    if (score !== null && (!Number.isFinite(score) || score < -1 || score > 1)) {
-      return NextResponse.json({ error: "Score invalide (entre -1 et 1, ou vide)." }, { status: 400 });
+    if (score !== null && (!Number.isFinite(score) || score < -1 || score > 2)) {
+      return NextResponse.json({ error: "Score invalide (entre -1 et 2, ou vide)." }, { status: 400 });
     }
     data.score = score;
   }

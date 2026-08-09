@@ -172,12 +172,28 @@ function NameGauge({ firstName, code, dayRatios }: { firstName: string; code: st
   );
 }
 
+const SCORE_MIN = -1;
+const SCORE_MAX = 2;
+
+function scoreColor(score: number): string {
+  if (score <= 0) {
+    const t = Math.min(1, Math.max(0, (score - SCORE_MIN) / (0 - SCORE_MIN)));
+    return lerpColor("#dc2626", "#f59e0b", t);
+  }
+  const t = Math.min(1, Math.max(0, score / SCORE_MAX));
+  return lerpColor("#f59e0b", "#16a34a", t);
+}
+
+function scoreAngle(score: number): number {
+  const t = Math.min(1, Math.max(0, (score - SCORE_MIN) / (SCORE_MAX - SCORE_MIN)));
+  return 180 - t * 180;
+}
+
 function TrendArrow({ score, day, href }: { score: number | null; day: number; href?: string }) {
-  const label = score === null ? `J${day + 1} : pas encore noté` : `J${day + 1} : ${Math.round(score * 100)}%`;
-  const color =
-    score === null ? "#cbd5e1" : score >= 0 ? lerpColor("#f59e0b", "#16a34a", score) : lerpColor("#f59e0b", "#dc2626", -score);
+  const label = score === null ? `J${day + 1} : pas encore noté` : `J${day + 1} : ${score.toFixed(2)}`;
+  const color = score === null ? "#cbd5e1" : scoreColor(score);
   const glyph = score === null ? "→" : "↑";
-  const transform = score === null ? undefined : `rotate(${90 - score * 90}deg)`;
+  const transform = score === null ? undefined : `rotate(${scoreAngle(score)}deg)`;
 
   const arrow = (
     <span

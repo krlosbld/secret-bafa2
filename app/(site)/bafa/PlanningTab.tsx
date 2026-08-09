@@ -1119,8 +1119,8 @@ function CriterionStateManager({
   return (
     <div>
       <p style={{ fontSize: 12, color: "#64748b", marginTop: 0, marginBottom: 10 }}>
-        Le score (-1 à 1) détermine le sens de la flèche de tendance quotidienne. Coche "Exclure" pour un état comme
-        "Non observé" qui ne doit pas compter dans le calcul.
+        Le score (-1 à 2, n'importe quelle valeur décimale) détermine le sens et la couleur de la flèche de tendance
+        quotidienne. Coche "Exclure" pour un état comme "Non observé" qui ne doit pas compter dans le calcul.
       </p>
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
         {states.map((s) => (
@@ -1139,8 +1139,8 @@ function CriterionStateManager({
             <input
               type="number"
               min={-1}
-              max={1}
-              step={0.5}
+              max={2}
+              step={0.05}
               value={s.score ?? ""}
               disabled={s.score === null}
               onChange={(e) => onUpdate(s.id, { score: Number(e.target.value) })}
@@ -1188,8 +1188,8 @@ function CriterionStateManager({
         <input
           type="number"
           min={-1}
-          max={1}
-          step={0.5}
+          max={2}
+          step={0.05}
           value={newScore}
           disabled={newExcluded}
           onChange={(e) => setNewScore(e.target.value)}
