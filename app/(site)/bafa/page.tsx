@@ -124,6 +124,21 @@ async function getStagiaireIndicators(dayCount: number, playerIds?: string[]) {
     return Math.min(1, filled / totalPossible);
   }
 
+  function dailyFillRatio(playerId: string, day: number): number {
+    const dayBlocks = evalBlocksByDay.get(day) ?? new Set<string>();
+    const total = dayBlocks.size + criteriaCount;
+    if (total === 0) return 1;
+
+    let filled = 0;
+    const playerFilledBlocks = filledBlocksByPlayer.get(playerId);
+    for (const blockId of dayBlocks) {
+      if (playerFilledBlocks?.has(blockId)) filled++;
+    }
+    filled += ratingsByPlayerDay.get(playerId)?.get(day)?.length ?? 0;
+
+    return Math.min(1, filled / total);
+  }
+
   function dailyTrend(playerId: string, day: number): number | null {
     const values = ratingsByPlayerDay.get(playerId)?.get(day) ?? [];
     const scored = values.filter((v) => v !== "NON_OBSERVE");
@@ -132,7 +147,7 @@ async function getStagiaireIndicators(dayCount: number, playerIds?: string[]) {
     return sum / scored.length;
   }
 
-  return { fillRatio, dailyTrend };
+  return { fillRatio, dailyFillRatio, dailyTrend };
 }
 
 function lerpColor(a: string, b: string, t: number): string {
@@ -146,18 +161,22 @@ function lerpColor(a: string, b: string, t: number): string {
   return `rgb(${r},${g},${bl})`;
 }
 
-function NameGauge({ firstName, code, ratio }: { firstName: string; code: string; ratio: number }) {
-  const pct = Math.round(ratio * 100);
+function NameGauge({ firstName, code, dayRatios }: { firstName: string; code: string; dayRatios: number[] }) {
   return (
     <div>
       <div>
         {firstName} · #{code}
       </div>
-      <div
-        title={`${pct}% rempli`}
-        style={{ marginTop: 6, width: 140, height: 7, borderRadius: 4, background: "#e2e8f0", overflow: "hidden" }}
-      >
-        <div style={{ width: `${pct}%`, height: "100%", background: "#0f766e" }} />
+      <div style={{ marginTop: 6, display: "flex", gap: 3 }}>
+        {dayRatios.map((ratio, d) => (
+          <div
+            key={d}
+            title={`J${d + 1} : ${Math.round(ratio * 100)}% rempli`}
+            style={{ width: 16, height: 7, borderRadius: 3, background: "#e2e8f0", overflow: "hidden" }}
+          >
+            <div style={{ width: `${Math.round(ratio * 100)}%`, height: "100%", background: "#0f766e" }} />
+          </div>
+        ))}
       </div>
     </div>
   );
@@ -223,7 +242,7 @@ async function PersonalSpace({
   requestedDay?: number;
 }) {
   const { evalBlocks, postes, criteria, startDate, dayCount, notes, ratingValues } = await getEvaluationData(playerId);
-  const { fillRatio, dailyTrend } = await getStagiaireIndicators(dayCount, [playerId]);
+  const { dailyFillRatio, dailyTrend } = await getStagiaireIndicators(dayCount, [playerId]);
 
   const initialDay =
     requestedDay !== undefined && Number.isInteger(requestedDay) && requestedDay >= 0 && requestedDay < dayCount
@@ -271,18 +290,19 @@ async function PersonalSpace({
         {subLabel ? `${subLabel} · ` : ""}#{code}
       </p>
 
-      <div
-        style={{
-          width: 240,
-          height: 8,
-          borderRadius: 4,
-          background: "#e2e8f0",
-          overflow: "hidden",
-          marginBottom: 16,
-        }}
-        title={`${Math.round(fillRatio(playerId) * 100)}% rempli`}
-      >
-        <div style={{ width: `${Math.round(fillRatio(playerId) * 100)}%`, height: "100%", background: "#0f766e" }} />
+      <div style={{ display: "flex", gap: 4, marginBottom: 16 }}>
+        {Array.from({ length: dayCount }, (_, d) => d).map((d) => {
+          const ratio = dailyFillRatio(playerId, d);
+          return (
+            <div
+              key={d}
+              title={`J${d + 1} : ${Math.round(ratio * 100)}% rempli`}
+              style={{ width: 26, height: 8, borderRadius: 4, background: "#e2e8f0", overflow: "hidden" }}
+            >
+              <div style={{ width: `${Math.round(ratio * 100)}%`, height: "100%", background: "#0f766e" }} />
+            </div>
+          );
+        })}
       </div>
 
       <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 32 }}>
@@ -312,13 +332,13 @@ function StagiaireList({
   players,
   showLogout,
   dayCount,
-  fillRatio,
+  dailyFillRatio,
   dailyTrend,
 }: {
   players: { id: string; firstName: string; code: string }[];
   showLogout: boolean;
   dayCount: number;
-  fillRatio: (playerId: string) => number;
+  dailyFillRatio: (playerId: string, day: number) => number;
   dailyTrend: (playerId: string, day: number) => number | null;
 }) {
   return (
@@ -345,7 +365,11 @@ function StagiaireList({
           <div key={p.id} className="card admin-card">
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
               <Link href={`/bafa?as=${p.id}`} style={{ textDecoration: "none", color: "inherit" }}>
-                <NameGauge firstName={p.firstName} code={p.code} ratio={fillRatio(p.id)} />
+                <NameGauge
+                  firstName={p.firstName}
+                  code={p.code}
+                  dayRatios={Array.from({ length: dayCount }, (_, d) => dailyFillRatio(p.id, d))}
+                />
               </Link>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                 {Array.from({ length: dayCount }, (_, d) => d).map((d) => (
@@ -486,13 +510,13 @@ export default async function BafaPage({
     ]);
     const sessionType = configRows.find((r) => r.key === "planningSessionType")?.value ?? DEFAULT_SESSION_TYPE;
     const dayCount = daysForType(sessionType);
-    const { fillRatio, dailyTrend } = await getStagiaireIndicators(dayCount);
+    const { dailyFillRatio, dailyTrend } = await getStagiaireIndicators(dayCount);
 
     return (
       <main className="page">
         <div className="container">
           <TabNav active="espace" />
-          <StagiaireList players={players} showLogout={!!player} dayCount={dayCount} fillRatio={fillRatio} dailyTrend={dailyTrend} />
+          <StagiaireList players={players} showLogout={!!player} dayCount={dayCount} dailyFillRatio={dailyFillRatio} dailyTrend={dailyTrend} />
         </div>
       </main>
     );
