@@ -22,7 +22,7 @@ export async function PATCH(req: Request, { params }: Params) {
   const body = await req.json().catch(() => ({}));
   const data: Record<string, unknown> = {};
 
-  if (Number.isInteger(body.day) && body.day >= 0 && body.day <= 4) {
+  if (Number.isInteger(body.day) && body.day >= 0 && body.day <= 7) {
     data.day = body.day;
   }
   if (Number.isInteger(body.startMin) && body.startMin >= DAY_MIN && body.startMin % 5 === 0) {

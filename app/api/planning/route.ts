@@ -12,7 +12,7 @@ function isValidNewBlock(body: Record<string, unknown>): boolean {
   return (
     Number.isInteger(body.day) &&
     (body.day as number) >= 0 &&
-    (body.day as number) <= 4 &&
+    (body.day as number) <= 7 &&
     Number.isInteger(body.startMin) &&
     Number.isInteger(body.endMin) &&
     (body.startMin as number) >= DAY_MIN &&
