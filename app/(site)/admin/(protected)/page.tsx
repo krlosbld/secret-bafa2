@@ -85,6 +85,18 @@ export default async function AdminPage() {
     : null;
   const quota = Number(quotaConfig?.value ?? 3);
 
+  const lastNightlyRunConfig = superAdmin
+    ? await prisma.config.findUnique({ where: { key: "lastNightlyRun" } })
+    : null;
+  let lastNightlyRun: { at: string; updated: number } | null = null;
+  if (lastNightlyRunConfig) {
+    try {
+      lastNightlyRun = JSON.parse(lastNightlyRunConfig.value);
+    } catch {
+      lastNightlyRun = null;
+    }
+  }
+
   return (
     <main className="page">
       <div className="container">
@@ -130,6 +142,27 @@ export default async function AdminPage() {
             <Section title="Gestionnaires">
               {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
               <AdminManagers managers={managers as any} />
+            </Section>
+
+            <Section title="Cron nocturne (reset buzz + points)">
+              <div className="card">
+                {lastNightlyRun ? (
+                  <>
+                    <div className="row">
+                      <div className="label">Dernière exécution</div>
+                      <div className="value">
+                        {new Date(lastNightlyRun.at).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}
+                      </div>
+                    </div>
+                    <div className="row">
+                      <div className="label">Joueurs mis à jour</div>
+                      <div className="value">+1 pt pour {lastNightlyRun.updated} joueur(s)</div>
+                    </div>
+                  </>
+                ) : (
+                  <p style={{ color: "#dc2626", fontWeight: 700 }}>Jamais exécuté depuis la mise en place de ce suivi.</p>
+                )}
+              </div>
             </Section>
 
             <Section title="Réinitialisation">

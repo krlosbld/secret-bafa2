@@ -27,5 +27,11 @@ export async function POST(req: Request) {
     });
   }
 
+  await prisma.config.upsert({
+    where: { key: "lastNightlyRun" },
+    update: { value: JSON.stringify({ at: new Date().toISOString(), updated: unpublished.length }) },
+    create: { key: "lastNightlyRun", value: JSON.stringify({ at: new Date().toISOString(), updated: unpublished.length }) },
+  });
+
   return NextResponse.json({ ok: true, updated: unpublished.length });
 }
