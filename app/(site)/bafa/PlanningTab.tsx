@@ -171,6 +171,22 @@ export default function PlanningTab({
     await fetch(`/api/planning/${id}`, { method: "DELETE" });
   }
 
+  async function duplicateBlock(b: Block) {
+    const tmpId = `tmp-${Date.now()}`;
+    setBlocks((bs) => [...bs, { ...b, id: tmpId }]);
+    const res = await fetch("/api/planning", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ day: b.day, startMin: b.startMin, endMin: b.endMin, label: b.label, type: b.type }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.block) {
+      setBlocks((bs) => bs.map((x) => (x.id === tmpId ? data.block : x)));
+    } else {
+      setBlocks((bs) => bs.filter((x) => x.id !== tmpId));
+    }
+  }
+
   async function finalize(d: DragState) {
     if (d.kind === "create") {
       if (!selectedPoste) return;
@@ -515,6 +531,12 @@ export default function PlanningTab({
                           e.stopPropagation();
                           if (canEdit) setEditing(b);
                         }}
+                        onContextMenu={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          if (canEdit) void duplicateBlock(b);
+                        }}
+                        title={canEdit ? "Clic droit pour dupliquer" : undefined}
                         style={{
                           position: "absolute",
                           top,
