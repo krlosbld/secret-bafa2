@@ -98,23 +98,54 @@ export default function GroupGenerator({ initialAssignment }: { initialAssignmen
       {!assignment ? (
         <p style={{ color: "#64748b" }}>Aucun groupe généré pour l'instant.</p>
       ) : (
-        <div className="cards">
-          {assignment.groups.map((group, i) => (
-            <div key={i} className="card admin-card">
-              <div style={{ fontWeight: 800, marginBottom: 8 }}>
-                Groupe {i + 1} ({group.length})
-              </div>
-              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                {group.map((p) => (
-                  <div key={p.id} style={{ fontSize: 14, color: "#334155" }}>
-                    {p.firstName}
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
+        <PostItGrid groups={assignment.groups} />
       )}
+    </div>
+  );
+}
+
+const POSTIT_COLORS = ["#fde68a", "#fecdd3", "#bbf7d0", "#bfdbfe", "#e9d5ff", "#fed7aa"];
+const POSTIT_TILT = [-2, 1.5, -1, 2, -1.5, 1];
+
+function PostItGrid({ groups }: { groups: { id: string; firstName: string }[][] }) {
+  const columns = Math.max(1, Math.ceil(Math.sqrt(groups.length)));
+
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: `repeat(${columns}, 1fr)`,
+        gap: 20,
+        height: "calc(100vh - 300px)",
+        minHeight: 260,
+      }}
+    >
+      {groups.map((group, i) => (
+        <div
+          key={i}
+          style={{
+            background: POSTIT_COLORS[i % POSTIT_COLORS.length],
+            borderRadius: 4,
+            padding: "14px 16px",
+            boxShadow: "0 6px 14px rgba(0,0,0,0.15)",
+            transform: `rotate(${POSTIT_TILT[i % POSTIT_TILT.length]}deg)`,
+            display: "flex",
+            flexDirection: "column",
+            minHeight: 0,
+          }}
+        >
+          <div style={{ fontWeight: 800, fontSize: 15, marginBottom: 8, color: "#1f2937", flexShrink: 0 }}>
+            Groupe {i + 1} ({group.length})
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, overflowY: "auto", minHeight: 0 }}>
+            {group.map((p) => (
+              <div key={p.id} style={{ fontSize: 14, color: "#1f2937" }}>
+                {p.firstName}
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
     </div>
   );
 }
