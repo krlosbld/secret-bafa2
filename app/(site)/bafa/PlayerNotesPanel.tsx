@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import DailyRemarkBox from "./DailyRemarkBox";
+import AutoGrowTextarea from "./AutoGrowTextarea";
 
 export type Notes = {
   personalNote: string;
@@ -258,35 +259,5 @@ function NoteBox({
         <p style={{ color: "#94a3b8", fontSize: 14, fontStyle: "italic", margin: 0 }}>Pas encore disponible.</p>
       )}
     </div>
-  );
-}
-
-function AutoGrowTextarea({ value, onChange }: { value: string; onChange: (v: string) => void }) {
-  const ref = useRef<HTMLTextAreaElement | null>(null);
-
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    el.style.height = "auto";
-    el.style.height = `${el.scrollHeight}px`;
-  }, [value]);
-
-  return (
-    <textarea
-      ref={ref}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      rows={5}
-      style={{
-        width: "100%",
-        border: "1px solid #ddd",
-        borderRadius: 8,
-        padding: 8,
-        fontSize: 14,
-        resize: "none",
-        overflow: "hidden",
-        minHeight: 110,
-      }}
-    />
   );
 }

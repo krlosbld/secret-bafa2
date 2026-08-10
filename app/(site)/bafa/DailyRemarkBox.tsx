@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { dateForDayIndex, formatDayHeader } from "@/lib/planningConfig";
+import AutoGrowTextarea from "./AutoGrowTextarea";
 
 export default function DailyRemarkBox({
   playerId,
@@ -82,12 +83,11 @@ export default function DailyRemarkBox({
 
       {canEdit ? (
         <>
-          <textarea
+          <AutoGrowTextarea
             value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            rows={3}
+            onChange={setDraft}
+            minHeight={64}
             placeholder="Écris une remarque pour ce jour…"
-            style={{ width: "100%", border: "1px solid #ddd", borderRadius: 8, padding: 8, fontSize: 14, resize: "vertical" }}
           />
           <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 8, marginTop: 6 }}>
             {saving ? (
