@@ -169,6 +169,27 @@ a {
   width: 100%;
 }
 
+.postit-pink {
+  background: #ffd6ea;
+  border-left: none;
+  border-radius: 3px 3px 8px 8px;
+  box-shadow: 3px 5px 12px rgba(190, 24, 93, 0.28);
+  transform: rotate(-1.2deg);
+  position: relative;
+}
+
+.postit-pink::before {
+  content: "";
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  width: 64px;
+  height: 18px;
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.75);
+  transform: translateX(-50%) rotate(-2deg);
+}
+
 .row {
   display: flex;
   gap: 10px;

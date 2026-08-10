@@ -69,15 +69,15 @@ export default function DailyRemarkBox({
   const savedValue = notes[day] ?? "";
 
   return (
-    <div className="card">
+    <div className="card postit-pink">
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, gap: 8, flexWrap: "wrap" }}>
-        <div style={{ fontWeight: 800 }}>Remarque</div>
-        <span style={{ fontSize: 12, fontWeight: 700, color: "#475569" }}>
+        <div style={{ fontWeight: 800, color: "#831843" }}>📌 Remarque</div>
+        <span style={{ fontSize: 12, fontWeight: 700, color: "#9d174d" }}>
           {formatDayHeader(dateForDayIndex(startDate, day))}
         </span>
       </div>
 
-      <p style={{ fontSize: 12, color: "#64748b", marginTop: 0, marginBottom: 8 }}>
+      <p style={{ fontSize: 12, color: "#9d174d", marginTop: 0, marginBottom: 8 }}>
         Conseils ou observations du jour, sans lien avec un créneau précis.
       </p>
 
