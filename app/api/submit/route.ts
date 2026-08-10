@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { fuzzyMatch } from "@/lib/fuzzy";
 import { isFlagged } from "@/lib/contentFilter";
-import { getActiveFormationId } from "@/lib/formation";
+import { getFormationFromCookie } from "@/lib/formationSession";
 import { generateUniquePlayerCode } from "@/lib/playerCode";
 
 export const runtime = "nodejs";
@@ -35,9 +35,22 @@ export async function POST(req: Request) {
       );
     }
 
-    const formationId = await getActiveFormationId();
+    const formation = await getFormationFromCookie();
+    if (!formation) {
+      return NextResponse.json(
+        { ok: false, message: "Code de session manquant. Retourne sur la page d'accueil." },
+        { status: 400 }
+      );
+    }
+    if (!formation.active) {
+      return NextResponse.json(
+        { ok: false, message: "Cette formation est terminée, impossible d'ajouter un secret." },
+        { status: 403 }
+      );
+    }
+    const formationId = formation.id;
 
-    // Un seul secret par prénom (fuzzy match strict), au sein de la formation active
+    // Un seul secret par prénom (fuzzy match strict), au sein de la formation
     const allPlayers = await prisma.player.findMany({
       where: { formationId },
       select: { firstName: true },

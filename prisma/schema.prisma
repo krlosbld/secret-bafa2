@@ -10,6 +10,7 @@ datasource db {
 model Formation {
   id        String   @id @default(cuid())
   name      String
+  code      String   @unique
   active    Boolean  @default(false)
   createdAt DateTime @default(now())
 

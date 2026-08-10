@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession, isSuperAdmin } from "@/lib/auth";
+import { generateUniqueFormationCode } from "@/lib/formationCode";
 
 export const runtime = "nodejs";
 
@@ -12,7 +13,7 @@ export async function GET() {
 
   const formations = await prisma.formation.findMany({
     orderBy: { createdAt: "desc" },
-    select: { id: true, name: true, active: true, createdAt: true, _count: { select: { players: true } } },
+    select: { id: true, name: true, code: true, active: true, createdAt: true, _count: { select: { players: true } } },
   });
 
   return NextResponse.json({ ok: true, formations });
@@ -30,10 +31,11 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Nom requis." }, { status: 400 });
   }
   const directorFirstName = String(body.directorFirstName ?? "").trim();
+  const formationCode = await generateUniqueFormationCode();
 
   const { formation, director } = await prisma.$transaction(async (tx) => {
     await tx.formation.updateMany({ where: { active: true }, data: { active: false } });
-    const formation = await tx.formation.create({ data: { name, active: true } });
+    const formation = await tx.formation.create({ data: { name, code: formationCode, active: true } });
 
     let director = null;
     if (directorFirstName) {

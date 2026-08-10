@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { setPlayerSessionCookies } from "@/lib/playerAuth";
-import { getActiveFormationId } from "@/lib/formation";
+import { getFormationFromCookie } from "@/lib/formationSession";
 
 export const runtime = "nodejs";
 
@@ -14,8 +14,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Code invalide." }, { status: 400 });
     }
 
-    const formationId = await getActiveFormationId();
-    const player = await prisma.player.findUnique({ where: { formationId_code: { formationId, code: cleanCode } } });
+    const formation = await getFormationFromCookie();
+    if (!formation) {
+      return NextResponse.json({ ok: false, error: "Code de session manquant." }, { status: 400 });
+    }
+
+    const player = await prisma.player.findUnique({
+      where: { formationId_code: { formationId: formation.id, code: cleanCode } },
+    });
     if (!player) {
       return NextResponse.json({ ok: false, error: "Code inconnu." }, { status: 401 });
     }

@@ -123,7 +123,8 @@ export default async function FormationDetailPage({ params }: { params: Promise<
           )}
         </div>
         <p className="sub" style={{ marginBottom: 32 }}>
-          Créée le {new Date(formation.createdAt).toLocaleDateString("fr-FR")}
+          Créée le {new Date(formation.createdAt).toLocaleDateString("fr-FR")} · Code de session :{" "}
+          <span style={{ fontWeight: 900, color: "#0f766e" }}>{formation.code}</span>
         </p>
 
         <Section title={`Buzz à valider (${pendingBuzzes.length})`}>

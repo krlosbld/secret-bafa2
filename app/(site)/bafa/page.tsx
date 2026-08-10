@@ -14,6 +14,8 @@ import ReactivateButton from "./ReactivateButton";
 import { DEFAULT_SESSION_TYPE, todayISO, daysForType, todayDayIndex } from "@/lib/planningConfig";
 import { getPlayerNotes } from "@/lib/playerNotes";
 import { getActiveFormationId } from "@/lib/formation";
+import { getFormationFromCookie } from "@/lib/formationSession";
+import SessionCodeGate from "@/components/SessionCodeGate";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -458,13 +460,13 @@ export default async function BafaPage({
     : null;
 
   const adminSession = player ? null : await getSession();
-  const formationId = await getActiveFormationId();
-  const playerIsCurrent = !!player && player.formationId === formationId;
-  const loggedIn = playerIsCurrent || !!adminSession;
-  const isStaff = (playerIsCurrent && STAFF_ROLES.includes(player!.role)) || !!adminSession;
-  const isDirector = playerIsCurrent && player!.role === "DIRECTEUR";
+  const loggedIn = !!player || !!adminSession;
 
   if (!loggedIn) {
+    const formationCookie = await getFormationFromCookie();
+    if (!formationCookie) {
+      return <SessionCodeGate />;
+    }
     return (
       <main className="page">
         <div className="container">
@@ -475,6 +477,14 @@ export default async function BafaPage({
       </main>
     );
   }
+
+  // Un joueur voit toujours son propre espace ; l'édition (staff) exige que sa formation soit active.
+  const formationId = player ? player.formationId : await getActiveFormationId();
+  const formationIsActive = player
+    ? !!(await prisma.formation.findUnique({ where: { id: formationId }, select: { active: true } }))?.active
+    : true; // session admin/gestionnaire : comportement inchangé, toujours sur la formation active
+  const isStaff = (!!player && formationIsActive && STAFF_ROLES.includes(player.role)) || !!adminSession;
+  const isDirector = !!player && formationIsActive && player.role === "DIRECTEUR";
 
   if (showGroups && isStaff) {
     const config = await prisma.config.findUnique({ where: { formationId_key: { formationId, key: "stagiaireGroups" } } });

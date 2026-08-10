@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getActiveFormationId } from "@/lib/formation";
+import { getFormationFromCookie } from "@/lib/formationSession";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function GET() {
-  const formationId = await getActiveFormationId();
+  const formation = await getFormationFromCookie();
+  if (!formation) return NextResponse.json({ secrets: [] });
+
   const secrets = await prisma.secret.findMany({
-    where: { status: { in: ["PUBLISHED", "FOUND"] }, formationId },
+    where: { status: { in: ["PUBLISHED", "FOUND"] }, formationId: formation.id },
     select: {
       id: true,
       content: true,

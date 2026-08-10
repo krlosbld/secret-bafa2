@@ -13,8 +13,8 @@ export async function canEditPlanning(): Promise<boolean> {
 
   const player = await prisma.player.findUnique({
     where: { id: playerSession.playerId },
-    select: { role: true },
+    select: { role: true, formation: { select: { active: true } } },
   });
 
-  return !!player && STAFF_ROLES.includes(player.role);
+  return !!player && STAFF_ROLES.includes(player.role) && player.formation.active;
 }

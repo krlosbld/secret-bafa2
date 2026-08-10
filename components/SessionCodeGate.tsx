@@ -1,0 +1,83 @@
+"use client";
+
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+
+export default function SessionCodeGate({ title, hint }: { title?: string; hint?: string }) {
+  const [code, setCode] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const router = useRouter();
+
+  async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+
+    const res = await fetch("/api/formation-code", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ code }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+    setLoading(false);
+
+    if (!res.ok) {
+      setError(data?.error || "Code invalide.");
+      return;
+    }
+
+    router.refresh();
+  }
+
+  return (
+    <main className="page">
+      <div className="container">
+        <h1 className="h1">{title ?? "Code de session"}</h1>
+        <p className="sub">{hint ?? "Entre le code de session communiqué par ton directeur ou ta directrice."}</p>
+        <form onSubmit={onSubmit} className="card" style={{ marginTop: 16, maxWidth: 360 }}>
+          <div className="sb-form">
+            <label className="sb-field">
+              <span>Code de session</span>
+              <input
+                value={code}
+                onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                placeholder="Ex : 1130"
+                inputMode="numeric"
+                maxLength={4}
+                disabled={loading}
+                autoFocus
+              />
+            </label>
+
+            {error && (
+              <div
+                style={{
+                  background: "#fef2f2",
+                  border: "1px solid #fecaca",
+                  borderRadius: 10,
+                  padding: 10,
+                  color: "#dc2626",
+                  fontWeight: 600,
+                  fontSize: 14,
+                }}
+              >
+                {error}
+              </div>
+            )}
+
+            <button
+              className="sb-btn sb-btn--main"
+              type="submit"
+              disabled={loading || code.length !== 4}
+              style={{ marginTop: 4 }}
+            >
+              {loading ? "Connexion…" : "Valider"}
+            </button>
+          </div>
+        </form>
+      </div>
+    </main>
+  );
+}

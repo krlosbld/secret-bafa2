@@ -7,6 +7,7 @@ import { useState } from "react";
 type Formation = {
   id: string;
   name: string;
+  code: string;
   active: boolean;
   createdAt: string;
   _count: { players: number };
@@ -18,11 +19,11 @@ export default function AdminFormations({ formations, canCreate }: { formations:
   const [directorFirstName, setDirectorFirstName] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [createdDirector, setCreatedDirector] = useState<{ firstName: string; code: string } | null>(null);
+  const [created, setCreated] = useState<{ code: string; director: { firstName: string; code: string } | null } | null>(null);
 
   async function create() {
     setError("");
-    setCreatedDirector(null);
+    setCreated(null);
     if (!name.trim()) {
       setError("Nom requis.");
       return;
@@ -48,9 +49,7 @@ export default function AdminFormations({ formations, canCreate }: { formations:
     }
     setName("");
     setDirectorFirstName("");
-    if (data.director) {
-      setCreatedDirector({ firstName: data.director.firstName, code: data.director.code });
-    }
+    setCreated({ code: data.formation.code, director: data.director ?? null });
     router.refresh();
   }
 
@@ -91,14 +90,20 @@ export default function AdminFormations({ formations, canCreate }: { formations:
         </div>
       )}
 
-      {createdDirector && (
+      {created && (
         <div className="card" style={{ borderLeftColor: "#16a34a", background: "#f0fdf4" }}>
-          <div style={{ fontWeight: 800, marginBottom: 4 }}>Code directeur créé ✅</div>
-          <p style={{ margin: 0, fontSize: 14 }}>
-            {createdDirector.firstName} se connecte sur <code>/bafa</code> avec le code{" "}
-            <span style={{ fontWeight: 900, fontSize: 18, color: "#16a34a" }}>{createdDirector.code}</span>
-            {" "}— à lui communiquer, il ne sera pas réaffiché.
+          <div style={{ fontWeight: 800, marginBottom: 4 }}>Formation créée ✅</div>
+          <p style={{ margin: "0 0 6px", fontSize: 14 }}>
+            Code de session : <span style={{ fontWeight: 900, fontSize: 18, color: "#16a34a" }}>{created.code}</span>
+            {" "}— à donner à tous les participants, ils l&apos;entrent en arrivant sur le site.
           </p>
+          {created.director && (
+            <p style={{ margin: 0, fontSize: 14 }}>
+              {created.director.firstName} (directeur) se connecte ensuite avec son code personnel{" "}
+              <span style={{ fontWeight: 900, fontSize: 18, color: "#16a34a" }}>{created.director.code}</span>
+              {" "}— ces codes ne seront pas réaffichés.
+            </p>
+          )}
         </div>
       )}
 
@@ -127,7 +132,7 @@ export default function AdminFormations({ formations, canCreate }: { formations:
               </span>
             )}
             <span style={{ color: "#64748b", fontSize: 13, marginLeft: 10 }}>
-              Créée le {new Date(f.createdAt).toLocaleDateString("fr-FR")}
+              Créée le {new Date(f.createdAt).toLocaleDateString("fr-FR")} · code {f.code}
             </span>
           </div>
           <div style={{ color: "#64748b", fontSize: 13 }}>{f._count.players} participant(s) →</div>

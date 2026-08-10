@@ -24,7 +24,7 @@ export default async function AdminPage() {
 
   const formations = await prisma.formation.findMany({
     orderBy: { createdAt: "desc" },
-    select: { id: true, name: true, active: true, createdAt: true, _count: { select: { players: true } } },
+    select: { id: true, name: true, code: true, active: true, createdAt: true, _count: { select: { players: true } } },
   });
 
   const managers = superAdmin

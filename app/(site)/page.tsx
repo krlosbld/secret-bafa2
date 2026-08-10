@@ -1,14 +1,19 @@
 import { prisma } from "@/lib/prisma";
-import { getActiveFormationId } from "@/lib/formation";
+import { getFormationFromCookie } from "@/lib/formationSession";
+import SessionCodeGate from "@/components/SessionCodeGate";
 import SecretsClient from "./SecretsClient";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function HomePage() {
-  const formationId = await getActiveFormationId();
+  const formation = await getFormationFromCookie();
+  if (!formation) {
+    return <SessionCodeGate />;
+  }
+
   const secrets = await prisma.secret.findMany({
-    where: { status: { in: ["PUBLISHED", "FOUND"] }, formationId },
+    where: { status: { in: ["PUBLISHED", "FOUND"] }, formationId: formation.id },
     select: {
       id: true,
       content: true,
@@ -27,6 +32,22 @@ export default async function HomePage() {
         <p className="sub">
           Lis les secrets et devine à qui ils appartiennent. Buzze pour tenter ta chance !
         </p>
+        {!formation.active && (
+          <div
+            style={{
+              background: "#fffbeb",
+              border: "1px solid #fde68a",
+              borderRadius: 10,
+              padding: 12,
+              marginBottom: 20,
+              color: "#92400e",
+              fontWeight: 700,
+              fontSize: 14,
+            }}
+          >
+            Cette formation est terminée — lecture seule, plus de nouveaux secrets ni de buzz possibles.
+          </div>
+        )}
         <SecretsClient initial={secrets} />
       </div>
     </main>

@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { fuzzyMatch } from "@/lib/fuzzy";
-import { getActiveFormationId } from "@/lib/formation";
+import { getFormationFromCookie } from "@/lib/formationSession";
 
 export const runtime = "nodejs";
 
@@ -39,7 +39,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Champs manquants." }, { status: 400 });
     }
 
-    const formationId = await getActiveFormationId();
+    const formation = await getFormationFromCookie();
+    if (!formation) {
+      return NextResponse.json({ error: "Code de session manquant. Retourne sur la page d'accueil." }, { status: 400 });
+    }
+    if (!formation.active) {
+      return NextResponse.json({ error: "Cette formation est terminée, impossible de buzzer." }, { status: 403 });
+    }
+    const formationId = formation.id;
 
     // Trouver le joueur par son code
     const player = await prisma.player.findUnique({ where: { formationId_code: { formationId, code: fromCode } } });
