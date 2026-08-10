@@ -8,6 +8,7 @@ import PlanningTab from "./PlanningTab";
 import PlanningHoursTable from "./PlanningHoursTable";
 import DayEvaluationPanel from "./DayEvaluationPanel";
 import PlayerNotesPanel from "./PlayerNotesPanel";
+import GroupGenerator from "./GroupGenerator";
 import { DEFAULT_SESSION_TYPE, todayISO, daysForType, todayDayIndex } from "@/lib/planningConfig";
 import { getPlayerNotes } from "@/lib/playerNotes";
 
@@ -21,7 +22,7 @@ const ROLE_LABELS: Record<string, string> = {
   DIRECTEUR: "Directeur",
 };
 
-function TabNav({ active }: { active: "espace" | "planning" }) {
+function TabNav({ active, showGroups }: { active: "espace" | "planning" | "groupes"; showGroups: boolean }) {
   const tabStyle = (isActive: boolean) => ({
     background: isActive ? "#0f766e" : "transparent",
     color: isActive ? "#fff" : "#0f766e",
@@ -42,6 +43,11 @@ function TabNav({ active }: { active: "espace" | "planning" }) {
       <Link href="/bafa?tab=planning" style={tabStyle(active === "planning")}>
         📅 Planning
       </Link>
+      {showGroups && (
+        <Link href="/bafa?tab=groupes" style={tabStyle(active === "groupes")}>
+          👥 Groupes
+        </Link>
+      )}
     </div>
   );
 }
@@ -190,7 +196,7 @@ function scoreAngle(score: number): number {
 }
 
 function TrendArrow({ score, day, href }: { score: number | null; day: number; href?: string }) {
-  const label = score === null ? `J${day + 1} : pas encore noté` : `J${day + 1} : ${score.toFixed(2)}`;
+  const label = `J${day + 1}`;
   const color = score === null ? "#cbd5e1" : scoreColor(score);
   const glyph = score === null ? "→" : "↑";
   const transform = score === null ? undefined : `rotate(${scoreAngle(score)}deg)`;
@@ -421,6 +427,7 @@ export default async function BafaPage({
   const { as, tab, day } = await searchParams;
   const showPlanning = tab === "planning";
   const requestedDay = day !== undefined ? Number(day) : undefined;
+  const showGroups = tab === "groupes";
 
   const playerSession = await getPlayerSession();
   const player = playerSession
@@ -441,6 +448,47 @@ export default async function BafaPage({
           <h1 className="h1">Espace stagiaire</h1>
           <p className="sub">Connecte-toi avec ton code personnel à 4 chiffres.</p>
           <BafaLoginForm />
+        </div>
+      </main>
+    );
+  }
+
+  if (showGroups && isStaff) {
+    const config = await prisma.config.findUnique({ where: { key: "stagiaireGroups" } });
+    let assignment: {
+      groupCount: number;
+      groups: { id: string; firstName: string }[][];
+      generatedAt: string;
+    } | null = null;
+    if (config) {
+      try {
+        assignment = JSON.parse(config.value);
+      } catch {
+        assignment = null;
+      }
+    }
+
+    return (
+      <main className="page">
+        <div className="container">
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              marginBottom: 4,
+            }}
+          >
+            <h1 className="h1" style={{ margin: 0 }}>
+              Groupes
+            </h1>
+            {player && <BafaLogoutClient />}
+          </div>
+          <p className="sub" style={{ marginBottom: 20 }}>
+            Répartition aléatoire des stagiaires en groupes.
+          </p>
+          <TabNav active="groupes" showGroups={isStaff} />
+          <GroupGenerator initialAssignment={assignment} />
         </div>
       </main>
     );
@@ -493,7 +541,7 @@ export default async function BafaPage({
               initialPosition={hoursTablePos}
             />
           )}
-          <TabNav active="planning" />
+          <TabNav active="planning" showGroups={isStaff} />
           <PlanningTab
             initialBlocks={blocks}
             initialPostes={postes}
@@ -529,7 +577,7 @@ export default async function BafaPage({
         return (
           <main className="page">
             <div className="container">
-              <TabNav active="espace" />
+              <TabNav active="espace" showGroups={isStaff} />
               <PersonalSpace
                 playerId={as}
                 firstName={target.firstName}
@@ -563,7 +611,7 @@ export default async function BafaPage({
     return (
       <main className="page">
         <div className="container">
-          <TabNav active="espace" />
+          <TabNav active="espace" showGroups={isStaff} />
           <StagiaireList players={players} showLogout={!!player} dayCount={dayCount} dailyFillRatio={dailyFillRatio} dailyTrend={dailyTrend} />
         </div>
       </main>
@@ -573,7 +621,7 @@ export default async function BafaPage({
   return (
     <main className="page">
       <div className="container">
-        <TabNav active="espace" />
+        <TabNav active="espace" showGroups={isStaff} />
         <PersonalSpace
           playerId={playerSession!.playerId}
           firstName={player!.firstName}
