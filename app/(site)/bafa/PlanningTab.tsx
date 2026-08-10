@@ -858,6 +858,8 @@ function EditBlockForm({
         </div>
       )}
 
+      {postes.find((p) => p.id === type)?.evaluable && <BlockAssignmentEditor blockId={block.id} />}
+
       <div className="sb-actions" style={{ justifyContent: "space-between" }}>
         <button className="sb-btn sb-btn--ghost" onClick={onDelete} style={{ color: "#dc2626" }}>
           Supprimer
@@ -1203,6 +1205,92 @@ function CriterionStateManager({
           + Ajouter
         </button>
       </div>
+    </div>
+  );
+}
+
+type AssignmentData = {
+  stagiaires: { id: string; firstName: string }[];
+  assignedIds: string[];
+  evaluatedIds: string[];
+};
+
+function BlockAssignmentEditor({ blockId }: { blockId: string }) {
+  const [data, setData] = useState<AssignmentData | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const res = await fetch(`/api/planning/${blockId}/assignments`);
+      const json = await res.json().catch(() => null);
+      if (cancelled || !json?.ok) return;
+      setData(json);
+      setSelected(new Set(json.assignedIds));
+      setLoading(false);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [blockId]);
+
+  function toggle(id: string) {
+    setSelected((s) => {
+      const next = new Set(s);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+    setSaved(false);
+  }
+
+  async function save() {
+    setSaving(true);
+    await fetch(`/api/planning/${blockId}/assignments`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playerIds: [...selected] }),
+    });
+    setSaving(false);
+    setSaved(true);
+  }
+
+  return (
+    <div style={{ borderTop: "1px solid #eee", paddingTop: 12, marginTop: 4 }}>
+      <div style={{ fontWeight: 700, fontSize: 13, marginBottom: 4 }}>Stagiaires concernés</div>
+      <p style={{ fontSize: 12, color: "#64748b", marginTop: 0, marginBottom: 8 }}>
+        Laisse tout décoché pour que ce créneau s'applique à tout le monde. Coche uniquement les stagiaires
+        réellement concernés ce jour-là (ex : accueil échelonné, projet d'animation…).
+      </p>
+
+      {loading || !data ? (
+        <p style={{ fontSize: 13, color: "#94a3b8" }}>Chargement…</p>
+      ) : (
+        <>
+          <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 180, overflowY: "auto", marginBottom: 8 }}>
+            {data.stagiaires.map((s) => {
+              const isSelected = selected.has(s.id);
+              const notEvaluated = isSelected && !data.evaluatedIds.includes(s.id);
+              return (
+                <label key={s.id} style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13 }}>
+                  <input type="checkbox" checked={isSelected} onChange={() => toggle(s.id)} />
+                  <span className={notEvaluated ? "blink-red" : undefined}>{s.firstName}</span>
+                  {notEvaluated && <span style={{ fontSize: 11, color: "#dc2626" }}>(non évalué)</span>}
+                </label>
+              );
+            })}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            {saved && <span style={{ color: "#16a34a", fontSize: 12, fontWeight: 700 }}>Enregistré ✓</span>}
+            <button className="btn btn-ghost" style={{ padding: "4px 12px", fontSize: 13 }} onClick={save} disabled={saving}>
+              {saving ? "…" : "Enregistrer les concernés"}
+            </button>
+          </div>
+        </>
+      )}
     </div>
   );
 }

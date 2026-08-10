@@ -55,7 +55,7 @@ function TabNav({ active, showGroups }: { active: "espace" | "planning" | "group
 }
 
 async function getEvaluationData(playerId: string) {
-  const [blocks, configRows, postes, criteria, criterionStates, evaluations, ratings] = await Promise.all([
+  const [blocks, configRows, postes, criteria, criterionStates, evaluations, ratings, assignments] = await Promise.all([
     prisma.planningBlock.findMany({ orderBy: [{ day: "asc" }, { startMin: "asc" }] }),
     prisma.config.findMany({ where: { key: { in: ["planningSessionType", "planningStartDate"] } } }),
     prisma.posteType.findMany({ orderBy: { order: "asc" } }),
@@ -63,14 +63,25 @@ async function getEvaluationData(playerId: string) {
     prisma.criterionState.findMany({ orderBy: { order: "asc" } }),
     prisma.evaluation.findMany({ where: { playerId } }),
     prisma.criterionRating.findMany({ where: { playerId } }),
+    prisma.blockAssignment.findMany({ select: { blockId: true, playerId: true } }),
   ]);
 
   const sessionType = configRows.find((r) => r.key === "planningSessionType")?.value ?? DEFAULT_SESSION_TYPE;
   const startDate = configRows.find((r) => r.key === "planningStartDate")?.value ?? todayISO();
   const dayCount = daysForType(sessionType);
 
+  const assignedByBlock = new Map<string, Set<string>>();
+  for (const a of assignments) {
+    if (!assignedByBlock.has(a.blockId)) assignedByBlock.set(a.blockId, new Set());
+    assignedByBlock.get(a.blockId)!.add(a.playerId);
+  }
+
   const evaluableIds = new Set(postes.filter((p) => p.evaluable).map((p) => p.id));
-  const evalBlocks = blocks.filter((b) => evaluableIds.has(b.type) && b.day < dayCount);
+  const evalBlocks = blocks.filter((b) => {
+    if (!evaluableIds.has(b.type) || b.day >= dayCount) return false;
+    const assigned = assignedByBlock.get(b.id);
+    return !assigned || assigned.has(playerId);
+  });
   const notes: Record<string, string> = {};
   for (const e of evaluations) notes[e.blockId] = e.note;
   const ratingValues: Record<string, string> = {};
@@ -82,7 +93,7 @@ async function getEvaluationData(playerId: string) {
 async function getStagiaireIndicators(dayCount: number, playerIds?: string[]) {
   const playerFilter = playerIds ? { in: playerIds } : undefined;
 
-  const [postes, blocks, evaluations, ratings, criterionStates] = await Promise.all([
+  const [postes, blocks, evaluations, ratings, criterionStates, assignmentRows] = await Promise.all([
     prisma.posteType.findMany({ where: { evaluable: true }, select: { id: true } }),
     prisma.planningBlock.findMany({ select: { id: true, day: true, type: true } }),
     prisma.evaluation.findMany({
@@ -94,9 +105,16 @@ async function getStagiaireIndicators(dayCount: number, playerIds?: string[]) {
       select: { playerId: true, day: true, criterionId: true, value: true },
     }),
     prisma.criterionState.findMany({ select: { id: true, score: true } }),
+    prisma.blockAssignment.findMany({ select: { blockId: true, playerId: true } }),
   ]);
 
   const scoreByStateId = new Map(criterionStates.map((s) => [s.id, s.score]));
+
+  const assignedByBlock = new Map<string, Set<string>>();
+  for (const a of assignmentRows) {
+    if (!assignedByBlock.has(a.blockId)) assignedByBlock.set(a.blockId, new Set());
+    assignedByBlock.get(a.blockId)!.add(a.playerId);
+  }
 
   const evaluableIds = new Set(postes.map((p) => p.id));
   const evalBlocksByDay = new Map<number, Set<string>>();
@@ -126,12 +144,16 @@ async function getStagiaireIndicators(dayCount: number, playerIds?: string[]) {
 
   function dailyFillRatio(playerId: string, day: number): number {
     const dayBlocks = evalBlocksByDay.get(day) ?? new Set<string>();
-    const total = dayBlocks.size;
+    const applicable = [...dayBlocks].filter((blockId) => {
+      const assigned = assignedByBlock.get(blockId);
+      return !assigned || assigned.has(playerId);
+    });
+    const total = applicable.length;
     if (total === 0) return 1;
 
     let filled = 0;
     const playerFilledBlocks = filledBlocksByPlayer.get(playerId);
-    for (const blockId of dayBlocks) {
+    for (const blockId of applicable) {
       if (playerFilledBlocks?.has(blockId)) filled++;
     }
 

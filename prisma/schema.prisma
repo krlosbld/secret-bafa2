@@ -21,6 +21,7 @@ model Player {
   foundSecrets     Secret[]          @relation("FoundBy")
   evaluations      Evaluation[]
   criterionRatings CriterionRating[]
+  blockAssignments BlockAssignment[]
 
   // Panneau latéral de la page stagiaire
   personalNote          String  @default("") // écrit par le stagiaire lui-même
@@ -84,8 +85,21 @@ model PlanningBlock {
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
   evaluations Evaluation[]
+  assignments BlockAssignment[]
 
   @@index([day])
+}
+
+model BlockAssignment {
+  id        String        @id @default(cuid())
+  blockId   String
+  playerId  String
+  createdAt DateTime      @default(now())
+  block     PlanningBlock @relation(fields: [blockId], references: [id], onDelete: Cascade)
+  player    Player        @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([blockId, playerId])
+  @@index([blockId])
 }
 
 model PosteType {
