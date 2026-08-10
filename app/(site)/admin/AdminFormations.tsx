@@ -17,15 +17,22 @@ export default function AdminFormations({ formations, canCreate }: { formations:
   const router = useRouter();
   const [name, setName] = useState("");
   const [directorFirstName, setDirectorFirstName] = useState("");
+  const [directorUsername, setDirectorUsername] = useState("");
+  const [directorPassword, setDirectorPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [created, setCreated] = useState<{ code: string; director: { firstName: string; code: string } | null } | null>(null);
+  const [created, setCreated] = useState<{ code: string; director: { firstName: string; username: string } | null } | null>(null);
 
   async function create() {
     setError("");
     setCreated(null);
     if (!name.trim()) {
       setError("Nom requis.");
+      return;
+    }
+    const wantsDirector = directorFirstName.trim() || directorUsername.trim() || directorPassword.trim();
+    if (wantsDirector && (!directorFirstName.trim() || !directorUsername.trim() || !directorPassword.trim())) {
+      setError("Prénom, identifiant et mot de passe du directeur requis ensemble.");
       return;
     }
     if (
@@ -39,7 +46,12 @@ export default function AdminFormations({ formations, canCreate }: { formations:
     const res = await fetch("/api/admin/formations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ name, directorFirstName: directorFirstName.trim() || undefined }),
+      body: JSON.stringify({
+        name,
+        directorFirstName: wantsDirector ? directorFirstName.trim() : undefined,
+        directorUsername: wantsDirector ? directorUsername.trim() : undefined,
+        directorPassword: wantsDirector ? directorPassword.trim() : undefined,
+      }),
     });
     const data = await res.json().catch(() => ({}));
     setLoading(false);
@@ -49,6 +61,8 @@ export default function AdminFormations({ formations, canCreate }: { formations:
     }
     setName("");
     setDirectorFirstName("");
+    setDirectorUsername("");
+    setDirectorPassword("");
     setCreated({ code: data.formation.code, director: data.director ?? null });
     router.refresh();
   }
@@ -82,6 +96,29 @@ export default function AdminFormations({ formations, canCreate }: { formations:
                 disabled={loading}
               />
             </label>
+            {(directorFirstName.trim() || directorUsername.trim() || directorPassword.trim()) && (
+              <>
+                <label className="sb-field">
+                  <span>Identifiant du directeur</span>
+                  <input
+                    value={directorUsername}
+                    onChange={(e) => setDirectorUsername(e.target.value)}
+                    placeholder="ex. marie.bafa"
+                    disabled={loading}
+                  />
+                </label>
+                <label className="sb-field">
+                  <span>Mot de passe du directeur</span>
+                  <input
+                    type="password"
+                    value={directorPassword}
+                    onChange={(e) => setDirectorPassword(e.target.value)}
+                    placeholder="••••••••"
+                    disabled={loading}
+                  />
+                </label>
+              </>
+            )}
             {error && <div style={{ color: "#dc2626", fontSize: 14, fontWeight: 600 }}>{error}</div>}
             <button className="btn btn-main" onClick={create} disabled={loading} style={{ alignSelf: "flex-start" }}>
               {loading ? "Création…" : "Créer et activer"}
@@ -99,9 +136,9 @@ export default function AdminFormations({ formations, canCreate }: { formations:
           </p>
           {created.director && (
             <p style={{ margin: 0, fontSize: 14 }}>
-              {created.director.firstName} (directeur) se connecte ensuite avec son code personnel{" "}
-              <span style={{ fontWeight: 900, fontSize: 18, color: "#16a34a" }}>{created.director.code}</span>
-              {" "}— ces codes ne seront pas réaffichés.
+              {created.director.firstName} (directeur) se connecte via <code>/admin/login</code> (le même écran que le
+              super-admin) avec l&apos;identifiant <strong>{created.director.username}</strong> et le mot de passe choisi
+              — ni l&apos;un ni l&apos;autre ne seront réaffichés.
             </p>
           )}
         </div>

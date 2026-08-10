@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession, isSuperAdmin } from "@/lib/auth";
 import { generateUniqueFormationCode } from "@/lib/formationCode";
+import crypto from "crypto";
 
 export const runtime = "nodejs";
 
@@ -31,24 +32,46 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Nom requis." }, { status: 400 });
   }
   const directorFirstName = String(body.directorFirstName ?? "").trim();
+  const directorUsername = String(body.directorUsername ?? "").trim();
+  const directorPassword = String(body.directorPassword ?? "").trim();
+  if (directorFirstName && (!directorUsername || !directorPassword)) {
+    return NextResponse.json({ error: "Identifiant et mot de passe du directeur requis." }, { status: 400 });
+  }
+
   const formationCode = await generateUniqueFormationCode();
 
-  const { formation, director } = await prisma.$transaction(async (tx) => {
-    await tx.formation.updateMany({ where: { active: true }, data: { active: false } });
-    const formation = await tx.formation.create({ data: { name, code: formationCode, active: true } });
+  let formation, director;
+  try {
+    ({ formation, director } = await prisma.$transaction(async (tx) => {
+      await tx.formation.updateMany({ where: { active: true }, data: { active: false } });
+      const formation = await tx.formation.create({ data: { name, code: formationCode, active: true } });
 
-    let director = null;
-    if (directorFirstName) {
-      // Formation tout juste créée : aucun joueur existant, pas besoin de vérifier l'unicité du code.
-      const code = String(Math.floor(1000 + Math.random() * 9000));
-      director = await tx.player.create({
-        data: { firstName: directorFirstName, code, role: "DIRECTEUR", formationId: formation.id },
-        select: { id: true, firstName: true, code: true },
-      });
+      let director = null;
+      if (directorFirstName) {
+        // Formation tout juste créée : aucun joueur existant, pas besoin de vérifier l'unicité du code masqué.
+        const hiddenCode = String(Math.floor(1000 + Math.random() * 9000));
+        const passwordHash = crypto.createHash("sha256").update(directorPassword).digest("hex");
+        director = await tx.player.create({
+          data: {
+            firstName: directorFirstName,
+            code: hiddenCode,
+            username: directorUsername,
+            passwordHash,
+            role: "DIRECTEUR",
+            formationId: formation.id,
+          },
+          select: { id: true, firstName: true, username: true },
+        });
+      }
+
+      return { formation, director };
+    }));
+  } catch (e: unknown) {
+    if (e && typeof e === "object" && "code" in e && e.code === "P2002") {
+      return NextResponse.json({ error: "Cet identifiant directeur existe déjà." }, { status: 409 });
     }
-
-    return { formation, director };
-  });
+    throw e;
+  }
 
   return NextResponse.json({ ok: true, formation, director });
 }

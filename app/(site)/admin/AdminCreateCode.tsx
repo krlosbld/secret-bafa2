@@ -13,9 +13,13 @@ export default function AdminCreateCode({ formationId }: { formationId: string }
   const router = useRouter();
   const [firstName, setFirstName] = useState("");
   const [role, setRole] = useState("DIRECTEUR");
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [created, setCreated] = useState<{ firstName: string; code: string; role: string } | null>(null);
+  const [created, setCreated] = useState<{ firstName: string; role: string; code: string | null; username: string | null } | null>(null);
+
+  const isDirector = role === "DIRECTEUR";
 
   async function create() {
     setError("");
@@ -24,11 +28,20 @@ export default function AdminCreateCode({ formationId }: { formationId: string }
       setError("Prénom requis.");
       return;
     }
+    if (isDirector && (!username.trim() || !password.trim())) {
+      setError("Identifiant et mot de passe requis pour un directeur.");
+      return;
+    }
     setLoading(true);
     const res = await fetch(`/api/admin/formations/${formationId}/players`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ firstName, role }),
+      body: JSON.stringify({
+        firstName,
+        role,
+        username: isDirector ? username.trim() : undefined,
+        password: isDirector ? password.trim() : undefined,
+      }),
     });
     const data = await res.json().catch(() => ({}));
     setLoading(false);
@@ -37,6 +50,8 @@ export default function AdminCreateCode({ formationId }: { formationId: string }
       return;
     }
     setFirstName("");
+    setUsername("");
+    setPassword("");
     setCreated(data.player);
     router.refresh();
   }
@@ -70,6 +85,33 @@ export default function AdminCreateCode({ formationId }: { formationId: string }
               ))}
             </select>
           </label>
+          {isDirector ? (
+            <>
+              <label className="sb-field">
+                <span>Identifiant</span>
+                <input
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                  placeholder="ex. marie.bafa"
+                  disabled={loading}
+                />
+              </label>
+              <label className="sb-field">
+                <span>Mot de passe</span>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  disabled={loading}
+                />
+              </label>
+            </>
+          ) : (
+            <p style={{ fontSize: 12, color: "#64748b", margin: 0 }}>
+              Un code à 4 chiffres sera généré automatiquement pour se connecter sur /bafa.
+            </p>
+          )}
           {error && <div style={{ color: "#dc2626", fontSize: 14, fontWeight: 600 }}>{error}</div>}
           <button className="btn btn-main" onClick={create} disabled={loading} style={{ alignSelf: "flex-start" }}>
             {loading ? "Création…" : "Créer"}
@@ -80,10 +122,19 @@ export default function AdminCreateCode({ formationId }: { formationId: string }
       {created && (
         <div className="card" style={{ borderLeftColor: "#16a34a", background: "#f0fdf4" }}>
           <div style={{ fontWeight: 800, marginBottom: 4 }}>Code créé ✅</div>
-          <p style={{ margin: 0, fontSize: 14 }}>
-            {created.firstName} ({ROLE_LABELS[created.role] ?? created.role}) se connecte sur <code>/bafa</code> avec le code{" "}
-            <span style={{ fontWeight: 900, fontSize: 18, color: "#16a34a" }}>{created.code}</span> — à lui communiquer, il ne sera pas réaffiché.
-          </p>
+          {created.username ? (
+            <p style={{ margin: 0, fontSize: 14 }}>
+              {created.firstName} ({ROLE_LABELS[created.role] ?? created.role}) se connecte via <code>/admin/login</code>{" "}
+              avec l&apos;identifiant <strong>{created.username}</strong> et le mot de passe choisi — ni l&apos;un ni
+              l&apos;autre ne seront réaffichés.
+            </p>
+          ) : (
+            <p style={{ margin: 0, fontSize: 14 }}>
+              {created.firstName} ({ROLE_LABELS[created.role] ?? created.role}) se connecte sur <code>/bafa</code> avec
+              le code <span style={{ fontWeight: 900, fontSize: 18, color: "#16a34a" }}>{created.code}</span> — à lui
+              communiquer, il ne sera pas réaffiché.
+            </p>
+          )}
         </div>
       )}
     </div>

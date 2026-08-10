@@ -29,7 +29,7 @@ export default function AdminLoginPage() {
       return;
     }
 
-    router.replace("/admin");
+    router.replace(data.role === "director" ? "/bafa" : "/admin");
     router.refresh();
   }
 

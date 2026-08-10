@@ -25,6 +25,8 @@ model Player {
   formationId      String
   firstName        String
   code             String
+  username         String?           @unique // connexion identifiant/mot de passe (DIRECTEUR), alternative au code
+  passwordHash     String?
   role             String            @default("STAGIAIRE") // STAGIAIRE | FORMATEUR | DIRECTEUR
   active           Boolean           @default(true) // false = abandon
   points           Int               @default(0)

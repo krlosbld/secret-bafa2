@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { setSessionCookies } from "@/lib/auth";
+import { setPlayerSessionCookies } from "@/lib/playerAuth";
 import crypto from "crypto";
 
 export const runtime = "nodejs";
@@ -33,6 +34,17 @@ export async function POST(req: Request) {
       if (hash === manager.passwordHash) {
         const res = NextResponse.json({ ok: true, role: "manager" });
         setSessionCookies(res, { role: "manager", managerId: manager.id });
+        return res;
+      }
+    }
+
+    // Directeur (identifiant/mot de passe, alternative au code à 4 chiffres)
+    const director = await prisma.player.findUnique({ where: { username } });
+    if (director && director.passwordHash) {
+      const hash = crypto.createHash("sha256").update(password).digest("hex");
+      if (hash === director.passwordHash) {
+        const res = NextResponse.json({ ok: true, role: "director" });
+        setPlayerSessionCookies(res, director.id);
         return res;
       }
     }
