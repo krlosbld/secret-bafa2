@@ -8,6 +8,7 @@ import AdminPlayers from "../../../AdminPlayers";
 import AdminCreateCode from "../../../AdminCreateCode";
 import AdminActivateFormation from "../../../AdminActivateFormation";
 import AdminReset from "../../../AdminReset";
+import AdminCronControls from "../../../AdminCronControls";
 import LogoutClient from "../../../LogoutClient";
 
 export const dynamic = "force-dynamic";
@@ -170,6 +171,7 @@ export default async function FormationDetailPage({ params }: { params: Promise<
                   ) : (
                     <p style={{ color: "#dc2626", fontWeight: 700 }}>Jamais exécuté depuis la mise en place de ce suivi.</p>
                   )}
+                  <AdminCronControls formationId={formation.id} />
                 </div>
               </Section>
             )}
