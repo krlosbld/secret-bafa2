@@ -12,6 +12,7 @@ model Player {
   firstName        String
   code             String            @unique
   role             String            @default("STAGIAIRE") // STAGIAIRE | FORMATEUR | DIRECTEUR
+  active           Boolean           @default(true) // false = abandon
   points           Int               @default(0)
   buzzCount        Int               @default(0)
   createdAt        DateTime          @default(now())

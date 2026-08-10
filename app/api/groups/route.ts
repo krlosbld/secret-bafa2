@@ -34,7 +34,7 @@ export async function POST(req: Request) {
   }
 
   const players = await prisma.player.findMany({
-    where: { role: "STAGIAIRE" },
+    where: { role: "STAGIAIRE", active: true },
     select: { id: true, firstName: true },
   });
 

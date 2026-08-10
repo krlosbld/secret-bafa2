@@ -9,6 +9,8 @@ import PlanningHoursTable from "./PlanningHoursTable";
 import DayEvaluationPanel from "./DayEvaluationPanel";
 import PlayerNotesPanel from "./PlayerNotesPanel";
 import GroupGenerator from "./GroupGenerator";
+import StagiaireCardMenu from "./StagiaireCardMenu";
+import ReactivateButton from "./ReactivateButton";
 import { DEFAULT_SESSION_TYPE, todayISO, daysForType, todayDayIndex } from "@/lib/planningConfig";
 import { getPlayerNotes } from "@/lib/playerNotes";
 
@@ -369,12 +371,14 @@ function StagiaireList({
   dayCount,
   dailyFillRatio,
   dailyTrend,
+  abandonedCount,
 }: {
   players: { id: string; firstName: string; code: string }[];
   showLogout: boolean;
   dayCount: number;
   dailyFillRatio: (playerId: string, day: number) => number;
   dailyTrend: (playerId: string, day: number) => number | null;
+  abandonedCount: number;
 }) {
   return (
     <>
@@ -391,13 +395,20 @@ function StagiaireList({
         </h1>
         {showLogout && <BafaLogoutClient />}
       </div>
-      <p className="sub" style={{ marginBottom: 32 }}>
-        Sélectionne un stagiaire pour voir son espace.
+      <p className="sub" style={{ marginBottom: 8 }}>
+        Sélectionne un stagiaire pour voir son espace. Clic droit sur une carte pour marquer un abandon.
       </p>
+      {abandonedCount > 0 && (
+        <p style={{ marginBottom: 24 }}>
+          <Link href="/bafa?abandoned=1" style={{ fontSize: 13, color: "#0f766e", fontWeight: 700 }}>
+            🗂️ {abandonedCount} abandon{abandonedCount > 1 ? "s" : ""} — voir / réactiver
+          </Link>
+        </p>
+      )}
 
       <div className="cards">
         {players.map((p) => (
-          <div key={p.id} className="card admin-card">
+          <StagiaireCardMenu key={p.id} playerId={p.id} firstName={p.firstName}>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
               <Link href={`/bafa?as=${p.id}`} style={{ textDecoration: "none", color: "inherit" }}>
                 <NameGauge
@@ -412,7 +423,7 @@ function StagiaireList({
                 ))}
               </div>
             </div>
-          </div>
+          </StagiaireCardMenu>
         ))}
       </div>
     </>
@@ -422,9 +433,9 @@ function StagiaireList({
 export default async function BafaPage({
   searchParams,
 }: {
-  searchParams: Promise<{ as?: string; tab?: string; day?: string }>;
+  searchParams: Promise<{ as?: string; tab?: string; day?: string; abandoned?: string }>;
 }) {
-  const { as, tab, day } = await searchParams;
+  const { as, tab, day, abandoned } = await searchParams;
   const showPlanning = tab === "planning";
   const requestedDay = day !== undefined ? Number(day) : undefined;
   const showGroups = tab === "groupes";
@@ -557,6 +568,50 @@ export default async function BafaPage({
   }
 
   if (isStaff) {
+    if (abandoned === "1") {
+      const abandonedPlayers = await prisma.player.findMany({
+        where: { role: "STAGIAIRE", active: false },
+        orderBy: { firstName: "asc" },
+        select: { id: true, firstName: true, code: true },
+      });
+
+      return (
+        <main className="page">
+          <div className="container">
+            <TabNav active="espace" showGroups={isStaff} />
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+              <h1 className="h1" style={{ margin: 0 }}>
+                Abandons
+              </h1>
+              <Link className="btn btn-ghost" href="/bafa">
+                ← Retour à la liste
+              </Link>
+            </div>
+            <p className="sub" style={{ marginBottom: 32 }}>
+              Ces stagiaires n&apos;apparaissent plus dans la liste ni dans le générateur de groupes.
+            </p>
+
+            {abandonedPlayers.length === 0 ? (
+              <p style={{ color: "#64748b" }}>Aucun abandon.</p>
+            ) : (
+              <div className="cards">
+                {abandonedPlayers.map((p) => (
+                  <div key={p.id} className="card admin-card">
+                    <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
+                      <div>
+                        {p.firstName} · #{p.code}
+                      </div>
+                      <ReactivateButton playerId={p.id} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </main>
+      );
+    }
+
     if (as) {
       const [target, roster] = await Promise.all([
         prisma.player.findUnique({
@@ -564,7 +619,7 @@ export default async function BafaPage({
           select: { firstName: true, code: true },
         }),
         prisma.player.findMany({
-          where: { role: "STAGIAIRE" },
+          where: { role: "STAGIAIRE", active: true },
           orderBy: { firstName: "asc" },
           select: { id: true },
         }),
@@ -596,12 +651,13 @@ export default async function BafaPage({
       }
     }
 
-    const [players, configRows] = await Promise.all([
+    const [players, abandonedCount, configRows] = await Promise.all([
       prisma.player.findMany({
-        where: { role: "STAGIAIRE" },
+        where: { role: "STAGIAIRE", active: true },
         orderBy: { firstName: "asc" },
         select: { id: true, firstName: true, code: true },
       }),
+      prisma.player.count({ where: { role: "STAGIAIRE", active: false } }),
       prisma.config.findMany({ where: { key: { in: ["planningSessionType"] } } }),
     ]);
     const sessionType = configRows.find((r) => r.key === "planningSessionType")?.value ?? DEFAULT_SESSION_TYPE;
@@ -612,7 +668,14 @@ export default async function BafaPage({
       <main className="page">
         <div className="container">
           <TabNav active="espace" showGroups={isStaff} />
-          <StagiaireList players={players} showLogout={!!player} dayCount={dayCount} dailyFillRatio={dailyFillRatio} dailyTrend={dailyTrend} />
+          <StagiaireList
+            players={players}
+            showLogout={!!player}
+            dayCount={dayCount}
+            dailyFillRatio={dailyFillRatio}
+            dailyTrend={dailyTrend}
+            abandonedCount={abandonedCount}
+          />
         </div>
       </main>
     );
