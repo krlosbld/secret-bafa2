@@ -4,9 +4,9 @@ import { getActiveFormationId } from "@/lib/formation";
 
 export const runtime = "nodejs";
 
-// Appelé chaque nuit à minuit (via cron externe ou Vercel Cron)
+// Appelé chaque nuit à minuit (Vercel Cron envoie une requête GET)
 // Header requis : Authorization: Bearer <CRON_SECRET>
-export async function POST(req: Request) {
+async function runNightlyJob(req: Request) {
   const auth = req.headers.get("Authorization");
   if (!process.env.CRON_SECRET || auth !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
@@ -37,4 +37,12 @@ export async function POST(req: Request) {
   });
 
   return NextResponse.json({ ok: true, updated: unpublished.length });
+}
+
+export async function GET(req: Request) {
+  return runNightlyJob(req);
+}
+
+export async function POST(req: Request) {
+  return runNightlyJob(req);
 }
