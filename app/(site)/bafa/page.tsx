@@ -6,8 +6,7 @@ import BafaLoginForm from "./BafaLoginForm";
 import BafaLogoutClient from "./BafaLogoutClient";
 import PlanningTab from "./PlanningTab";
 import PlanningHoursTable from "./PlanningHoursTable";
-import DayEvaluationPanel from "./DayEvaluationPanel";
-import PlayerNotesPanel from "./PlayerNotesPanel";
+import PersonalSpaceBody from "./PersonalSpaceBody";
 import GroupGenerator from "./GroupGenerator";
 import StagiaireCardMenu from "./StagiaireCardMenu";
 import ReactivateButton from "./ReactivateButton";
@@ -290,7 +289,8 @@ async function PersonalSpace({
       ? requestedDay
       : todayDayIndex(startDate, dayCount);
 
-  const dayLinkBase = backHref ? `/bafa?as=${playerId}` : "/bafa";
+  const fillRatios = Array.from({ length: dayCount }, (_, d) => dailyFillRatio(playerId, d));
+  const trends = Array.from({ length: dayCount }, (_, d) => dailyTrend(playerId, d));
 
   return (
     <>
@@ -331,65 +331,24 @@ async function PersonalSpace({
         {subLabel ? `${subLabel} · ` : ""}#{code}
       </p>
 
-      <div style={{ display: "flex", gap: 24, alignItems: "flex-start", flexWrap: "wrap" }}>
-        <div style={{ flex: "2 1 480px", minWidth: 0 }}>
-          <div style={{ display: "flex", gap: 4, marginBottom: 16 }}>
-            {Array.from({ length: dayCount }, (_, d) => d).map((d) => {
-              const ratio = dailyFillRatio(playerId, d);
-              return (
-                <div
-                  key={d}
-                  title={`J${d + 1} : ${Math.round(ratio * 100)}% rempli`}
-                  style={{ width: 26, height: 8, borderRadius: 4, background: "#e2e8f0", overflow: "hidden" }}
-                >
-                  <div style={{ width: `${Math.round(ratio * 100)}%`, height: "100%", background: "#0f766e" }} />
-                </div>
-              );
-            })}
-          </div>
-
-          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 32 }}>
-            {Array.from({ length: dayCount }, (_, d) => d).map((d) => (
-              <TrendArrow
-                key={d}
-                day={d}
-                score={dailyTrend(playerId, d)}
-                href={`${dayLinkBase}${dayLinkBase.includes("?") ? "&" : "?"}day=${d}`}
-              />
-            ))}
-          </div>
-
-          <DayEvaluationPanel
-            key={initialDay}
-            blocks={evalBlocks}
-            postes={postes}
-            criteria={criteria}
-            criterionStates={criterionStates}
-            startDate={startDate}
-            dayCount={dayCount}
-            initialDay={initialDay}
-            initialNotes={notes}
-            initialRatingValues={ratingValues}
-            canEdit={canEditEvaluations}
-            playerId={playerId}
-          />
-        </div>
-
-        <div style={{ flex: "1 1 280px", minWidth: 260 }}>
-          {playerNotes && (
-            <PlayerNotesPanel
-              playerId={playerId}
-              canEditPersonal={!canEditEvaluations}
-              canEditStaffNotes={canEditEvaluations}
-              initialNotes={playerNotes}
-              dayCount={dayCount}
-              startDate={startDate}
-              initialDay={initialDay}
-              initialRemarks={remarks}
-            />
-          )}
-        </div>
-      </div>
+      <PersonalSpaceBody
+        key={initialDay}
+        playerId={playerId}
+        evalBlocks={evalBlocks}
+        postes={postes}
+        criteria={criteria}
+        criterionStates={criterionStates}
+        startDate={startDate}
+        dayCount={dayCount}
+        notes={notes}
+        ratingValues={ratingValues}
+        canEditEvaluations={canEditEvaluations}
+        fillRatios={fillRatios}
+        trends={trends}
+        playerNotes={playerNotes}
+        initialRemarks={remarks}
+        initialDay={initialDay}
+      />
     </>
   );
 }

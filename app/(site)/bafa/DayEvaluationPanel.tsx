@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import type { Poste, Criterion } from "./PlanningTab";
 import EvaluationBoard, { type EvalBlock } from "./EvaluationBoard";
 import CriteriaBoard, { type CriterionState } from "./CriteriaBoard";
@@ -13,7 +12,8 @@ export default function DayEvaluationPanel({
   criterionStates,
   startDate,
   dayCount,
-  initialDay,
+  activeDay,
+  onDayChange,
   initialNotes,
   initialRatingValues,
   canEdit,
@@ -25,20 +25,19 @@ export default function DayEvaluationPanel({
   criterionStates: CriterionState[];
   startDate: string;
   dayCount: number;
-  initialDay: number;
+  activeDay: number;
+  onDayChange: (day: number) => void;
   initialNotes: Record<string, string>;
   initialRatingValues: Record<string, string>;
   canEdit: boolean;
   playerId: string;
 }) {
-  const [activeDay, setActiveDay] = useState(initialDay);
-
   return (
     <div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
         <button
           className="btn btn-ghost"
-          onClick={() => setActiveDay((d) => Math.max(0, d - 1))}
+          onClick={() => onDayChange(Math.max(0, activeDay - 1))}
           disabled={activeDay === 0}
           style={{ padding: "6px 10px" }}
         >
@@ -49,7 +48,7 @@ export default function DayEvaluationPanel({
           {Array.from({ length: dayCount }, (_, i) => i).map((d) => (
             <button
               key={d}
-              onClick={() => setActiveDay(d)}
+              onClick={() => onDayChange(d)}
               style={{
                 background: activeDay === d ? "#0f766e" : "#fff",
                 color: activeDay === d ? "#fff" : "#0f766e",
@@ -68,7 +67,7 @@ export default function DayEvaluationPanel({
 
         <button
           className="btn btn-ghost"
-          onClick={() => setActiveDay((d) => Math.min(dayCount - 1, d + 1))}
+          onClick={() => onDayChange(Math.min(dayCount - 1, activeDay + 1))}
           disabled={activeDay === dayCount - 1}
           style={{ padding: "6px 10px" }}
         >

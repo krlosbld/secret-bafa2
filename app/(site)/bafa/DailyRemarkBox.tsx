@@ -5,33 +5,31 @@ import { dateForDayIndex, formatDayHeader } from "@/lib/planningConfig";
 
 export default function DailyRemarkBox({
   playerId,
-  dayCount,
+  day,
   startDate,
-  initialDay,
   initialNotes,
   canEdit,
 }: {
   playerId: string;
-  dayCount: number;
+  day: number;
   startDate: string;
-  initialDay: number;
   initialNotes: Record<number, string>;
   canEdit: boolean;
 }) {
-  const [activeDay, setActiveDay] = useState(initialDay);
   const [notes, setNotes] = useState<Record<number, string>>(initialNotes);
-  const [draft, setDraft] = useState(initialNotes[initialDay] ?? "");
+  const [draft, setDraft] = useState(initialNotes[day] ?? "");
   const [saving, setSaving] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
 
-  const stateRef = useRef({ notes, activeDay });
+  const stateRef = useRef({ notes, day });
   useEffect(() => {
-    stateRef.current = { notes, activeDay };
-  }, [notes, activeDay]);
+    stateRef.current = { notes, day };
+  }, [notes, day]);
 
   useEffect(() => {
-    setDraft(notes[activeDay] ?? "");
-  }, [activeDay, notes]);
+    setDraft(notes[day] ?? "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [day]);
 
   useEffect(() => {
     const id = setInterval(async () => {
@@ -40,12 +38,9 @@ export default function DailyRemarkBox({
         const data = await res.json().catch(() => null);
         if (!data?.ok) return;
         const fresh: Record<number, string> = data.notes;
-        const { notes: curNotes, activeDay: curDay } = stateRef.current;
+        const { notes: curNotes, day: curDay } = stateRef.current;
         const curDraft = curNotes[curDay] ?? "";
-        setNotes((n) => {
-          const next = { ...n, ...fresh };
-          return next;
-        });
+        setNotes((n) => ({ ...n, ...fresh }));
         // ne pas écraser une saisie en cours sur le jour actif
         if ((fresh[curDay] ?? "") !== curDraft) {
           setDraft((d) => (d === curDraft ? fresh[curDay] ?? "" : d));
@@ -55,7 +50,6 @@ export default function DailyRemarkBox({
       }
     }, 5000);
     return () => clearInterval(id);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [playerId]);
 
   async function persist() {
@@ -63,41 +57,23 @@ export default function DailyRemarkBox({
     await fetch(`/api/players/${playerId}/remarks`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ day: activeDay, note: draft }),
+      body: JSON.stringify({ day, note: draft }),
     });
-    setNotes((n) => ({ ...n, [activeDay]: draft }));
+    setNotes((n) => ({ ...n, [day]: draft }));
     setSaving(false);
     setSavedFlash(true);
     setTimeout(() => setSavedFlash(false), 1500);
   }
 
-  const savedValue = notes[activeDay] ?? "";
+  const savedValue = notes[day] ?? "";
 
   return (
     <div className="card">
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, gap: 8, flexWrap: "wrap" }}>
         <div style={{ fontWeight: 800 }}>Remarque</div>
-        <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-          <button
-            className="btn btn-ghost"
-            style={{ padding: "2px 8px", fontSize: 12 }}
-            onClick={() => setActiveDay((d) => Math.max(0, d - 1))}
-            disabled={activeDay === 0}
-          >
-            ←
-          </button>
-          <span style={{ fontSize: 12, fontWeight: 700, color: "#475569", minWidth: 60, textAlign: "center" }}>
-            {formatDayHeader(dateForDayIndex(startDate, activeDay))}
-          </span>
-          <button
-            className="btn btn-ghost"
-            style={{ padding: "2px 8px", fontSize: 12 }}
-            onClick={() => setActiveDay((d) => Math.min(dayCount - 1, d + 1))}
-            disabled={activeDay === dayCount - 1}
-          >
-            →
-          </button>
-        </div>
+        <span style={{ fontSize: 12, fontWeight: 700, color: "#475569" }}>
+          {formatDayHeader(dateForDayIndex(startDate, day))}
+        </span>
       </div>
 
       <p style={{ fontSize: 12, color: "#64748b", marginTop: 0, marginBottom: 8 }}>

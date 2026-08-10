@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import DailyRemarkBox from "./DailyRemarkBox";
 
-type Notes = {
+export type Notes = {
   personalNote: string;
   ems: string;
   emsVisible: boolean;
@@ -20,18 +20,16 @@ export default function PlayerNotesPanel({
   canEditPersonal,
   canEditStaffNotes,
   initialNotes,
-  dayCount,
   startDate,
-  initialDay,
+  activeDay,
   initialRemarks,
 }: {
   playerId: string;
   canEditPersonal: boolean;
   canEditStaffNotes: boolean;
   initialNotes: Notes;
-  dayCount: number;
   startDate: string;
-  initialDay: number;
+  activeDay: number;
   initialRemarks: Record<number, string>;
 }) {
   const [notes, setNotes] = useState<Notes>(initialNotes);
@@ -132,9 +130,8 @@ export default function PlayerNotesPanel({
 
       <DailyRemarkBox
         playerId={playerId}
-        dayCount={dayCount}
+        day={activeDay}
         startDate={startDate}
-        initialDay={initialDay}
         initialNotes={initialRemarks}
         canEdit={canEditStaffNotes}
       />
