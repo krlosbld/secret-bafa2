@@ -5,6 +5,7 @@ import { getSession, isSuperAdmin } from "@/lib/auth";
 import { AdminSecretsPending, AdminSecretsPublished } from "../../../AdminSecrets";
 import AdminBuzzPending from "../../../AdminBuzzPending";
 import AdminPlayers from "../../../AdminPlayers";
+import AdminStaffList from "../../../AdminStaffList";
 import AdminCreateCode from "../../../AdminCreateCode";
 import AdminActivateFormation from "../../../AdminActivateFormation";
 import AdminReset from "../../../AdminReset";
@@ -68,7 +69,7 @@ export default async function FormationDetailPage({ params }: { params: Promise<
 
   const players = superAdmin
     ? await prisma.player.findMany({
-        where: { formationId },
+        where: { formationId, role: "STAGIAIRE" },
         orderBy: { firstName: "asc" },
         select: {
           id: true,
@@ -79,6 +80,14 @@ export default async function FormationDetailPage({ params }: { params: Promise<
           buzzCount: true,
           secret: { select: { status: true, content: true, bonus: true } },
         },
+      })
+    : [];
+
+  const staff = superAdmin
+    ? await prisma.player.findMany({
+        where: { formationId, role: { in: ["FORMATEUR", "DIRECTEUR"] } },
+        orderBy: { firstName: "asc" },
+        select: { id: true, firstName: true, role: true, username: true },
       })
     : [];
 
@@ -147,7 +156,13 @@ export default async function FormationDetailPage({ params }: { params: Promise<
           <>
             <Section title="Codes">
               <AdminCreateCode formationId={formation.id} />
-              <div style={{ height: 16 }} />
+            </Section>
+
+            <Section title={`Équipe (${staff.length})`}>
+              <AdminStaffList staff={staff} />
+            </Section>
+
+            <Section title={`Stagiaires (${players.length})`}>
               {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
               <AdminPlayers players={players as any} quota={quota} showQuota={formation.active} />
             </Section>

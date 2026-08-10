@@ -2,9 +2,10 @@ import { prisma } from "@/lib/prisma";
 import { AdminSecretsPending, AdminSecretsPublished } from "../admin/AdminSecrets";
 import AdminBuzzPending from "../admin/AdminBuzzPending";
 import AdminPlayers from "../admin/AdminPlayers";
+import AdminStaffList from "../admin/AdminStaffList";
 
 export default async function AdminTab({ formationId }: { formationId: string }) {
-  const [pendingSecrets, publishedSecrets, pendingBuzzes, players, quotaConfig] = await Promise.all([
+  const [pendingSecrets, publishedSecrets, pendingBuzzes, players, staff, quotaConfig] = await Promise.all([
     prisma.secret.findMany({
       where: { status: "PENDING", formationId },
       orderBy: { createdAt: "asc" },
@@ -36,7 +37,7 @@ export default async function AdminTab({ formationId }: { formationId: string })
       },
     }),
     prisma.player.findMany({
-      where: { formationId },
+      where: { formationId, role: "STAGIAIRE" },
       orderBy: { firstName: "asc" },
       select: {
         id: true,
@@ -47,6 +48,11 @@ export default async function AdminTab({ formationId }: { formationId: string })
         buzzCount: true,
         secret: { select: { status: true, content: true, bonus: true } },
       },
+    }),
+    prisma.player.findMany({
+      where: { formationId, role: { in: ["FORMATEUR", "DIRECTEUR"] } },
+      orderBy: { firstName: "asc" },
+      select: { id: true, firstName: true, role: true, username: true },
     }),
     prisma.config.findUnique({ where: { formationId_key: { formationId, key: "buzzQuota" } } }),
   ]);
@@ -79,7 +85,11 @@ export default async function AdminTab({ formationId }: { formationId: string })
         <AdminSecretsPublished secrets={publishedSecrets as any} />
       </Section>
 
-      <Section title={`Joueurs (${players.length})`}>
+      <Section title={`Équipe (${staff.length})`}>
+        <AdminStaffList staff={staff} />
+      </Section>
+
+      <Section title={`Stagiaires (${players.length})`}>
         {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
         <AdminPlayers players={players as any} quota={quota} />
       </Section>
