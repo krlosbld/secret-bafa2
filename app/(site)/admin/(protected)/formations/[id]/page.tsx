@@ -67,9 +67,11 @@ export default async function FormationDetailPage({ params }: { params: Promise<
     }),
   ]);
 
+  // "Joueurs" : stagiaires et tout le monde qui participe réellement au jeu (a un secret),
+  // même un formateur/directeur qui joue aussi.
   const players = superAdmin
     ? await prisma.player.findMany({
-        where: { formationId, role: "STAGIAIRE" },
+        where: { formationId, OR: [{ role: "STAGIAIRE" }, { secret: { isNot: null } }] },
         orderBy: { firstName: "asc" },
         select: {
           id: true,
@@ -83,9 +85,10 @@ export default async function FormationDetailPage({ params }: { params: Promise<
       })
     : [];
 
+  // "Équipe" : comptes formateur/directeur purement administratifs, sans secret (ne jouent pas).
   const staff = superAdmin
     ? await prisma.player.findMany({
-        where: { formationId, role: { in: ["FORMATEUR", "DIRECTEUR"] } },
+        where: { formationId, role: { in: ["FORMATEUR", "DIRECTEUR"] }, secret: null },
         orderBy: { firstName: "asc" },
         select: { id: true, firstName: true, role: true, username: true },
       })
@@ -162,7 +165,7 @@ export default async function FormationDetailPage({ params }: { params: Promise<
               <AdminStaffList staff={staff} />
             </Section>
 
-            <Section title={`Stagiaires (${players.length})`}>
+            <Section title={`Joueurs (${players.length})`}>
               {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
               <AdminPlayers players={players as any} quota={quota} showQuota={formation.active} />
             </Section>

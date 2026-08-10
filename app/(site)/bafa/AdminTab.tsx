@@ -37,7 +37,7 @@ export default async function AdminTab({ formationId }: { formationId: string })
       },
     }),
     prisma.player.findMany({
-      where: { formationId, role: "STAGIAIRE" },
+      where: { formationId, OR: [{ role: "STAGIAIRE" }, { secret: { isNot: null } }] },
       orderBy: { firstName: "asc" },
       select: {
         id: true,
@@ -50,7 +50,7 @@ export default async function AdminTab({ formationId }: { formationId: string })
       },
     }),
     prisma.player.findMany({
-      where: { formationId, role: { in: ["FORMATEUR", "DIRECTEUR"] } },
+      where: { formationId, role: { in: ["FORMATEUR", "DIRECTEUR"] }, secret: null },
       orderBy: { firstName: "asc" },
       select: { id: true, firstName: true, role: true, username: true },
     }),
@@ -89,7 +89,7 @@ export default async function AdminTab({ formationId }: { formationId: string })
         <AdminStaffList staff={staff} />
       </Section>
 
-      <Section title={`Stagiaires (${players.length})`}>
+      <Section title={`Joueurs (${players.length})`}>
         {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
         <AdminPlayers players={players as any} quota={quota} />
       </Section>
