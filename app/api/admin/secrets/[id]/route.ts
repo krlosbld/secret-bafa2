@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
+import { getGameAdminAuth } from "@/lib/gameAdminAuth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,10 +8,16 @@ export const dynamic = "force-dynamic";
 type Params = { params: Promise<{ id: string }> };
 
 export async function PATCH(req: Request, { params }: Params) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+  const auth = await getGameAdminAuth();
+  if (!auth.ok) return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
 
   const { id } = await params;
+  const secret = await prisma.secret.findUnique({ where: { id }, select: { formationId: true } });
+  if (!secret) return NextResponse.json({ error: "Introuvable." }, { status: 404 });
+  if (auth.formationId && secret.formationId !== auth.formationId) {
+    return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+  }
+
   const body = await req.json().catch(() => ({}));
   const data: Record<string, unknown> = {};
 
@@ -39,10 +45,16 @@ export async function PATCH(req: Request, { params }: Params) {
 }
 
 export async function DELETE(_req: Request, { params }: Params) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+  const auth = await getGameAdminAuth();
+  if (!auth.ok) return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
 
   const { id } = await params;
+  const secret = await prisma.secret.findUnique({ where: { id }, select: { formationId: true } });
+  if (!secret) return NextResponse.json({ error: "Introuvable." }, { status: 404 });
+  if (auth.formationId && secret.formationId !== auth.formationId) {
+    return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+  }
+
   try {
     await prisma.secret.delete({ where: { id } });
     return NextResponse.json({ ok: true });

@@ -7,6 +7,7 @@ import BafaLogoutClient from "./BafaLogoutClient";
 import PlanningTab from "./PlanningTab";
 import PlanningHoursTable from "./PlanningHoursTable";
 import PersonalSpaceBody from "./PersonalSpaceBody";
+import AdminTab from "./AdminTab";
 import GroupGenerator from "./GroupGenerator";
 import StagiaireCardMenu from "./StagiaireCardMenu";
 import ReactivateButton from "./ReactivateButton";
@@ -24,7 +25,15 @@ const ROLE_LABELS: Record<string, string> = {
   DIRECTEUR: "Directeur",
 };
 
-function TabNav({ active, showGroups }: { active: "espace" | "planning" | "groupes"; showGroups: boolean }) {
+function TabNav({
+  active,
+  showGroups,
+  showAdmin,
+}: {
+  active: "espace" | "planning" | "groupes" | "admin";
+  showGroups: boolean;
+  showAdmin: boolean;
+}) {
   const tabStyle = (isActive: boolean) => ({
     background: isActive ? "#0f766e" : "transparent",
     color: isActive ? "#fff" : "#0f766e",
@@ -38,7 +47,7 @@ function TabNav({ active, showGroups }: { active: "espace" | "planning" | "group
   });
 
   return (
-    <div style={{ display: "flex", gap: 8, marginBottom: 20 }}>
+    <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
       <Link href="/bafa" style={tabStyle(active === "espace")}>
         Espace
       </Link>
@@ -48,6 +57,11 @@ function TabNav({ active, showGroups }: { active: "espace" | "planning" | "group
       {showGroups && (
         <Link href="/bafa?tab=groupes" style={tabStyle(active === "groupes")}>
           👥 Groupes
+        </Link>
+      )}
+      {showAdmin && (
+        <Link href="/bafa?tab=admin" style={tabStyle(active === "admin")}>
+          🛠️ Administration
         </Link>
       )}
     </div>
@@ -433,6 +447,7 @@ export default async function BafaPage({
   const showPlanning = tab === "planning";
   const requestedDay = day !== undefined ? Number(day) : undefined;
   const showGroups = tab === "groupes";
+  const showAdminTab = tab === "admin";
 
   const playerSession = await getPlayerSession();
   const player = playerSession
@@ -447,6 +462,7 @@ export default async function BafaPage({
   const playerIsCurrent = !!player && player.formationId === formationId;
   const loggedIn = playerIsCurrent || !!adminSession;
   const isStaff = (playerIsCurrent && STAFF_ROLES.includes(player!.role)) || !!adminSession;
+  const isDirector = playerIsCurrent && player!.role === "DIRECTEUR";
 
   if (!loggedIn) {
     return (
@@ -494,8 +510,28 @@ export default async function BafaPage({
           <p className="sub" style={{ marginBottom: 20 }}>
             Répartition aléatoire des stagiaires en groupes.
           </p>
-          <TabNav active="groupes" showGroups={isStaff} />
+          <TabNav active="groupes" showGroups={isStaff} showAdmin={isDirector} />
           <GroupGenerator initialAssignment={assignment} />
+        </div>
+      </main>
+    );
+  }
+
+  if (showAdminTab && isDirector) {
+    return (
+      <main className="page">
+        <div className="container">
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
+            <h1 className="h1" style={{ margin: 0 }}>
+              Administration
+            </h1>
+            {player && <BafaLogoutClient />}
+          </div>
+          <p className="sub" style={{ marginBottom: 20 }}>
+            Modération des secrets et des buzz pour ta formation.
+          </p>
+          <TabNav active="admin" showGroups={isStaff} showAdmin={isDirector} />
+          <AdminTab formationId={formationId} />
         </div>
       </main>
     );
@@ -548,7 +584,7 @@ export default async function BafaPage({
               initialPosition={hoursTablePos}
             />
           )}
-          <TabNav active="planning" showGroups={isStaff} />
+          <TabNav active="planning" showGroups={isStaff} showAdmin={isDirector} />
           <PlanningTab
             initialBlocks={blocks}
             initialPostes={postes}
@@ -574,7 +610,7 @@ export default async function BafaPage({
       return (
         <main className="page">
           <div className="container">
-            <TabNav active="espace" showGroups={isStaff} />
+            <TabNav active="espace" showGroups={isStaff} showAdmin={isDirector} />
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
               <h1 className="h1" style={{ margin: 0 }}>
                 Abandons
@@ -628,7 +664,7 @@ export default async function BafaPage({
         return (
           <main className="page">
             <div className="container">
-              <TabNav active="espace" showGroups={isStaff} />
+              <TabNav active="espace" showGroups={isStaff} showAdmin={isDirector} />
               <PersonalSpace
                 playerId={as}
                 formationId={formationId}
@@ -664,7 +700,7 @@ export default async function BafaPage({
     return (
       <main className="page">
         <div className="container">
-          <TabNav active="espace" showGroups={isStaff} />
+          <TabNav active="espace" showGroups={isStaff} showAdmin={isDirector} />
           <StagiaireList
             players={players}
             showLogout={!!player}
@@ -681,7 +717,7 @@ export default async function BafaPage({
   return (
     <main className="page">
       <div className="container">
-        <TabNav active="espace" showGroups={isStaff} />
+        <TabNav active="espace" showGroups={isStaff} showAdmin={isDirector} />
         <PersonalSpace
           playerId={playerSession!.playerId}
           formationId={formationId}

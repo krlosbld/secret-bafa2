@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession } from "@/lib/auth";
+import { getGameAdminAuth } from "@/lib/gameAdminAuth";
 
 export const runtime = "nodejs";
 
@@ -8,8 +8,8 @@ type Params = { params: Promise<{ id: string }> };
 
 // PATCH : valider ou rejeter un buzz
 export async function PATCH(req: Request, { params }: Params) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+  const auth = await getGameAdminAuth();
+  if (!auth.ok) return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
 
   const { id } = await params;
   const { action } = await req.json(); // "validate" | "reject"
@@ -19,6 +19,9 @@ export async function PATCH(req: Request, { params }: Params) {
     include: { secret: true },
   });
   if (!buzz) return NextResponse.json({ error: "Buzz introuvable." }, { status: 404 });
+  if (auth.formationId && buzz.secret.formationId !== auth.formationId) {
+    return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+  }
   if (buzz.status !== "PENDING") {
     return NextResponse.json({ error: "Buzz déjà traité." }, { status: 400 });
   }
@@ -57,10 +60,16 @@ export async function PATCH(req: Request, { params }: Params) {
 
 // DELETE : supprimer un buzz
 export async function DELETE(_req: Request, { params }: Params) {
-  const session = await getSession();
-  if (!session) return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+  const auth = await getGameAdminAuth();
+  if (!auth.ok) return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
 
   const { id } = await params;
+  const buzz = await prisma.buzz.findUnique({ where: { id }, select: { secret: { select: { formationId: true } } } });
+  if (!buzz) return NextResponse.json({ error: "Introuvable." }, { status: 404 });
+  if (auth.formationId && buzz.secret.formationId !== auth.formationId) {
+    return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+  }
+
   try {
     await prisma.buzz.delete({ where: { id } });
     return NextResponse.json({ ok: true });

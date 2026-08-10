@@ -6,7 +6,7 @@ export const runtime = "nodejs";
 
 export async function GET() {
   const session = await getSession();
-  if (!isSuperAdmin(session)) {
+  if (!session) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 
@@ -29,11 +29,24 @@ export async function POST(req: Request) {
   if (!name) {
     return NextResponse.json({ error: "Nom requis." }, { status: 400 });
   }
+  const directorFirstName = String(body.directorFirstName ?? "").trim();
 
-  const formation = await prisma.$transaction(async (tx) => {
+  const { formation, director } = await prisma.$transaction(async (tx) => {
     await tx.formation.updateMany({ where: { active: true }, data: { active: false } });
-    return tx.formation.create({ data: { name, active: true } });
+    const formation = await tx.formation.create({ data: { name, active: true } });
+
+    let director = null;
+    if (directorFirstName) {
+      // Formation tout juste créée : aucun joueur existant, pas besoin de vérifier l'unicité du code.
+      const code = String(Math.floor(1000 + Math.random() * 9000));
+      director = await tx.player.create({
+        data: { firstName: directorFirstName, code, role: "DIRECTEUR", formationId: formation.id },
+        select: { id: true, firstName: true, code: true },
+      });
+    }
+
+    return { formation, director };
   });
 
-  return NextResponse.json({ ok: true, formation });
+  return NextResponse.json({ ok: true, formation, director });
 }

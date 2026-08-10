@@ -22,9 +22,11 @@ const ROLE_LABELS: Record<string, string> = {
 export default function AdminPlayers({
   players,
   quota,
+  showQuota = true,
 }: {
   players: Player[];
   quota: number;
+  showQuota?: boolean;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
@@ -81,6 +83,7 @@ export default function AdminPlayers({
   return (
     <>
       {/* Quota */}
+      {showQuota && (
       <div className="card" style={{ marginBottom: 20 }}>
         <div style={{ fontWeight: 800, marginBottom: 10 }}>Quota de buzz par personne</div>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -108,6 +111,7 @@ export default function AdminPlayers({
           </button>
         </div>
       </div>
+      )}
 
       {/* Liste joueurs */}
       <div className="cards">

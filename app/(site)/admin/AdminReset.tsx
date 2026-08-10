@@ -3,16 +3,16 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
-export default function AdminReset() {
+export default function AdminReset({ formationId, formationName }: { formationId: string; formationName: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
 
   async function reset() {
-    if (!confirm("⚠️ Supprimer tous les joueurs, secrets et buzz de la formation en cours ? Cette action est irréversible.")) return;
-    if (!confirm("Dernière confirmation — vraiment tout effacer pour la formation en cours ?")) return;
+    if (!confirm(`⚠️ Supprimer tous les joueurs, secrets et buzz de "${formationName}" ? Cette action est irréversible.`)) return;
+    if (!confirm(`Dernière confirmation — vraiment tout effacer pour "${formationName}" ?`)) return;
 
     setLoading(true);
-    const res = await fetch("/api/admin/reset", { method: "DELETE" });
+    const res = await fetch(`/api/admin/formations/${formationId}/reset`, { method: "DELETE" });
     setLoading(false);
 
     if (res.ok) {
@@ -31,10 +31,10 @@ export default function AdminReset() {
         Zone dangereuse
       </div>
       <p style={{ margin: "0 0 14px", fontSize: 14, color: "#64748b" }}>
-        Supprime tous les joueurs, secrets et buzz de la formation en cours (les autres formations ne sont pas touchées). À utiliser uniquement pour repartir de zéro sur cette formation.
+        Supprime tous les joueurs, secrets et buzz de cette formation (les autres formations ne sont pas touchées). À utiliser uniquement pour repartir de zéro.
       </p>
       <button className="btn btn-danger" onClick={reset} disabled={loading}>
-        {loading ? "Suppression…" : "🗑️ Réinitialiser la formation en cours"}
+        {loading ? "Suppression…" : "🗑️ Réinitialiser cette formation"}
       </button>
     </div>
   );

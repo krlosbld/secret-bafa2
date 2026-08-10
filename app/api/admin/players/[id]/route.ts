@@ -1,19 +1,34 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession, isSuperAdmin } from "@/lib/auth";
+import { getPlayerSession } from "@/lib/playerAuth";
 
 export const runtime = "nodejs";
 
 type Params = { params: Promise<{ id: string }> };
 
+async function canManagePlayer(targetFormationId: string): Promise<boolean> {
+  const session = await getSession();
+  if (isSuperAdmin(session)) return true;
+
+  const playerSession = await getPlayerSession();
+  if (!playerSession) return false;
+  const player = await prisma.player.findUnique({
+    where: { id: playerSession.playerId },
+    select: { role: true, formationId: true },
+  });
+  return player?.role === "DIRECTEUR" && player.formationId === targetFormationId;
+}
+
 // PATCH : modifier points ou reset buzz
 export async function PATCH(req: Request, { params }: Params) {
-  const session = await getSession();
-  if (!isSuperAdmin(session)) {
+  const { id } = await params;
+  const target = await prisma.player.findUnique({ where: { id }, select: { formationId: true } });
+  if (!target) return NextResponse.json({ error: "Introuvable." }, { status: 404 });
+  if (!(await canManagePlayer(target.formationId))) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 
-  const { id } = await params;
   const body = await req.json().catch(() => ({}));
   const data: Record<string, unknown> = {};
 
@@ -40,12 +55,13 @@ export async function PATCH(req: Request, { params }: Params) {
 
 // DELETE : supprimer un joueur (cascade sur secret et buzz)
 export async function DELETE(_req: Request, { params }: Params) {
-  const session = await getSession();
-  if (!isSuperAdmin(session)) {
+  const { id } = await params;
+  const target = await prisma.player.findUnique({ where: { id }, select: { formationId: true } });
+  if (!target) return NextResponse.json({ error: "Introuvable." }, { status: 404 });
+  if (!(await canManagePlayer(target.formationId))) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 
-  const { id } = await params;
   await prisma.player.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }
