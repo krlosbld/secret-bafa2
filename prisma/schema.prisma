@@ -7,15 +7,29 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Formation {
+  id        String   @id @default(cuid())
+  name      String
+  active    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  players        Player[]
+  secrets        Secret[]
+  planningBlocks PlanningBlock[]
+  configs        Config[]
+}
+
 model Player {
   id               String            @id @default(cuid())
+  formationId      String
   firstName        String
-  code             String            @unique
+  code             String
   role             String            @default("STAGIAIRE") // STAGIAIRE | FORMATEUR | DIRECTEUR
   active           Boolean           @default(true) // false = abandon
   points           Int               @default(0)
   buzzCount        Int               @default(0)
   createdAt        DateTime          @default(now())
+  formation        Formation         @relation(fields: [formationId], references: [id], onDelete: Cascade)
   secret           Secret?
   buzzesSent       Buzz[]            @relation("BuzzFrom")
   foundSecrets     Secret[]          @relation("FoundBy")
@@ -32,21 +46,27 @@ model Player {
   complementaryVisible  Boolean @default(false)
   finalAppraisal        String  @default("") // appréciation finale
   finalAppraisalVisible Boolean @default(false)
+
+  @@unique([formationId, code])
 }
 
 model Secret {
-  id              String   @id @default(cuid())
-  playerId        String   @unique
+  id              String     @id @default(cuid())
+  formationId     String
+  playerId        String     @unique
   content         String
-  bonus           Int      @default(1)
-  status          String   @default("PENDING") // PENDING | PUBLISHED | FOUND
-  flagged         Boolean  @default(false)
+  bonus           Int        @default(1)
+  status          String     @default("PENDING") // PENDING | PUBLISHED | FOUND
+  flagged         Boolean    @default(false)
   foundByPlayerId String?
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  player          Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)
-  foundBy         Player?  @relation("FoundBy", fields: [foundByPlayerId], references: [id])
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  formation       Formation  @relation(fields: [formationId], references: [id], onDelete: Cascade)
+  player          Player     @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  foundBy         Player?    @relation("FoundBy", fields: [foundByPlayerId], references: [id])
   buzzes          Buzz[]
+
+  @@index([formationId])
 }
 
 model Buzz {
@@ -72,12 +92,18 @@ model Manager {
 }
 
 model Config {
-  key   String @id
-  value String
+  id          String    @id @default(cuid())
+  formationId String
+  key         String
+  value       String
+  formation   Formation @relation(fields: [formationId], references: [id], onDelete: Cascade)
+
+  @@unique([formationId, key])
 }
 
 model PlanningBlock {
   id          String       @id @default(cuid())
+  formationId String
   day         Int // 0 = premier jour de la formation, etc.
   startMin    Int // minutes depuis minuit
   endMin      Int
@@ -85,10 +111,12 @@ model PlanningBlock {
   type        String // id du PosteType
   createdAt   DateTime     @default(now())
   updatedAt   DateTime     @updatedAt
+  formation   Formation    @relation(fields: [formationId], references: [id], onDelete: Cascade)
   evaluations Evaluation[]
   assignments BlockAssignment[]
 
   @@index([day])
+  @@index([formationId])
 }
 
 model BlockAssignment {

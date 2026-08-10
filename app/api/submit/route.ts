@@ -2,13 +2,14 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { fuzzyMatch } from "@/lib/fuzzy";
 import { isFlagged } from "@/lib/contentFilter";
+import { getActiveFormationId } from "@/lib/formation";
 
 export const runtime = "nodejs";
 
-async function generateUniqueCode(): Promise<string> {
+async function generateUniqueCode(formationId: string): Promise<string> {
   for (let i = 0; i < 20; i++) {
     const code = String(Math.floor(1000 + Math.random() * 9000));
-    const exists = await prisma.player.findUnique({ where: { code } });
+    const exists = await prisma.player.findUnique({ where: { formationId_code: { formationId, code } } });
     if (!exists) return code;
   }
   throw new Error("Impossible de générer un code unique");
@@ -42,8 +43,11 @@ export async function POST(req: Request) {
       );
     }
 
-    // Un seul secret par prénom (fuzzy match strict)
+    const formationId = await getActiveFormationId();
+
+    // Un seul secret par prénom (fuzzy match strict), au sein de la formation active
     const allPlayers = await prisma.player.findMany({
+      where: { formationId },
       select: { firstName: true },
     });
     const duplicate = allPlayers.some((p) => fuzzyMatch(p.firstName, firstName, 1));
@@ -54,15 +58,16 @@ export async function POST(req: Request) {
       );
     }
 
-    const code = await generateUniqueCode();
+    const code = await generateUniqueCode(formationId);
     const flagged = isFlagged(content);
 
     await prisma.player.create({
       data: {
         firstName,
         code,
+        formationId,
         secret: {
-          create: { content, bonus, status: "PENDING", flagged },
+          create: { content, bonus, status: "PENDING", flagged, formationId },
         },
       },
     });

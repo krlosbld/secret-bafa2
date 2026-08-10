@@ -12,6 +12,7 @@ import StagiaireCardMenu from "./StagiaireCardMenu";
 import ReactivateButton from "./ReactivateButton";
 import { DEFAULT_SESSION_TYPE, todayISO, daysForType, todayDayIndex } from "@/lib/planningConfig";
 import { getPlayerNotes } from "@/lib/playerNotes";
+import { getActiveFormationId } from "@/lib/formation";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -53,10 +54,10 @@ function TabNav({ active, showGroups }: { active: "espace" | "planning" | "group
   );
 }
 
-async function getEvaluationData(playerId: string) {
+async function getEvaluationData(playerId: string, formationId: string) {
   const [blocks, configRows, postes, criteria, criterionStates, evaluations, ratings, assignments] = await Promise.all([
-    prisma.planningBlock.findMany({ orderBy: [{ day: "asc" }, { startMin: "asc" }] }),
-    prisma.config.findMany({ where: { key: { in: ["planningSessionType", "planningStartDate"] } } }),
+    prisma.planningBlock.findMany({ where: { formationId }, orderBy: [{ day: "asc" }, { startMin: "asc" }] }),
+    prisma.config.findMany({ where: { formationId, key: { in: ["planningSessionType", "planningStartDate"] } } }),
     prisma.posteType.findMany({ orderBy: { order: "asc" } }),
     prisma.criterion.findMany({ orderBy: { order: "asc" } }),
     prisma.criterionState.findMany({ orderBy: { order: "asc" } }),
@@ -89,22 +90,25 @@ async function getEvaluationData(playerId: string) {
   return { evalBlocks, postes, criteria, criterionStates, startDate, dayCount, notes, ratingValues };
 }
 
-async function getStagiaireIndicators(dayCount: number, playerIds?: string[]) {
+async function getStagiaireIndicators(dayCount: number, formationId: string, playerIds?: string[]) {
   const playerFilter = playerIds ? { in: playerIds } : undefined;
 
   const [postes, blocks, evaluations, ratings, criterionStates, assignmentRows] = await Promise.all([
     prisma.posteType.findMany({ where: { evaluable: true }, select: { id: true } }),
-    prisma.planningBlock.findMany({ select: { id: true, day: true, type: true } }),
+    prisma.planningBlock.findMany({ where: { formationId }, select: { id: true, day: true, type: true } }),
     prisma.evaluation.findMany({
-      where: { note: { not: "" }, ...(playerFilter ? { playerId: playerFilter } : {}) },
+      where: {
+        note: { not: "" },
+        ...(playerFilter ? { playerId: playerFilter } : { player: { formationId } }),
+      },
       select: { playerId: true, blockId: true },
     }),
     prisma.criterionRating.findMany({
-      where: playerFilter ? { playerId: playerFilter } : undefined,
+      where: playerFilter ? { playerId: playerFilter } : { player: { formationId } },
       select: { playerId: true, day: true, criterionId: true, value: true },
     }),
     prisma.criterionState.findMany({ select: { id: true, score: true } }),
-    prisma.blockAssignment.findMany({ select: { blockId: true, playerId: true } }),
+    prisma.blockAssignment.findMany({ where: { block: { formationId } }, select: { blockId: true, playerId: true } }),
   ]);
 
   const scoreByStateId = new Map(criterionStates.map((s) => [s.id, s.score]));
@@ -255,6 +259,7 @@ function TrendArrow({ score, day, href }: { score: number | null; day: number; h
 
 async function PersonalSpace({
   playerId,
+  formationId,
   firstName,
   code,
   subLabel,
@@ -266,6 +271,7 @@ async function PersonalSpace({
   requestedDay,
 }: {
   playerId: string;
+  formationId: string;
   firstName: string;
   code: string;
   subLabel?: string;
@@ -277,8 +283,8 @@ async function PersonalSpace({
   requestedDay?: number;
 }) {
   const { evalBlocks, postes, criteria, criterionStates, startDate, dayCount, notes, ratingValues } =
-    await getEvaluationData(playerId);
-  const { dailyFillRatio, dailyTrend } = await getStagiaireIndicators(dayCount, [playerId]);
+    await getEvaluationData(playerId, formationId);
+  const { dailyFillRatio, dailyTrend } = await getStagiaireIndicators(dayCount, formationId, [playerId]);
   const playerNotes = await getPlayerNotes(playerId, canEditEvaluations);
   const remarkRows = await prisma.dailyRemark.findMany({ where: { playerId } });
   const remarks: Record<number, string> = {};
@@ -432,13 +438,15 @@ export default async function BafaPage({
   const player = playerSession
     ? await prisma.player.findUnique({
         where: { id: playerSession.playerId },
-        select: { firstName: true, code: true, role: true },
+        select: { firstName: true, code: true, role: true, formationId: true },
       })
     : null;
 
   const adminSession = player ? null : await getSession();
-  const loggedIn = !!player || !!adminSession;
-  const isStaff = (!!player && STAFF_ROLES.includes(player.role)) || !!adminSession;
+  const formationId = await getActiveFormationId();
+  const playerIsCurrent = !!player && player.formationId === formationId;
+  const loggedIn = playerIsCurrent || !!adminSession;
+  const isStaff = (playerIsCurrent && STAFF_ROLES.includes(player!.role)) || !!adminSession;
 
   if (!loggedIn) {
     return (
@@ -453,7 +461,7 @@ export default async function BafaPage({
   }
 
   if (showGroups && isStaff) {
-    const config = await prisma.config.findUnique({ where: { key: "stagiaireGroups" } });
+    const config = await prisma.config.findUnique({ where: { formationId_key: { formationId, key: "stagiaireGroups" } } });
     let assignment: {
       groupCount: number;
       groups: { id: string; firstName: string }[][];
@@ -495,9 +503,9 @@ export default async function BafaPage({
 
   if (showPlanning) {
     const [blocks, configRows, postes, criteria, criterionStates] = await Promise.all([
-      prisma.planningBlock.findMany({ orderBy: { startMin: "asc" } }),
+      prisma.planningBlock.findMany({ where: { formationId }, orderBy: { startMin: "asc" } }),
       prisma.config.findMany({
-        where: { key: { in: ["planningSessionType", "planningStartDate", "planningHoursTablePos"] } },
+        where: { formationId, key: { in: ["planningSessionType", "planningStartDate", "planningHoursTablePos"] } },
       }),
       prisma.posteType.findMany({ orderBy: { order: "asc" } }),
       prisma.criterion.findMany({ orderBy: { order: "asc" } }),
@@ -558,7 +566,7 @@ export default async function BafaPage({
   if (isStaff) {
     if (abandoned === "1") {
       const abandonedPlayers = await prisma.player.findMany({
-        where: { role: "STAGIAIRE", active: false },
+        where: { role: "STAGIAIRE", active: false, formationId },
         orderBy: { firstName: "asc" },
         select: { id: true, firstName: true, code: true },
       });
@@ -603,11 +611,11 @@ export default async function BafaPage({
     if (as) {
       const [target, roster] = await Promise.all([
         prisma.player.findUnique({
-          where: { id: as },
+          where: { id: as, formationId },
           select: { firstName: true, code: true },
         }),
         prisma.player.findMany({
-          where: { role: "STAGIAIRE", active: true },
+          where: { role: "STAGIAIRE", active: true, formationId },
           orderBy: { firstName: "asc" },
           select: { id: true },
         }),
@@ -623,6 +631,7 @@ export default async function BafaPage({
               <TabNav active="espace" showGroups={isStaff} />
               <PersonalSpace
                 playerId={as}
+                formationId={formationId}
                 firstName={target.firstName}
                 code={target.code}
                 subLabel={player ? `Aperçu ${ROLE_LABELS[player.role]}` : "Aperçu admin"}
@@ -641,16 +650,16 @@ export default async function BafaPage({
 
     const [players, abandonedCount, configRows] = await Promise.all([
       prisma.player.findMany({
-        where: { role: "STAGIAIRE", active: true },
+        where: { role: "STAGIAIRE", active: true, formationId },
         orderBy: { firstName: "asc" },
         select: { id: true, firstName: true, code: true },
       }),
-      prisma.player.count({ where: { role: "STAGIAIRE", active: false } }),
-      prisma.config.findMany({ where: { key: { in: ["planningSessionType"] } } }),
+      prisma.player.count({ where: { role: "STAGIAIRE", active: false, formationId } }),
+      prisma.config.findMany({ where: { formationId, key: { in: ["planningSessionType"] } } }),
     ]);
     const sessionType = configRows.find((r) => r.key === "planningSessionType")?.value ?? DEFAULT_SESSION_TYPE;
     const dayCount = daysForType(sessionType);
-    const { dailyFillRatio, dailyTrend } = await getStagiaireIndicators(dayCount);
+    const { dailyFillRatio, dailyTrend } = await getStagiaireIndicators(dayCount, formationId);
 
     return (
       <main className="page">
@@ -675,6 +684,7 @@ export default async function BafaPage({
         <TabNav active="espace" showGroups={isStaff} />
         <PersonalSpace
           playerId={playerSession!.playerId}
+          formationId={formationId}
           firstName={player!.firstName}
           code={player!.code}
           showLogout={true}

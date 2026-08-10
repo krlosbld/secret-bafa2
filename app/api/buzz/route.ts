@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { fuzzyMatch } from "@/lib/fuzzy";
+import { getActiveFormationId } from "@/lib/formation";
 
 export const runtime = "nodejs";
 
@@ -38,8 +39,10 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Champs manquants." }, { status: 400 });
     }
 
+    const formationId = await getActiveFormationId();
+
     // Trouver le joueur par son code
-    const player = await prisma.player.findUnique({ where: { code: fromCode } });
+    const player = await prisma.player.findUnique({ where: { formationId_code: { formationId, code: fromCode } } });
     if (!player) {
       return NextResponse.json(
         { error: "Code invalide. Vérifie ton code personnel." },
@@ -56,7 +59,7 @@ export async function POST(req: Request) {
     }
 
     // Vérifier le quota
-    const config = await prisma.config.findUnique({ where: { key: "buzzQuota" } });
+    const config = await prisma.config.findUnique({ where: { formationId_key: { formationId, key: "buzzQuota" } } });
     const quota = Number(config?.value ?? 3);
     if (player.buzzCount >= quota) {
       return NextResponse.json(

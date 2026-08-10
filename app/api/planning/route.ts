@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { canEditPlanning } from "@/lib/planningAuth";
+import { getActiveFormationId } from "@/lib/formation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -27,7 +28,8 @@ function isValidNewBlock(body: Record<string, unknown>): boolean {
 }
 
 export async function GET() {
-  const blocks = await prisma.planningBlock.findMany({ orderBy: { startMin: "asc" } });
+  const formationId = await getActiveFormationId();
+  const blocks = await prisma.planningBlock.findMany({ where: { formationId }, orderBy: { startMin: "asc" } });
   return NextResponse.json({ ok: true, blocks });
 }
 
@@ -41,6 +43,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Créneau invalide." }, { status: 400 });
   }
 
+  const formationId = await getActiveFormationId();
   const block = await prisma.planningBlock.create({
     data: {
       day: body.day,
@@ -48,6 +51,7 @@ export async function POST(req: Request) {
       endMin: body.endMin,
       label: String(body.label).trim().slice(0, 60) || "Sans titre",
       type: body.type,
+      formationId,
     },
   });
 

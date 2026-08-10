@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { canEditPlanning } from "@/lib/planningAuth";
+import { getActiveFormationId } from "@/lib/formation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,7 +9,8 @@ export const dynamic = "force-dynamic";
 const KEY = "planningHoursTablePos";
 
 export async function GET() {
-  const config = await prisma.config.findUnique({ where: { key: KEY } });
+  const formationId = await getActiveFormationId();
+  const config = await prisma.config.findUnique({ where: { formationId_key: { formationId, key: KEY } } });
   if (!config) return NextResponse.json({ ok: true, position: null });
 
   try {
@@ -30,11 +32,12 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "Position invalide." }, { status: 400 });
   }
 
+  const formationId = await getActiveFormationId();
   const value = JSON.stringify({ x, y });
   await prisma.config.upsert({
-    where: { key: KEY },
+    where: { formationId_key: { formationId, key: KEY } },
     update: { value },
-    create: { key: KEY, value },
+    create: { formationId, key: KEY, value },
   });
 
   return NextResponse.json({ ok: true, position: { x, y } });

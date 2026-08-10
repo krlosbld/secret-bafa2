@@ -14,9 +14,14 @@ export async function GET(_req: Request, { params }: Params) {
 
   const { id } = await params;
 
+  const block = await prisma.planningBlock.findUnique({ where: { id }, select: { formationId: true } });
+  if (!block) {
+    return NextResponse.json({ error: "Créneau introuvable." }, { status: 404 });
+  }
+
   const [stagiaires, assignments, evaluations] = await Promise.all([
     prisma.player.findMany({
-      where: { role: "STAGIAIRE", active: true },
+      where: { role: "STAGIAIRE", active: true, formationId: block.formationId },
       orderBy: { firstName: "asc" },
       select: { id: true, firstName: true },
     }),

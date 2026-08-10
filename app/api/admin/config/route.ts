@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession, isSuperAdmin } from "@/lib/auth";
+import { getActiveFormationId } from "@/lib/formation";
 
 export const runtime = "nodejs";
 
@@ -10,7 +11,8 @@ export async function GET() {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 
-  const quota = await prisma.config.findUnique({ where: { key: "buzzQuota" } });
+  const formationId = await getActiveFormationId();
+  const quota = await prisma.config.findUnique({ where: { formationId_key: { formationId, key: "buzzQuota" } } });
   return NextResponse.json({ buzzQuota: Number(quota?.value ?? 3) });
 }
 
@@ -26,10 +28,11 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "Quota invalide (1-20)." }, { status: 400 });
   }
 
+  const formationId = await getActiveFormationId();
   await prisma.config.upsert({
-    where: { key: "buzzQuota" },
+    where: { formationId_key: { formationId, key: "buzzQuota" } },
     update: { value: String(val) },
-    create: { key: "buzzQuota", value: String(val) },
+    create: { formationId, key: "buzzQuota", value: String(val) },
   });
 
   return NextResponse.json({ ok: true, buzzQuota: val });

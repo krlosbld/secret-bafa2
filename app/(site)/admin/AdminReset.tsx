@@ -8,8 +8,8 @@ export default function AdminReset() {
   const [loading, setLoading] = useState(false);
 
   async function reset() {
-    if (!confirm("⚠️ Supprimer TOUS les joueurs, secrets et buzz ? Cette action est irréversible.")) return;
-    if (!confirm("Dernière confirmation — vraiment tout effacer ?")) return;
+    if (!confirm("⚠️ Supprimer tous les joueurs, secrets et buzz de la formation en cours ? Cette action est irréversible.")) return;
+    if (!confirm("Dernière confirmation — vraiment tout effacer pour la formation en cours ?")) return;
 
     setLoading(true);
     const res = await fetch("/api/admin/reset", { method: "DELETE" });
@@ -31,10 +31,10 @@ export default function AdminReset() {
         Zone dangereuse
       </div>
       <p style={{ margin: "0 0 14px", fontSize: 14, color: "#64748b" }}>
-        Supprime tous les joueurs, secrets et buzz. À utiliser uniquement pour repartir de zéro.
+        Supprime tous les joueurs, secrets et buzz de la formation en cours (les autres formations ne sont pas touchées). À utiliser uniquement pour repartir de zéro sur cette formation.
       </p>
       <button className="btn btn-danger" onClick={reset} disabled={loading}>
-        {loading ? "Suppression…" : "🗑️ Tout réinitialiser"}
+        {loading ? "Suppression…" : "🗑️ Réinitialiser la formation en cours"}
       </button>
     </div>
   );

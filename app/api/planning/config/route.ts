@@ -2,13 +2,15 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { canEditPlanning } from "@/lib/planningAuth";
 import { SESSION_TYPES, DEFAULT_SESSION_TYPE, todayISO } from "@/lib/planningConfig";
+import { getActiveFormationId } from "@/lib/formation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
+  const formationId = await getActiveFormationId();
   const rows = await prisma.config.findMany({
-    where: { key: { in: ["planningSessionType", "planningStartDate"] } },
+    where: { formationId, key: { in: ["planningSessionType", "planningStartDate"] } },
   });
   const sessionType = rows.find((r) => r.key === "planningSessionType")?.value ?? DEFAULT_SESSION_TYPE;
   const startDate = rows.find((r) => r.key === "planningStartDate")?.value ?? todayISO();
@@ -30,16 +32,17 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "Date invalide." }, { status: 400 });
   }
 
+  const formationId = await getActiveFormationId();
   await prisma.$transaction([
     prisma.config.upsert({
-      where: { key: "planningSessionType" },
+      where: { formationId_key: { formationId, key: "planningSessionType" } },
       update: { value: sessionType },
-      create: { key: "planningSessionType", value: sessionType },
+      create: { formationId, key: "planningSessionType", value: sessionType },
     }),
     prisma.config.upsert({
-      where: { key: "planningStartDate" },
+      where: { formationId_key: { formationId, key: "planningStartDate" } },
       update: { value: startDate },
-      create: { key: "planningStartDate", value: startDate },
+      create: { formationId, key: "planningStartDate", value: startDate },
     }),
   ]);
 

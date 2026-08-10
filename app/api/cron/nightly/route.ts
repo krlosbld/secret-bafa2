@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getActiveFormationId } from "@/lib/formation";
 
 export const runtime = "nodejs";
 
@@ -11,12 +12,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 
-  // Reset du compteur de buzz pour tous les joueurs
-  await prisma.player.updateMany({ data: { buzzCount: 0 } });
+  const formationId = await getActiveFormationId();
+
+  // Reset du compteur de buzz pour les joueurs de la formation active
+  await prisma.player.updateMany({ where: { formationId }, data: { buzzCount: 0 } });
 
   // +1 pt à chaque auteur dont le secret est PUBLISHED (pas encore trouvé)
   const unpublished = await prisma.secret.findMany({
-    where: { status: "PUBLISHED" },
+    where: { status: "PUBLISHED", formationId },
     select: { playerId: true },
   });
 
@@ -28,9 +31,9 @@ export async function POST(req: Request) {
   }
 
   await prisma.config.upsert({
-    where: { key: "lastNightlyRun" },
+    where: { formationId_key: { formationId, key: "lastNightlyRun" } },
     update: { value: JSON.stringify({ at: new Date().toISOString(), updated: unpublished.length }) },
-    create: { key: "lastNightlyRun", value: JSON.stringify({ at: new Date().toISOString(), updated: unpublished.length }) },
+    create: { formationId, key: "lastNightlyRun", value: JSON.stringify({ at: new Date().toISOString(), updated: unpublished.length }) },
   });
 
   return NextResponse.json({ ok: true, updated: unpublished.length });

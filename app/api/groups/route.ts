@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { canEditPlanning } from "@/lib/planningAuth";
+import { getActiveFormationId } from "@/lib/formation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,7 +13,8 @@ export async function GET() {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 
-  const config = await prisma.config.findUnique({ where: { key: KEY } });
+  const formationId = await getActiveFormationId();
+  const config = await prisma.config.findUnique({ where: { formationId_key: { formationId, key: KEY } } });
   if (!config) return NextResponse.json({ ok: true, assignment: null });
 
   try {
@@ -33,8 +35,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Nombre de groupes invalide." }, { status: 400 });
   }
 
+  const formationId = await getActiveFormationId();
   const players = await prisma.player.findMany({
-    where: { role: "STAGIAIRE", active: true },
+    where: { role: "STAGIAIRE", active: true, formationId },
     select: { id: true, firstName: true },
   });
 
@@ -61,9 +64,9 @@ export async function POST(req: Request) {
 
   const assignment = { groupCount, groups, generatedAt: new Date().toISOString() };
   await prisma.config.upsert({
-    where: { key: KEY },
+    where: { formationId_key: { formationId, key: KEY } },
     update: { value: JSON.stringify(assignment) },
-    create: { key: KEY, value: JSON.stringify(assignment) },
+    create: { formationId, key: KEY, value: JSON.stringify(assignment) },
   });
 
   return NextResponse.json({ ok: true, assignment });

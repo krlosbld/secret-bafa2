@@ -1,12 +1,14 @@
 import { prisma } from "@/lib/prisma";
+import { getActiveFormationId } from "@/lib/formation";
 import SecretsClient from "./SecretsClient";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export default async function HomePage() {
+  const formationId = await getActiveFormationId();
   const secrets = await prisma.secret.findMany({
-    where: { status: { in: ["PUBLISHED", "FOUND"] } },
+    where: { status: { in: ["PUBLISHED", "FOUND"] }, formationId },
     select: {
       id: true,
       content: true,

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { setPlayerSessionCookies } from "@/lib/playerAuth";
+import { getActiveFormationId } from "@/lib/formation";
 
 export const runtime = "nodejs";
 
@@ -13,7 +14,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, error: "Code invalide." }, { status: 400 });
     }
 
-    const player = await prisma.player.findUnique({ where: { code: cleanCode } });
+    const formationId = await getActiveFormationId();
+    const player = await prisma.player.findUnique({ where: { formationId_code: { formationId, code: cleanCode } } });
     if (!player) {
       return NextResponse.json({ ok: false, error: "Code inconnu." }, { status: 401 });
     }

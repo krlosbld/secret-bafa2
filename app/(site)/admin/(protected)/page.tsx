@@ -1,9 +1,11 @@
 import { prisma } from "@/lib/prisma";
 import { getSession, isSuperAdmin } from "@/lib/auth";
+import { getActiveFormation } from "@/lib/formation";
 import { AdminSecretsPending, AdminSecretsPublished } from "../AdminSecrets";
 import AdminBuzzPending from "../AdminBuzzPending";
 import AdminPlayers from "../AdminPlayers";
 import AdminManagers from "../AdminManagers";
+import AdminFormations from "../AdminFormations";
 import LogoutClient from "../LogoutClient";
 import AdminReset from "../AdminReset";
 
@@ -24,10 +26,12 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export default async function AdminPage() {
   const session = await getSession();
   const superAdmin = isSuperAdmin(session);
+  const activeFormation = await getActiveFormation();
+  const formationId = activeFormation.id;
 
   const [pendingSecrets, publishedSecrets, pendingBuzzes] = await Promise.all([
     prisma.secret.findMany({
-      where: { status: "PENDING" },
+      where: { status: "PENDING", formationId },
       orderBy: { createdAt: "asc" },
       include: {
         player: { select: { firstName: true, code: true } },
@@ -35,7 +39,7 @@ export default async function AdminPage() {
       },
     }),
     prisma.secret.findMany({
-      where: { status: { in: ["PUBLISHED", "FOUND"] } },
+      where: { status: { in: ["PUBLISHED", "FOUND"] }, formationId },
       orderBy: { createdAt: "desc" },
       include: {
         player: { select: { firstName: true, code: true } },
@@ -43,7 +47,7 @@ export default async function AdminPage() {
       },
     }),
     prisma.buzz.findMany({
-      where: { status: "PENDING" },
+      where: { status: "PENDING", secret: { formationId } },
       orderBy: { createdAt: "asc" },
       include: {
         fromPlayer: { select: { firstName: true, code: true } },
@@ -60,6 +64,7 @@ export default async function AdminPage() {
 
   const players = superAdmin
     ? await prisma.player.findMany({
+        where: { formationId },
         orderBy: { firstName: "asc" },
         select: {
           id: true,
@@ -80,13 +85,20 @@ export default async function AdminPage() {
       })
     : [];
 
+  const formations = superAdmin
+    ? await prisma.formation.findMany({
+        orderBy: { createdAt: "desc" },
+        select: { id: true, name: true, active: true, createdAt: true, _count: { select: { players: true } } },
+      })
+    : [];
+
   const quotaConfig = superAdmin
-    ? await prisma.config.findUnique({ where: { key: "buzzQuota" } })
+    ? await prisma.config.findUnique({ where: { formationId_key: { formationId, key: "buzzQuota" } } })
     : null;
   const quota = Number(quotaConfig?.value ?? 3);
 
   const lastNightlyRunConfig = superAdmin
-    ? await prisma.config.findUnique({ where: { key: "lastNightlyRun" } })
+    ? await prisma.config.findUnique({ where: { formationId_key: { formationId, key: "lastNightlyRun" } } })
     : null;
   let lastNightlyRun: { at: string; updated: number } | null = null;
   if (lastNightlyRunConfig) {
@@ -134,6 +146,11 @@ export default async function AdminPage() {
 
         {superAdmin && (
           <>
+            <Section title="Formations">
+              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+              <AdminFormations formations={formations as any} />
+            </Section>
+
             <Section title={`Joueurs (${players.length})`}>
               {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
               <AdminPlayers players={players as any} quota={quota} />
