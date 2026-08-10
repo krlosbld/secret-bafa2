@@ -3,9 +3,10 @@ import { AdminSecretsPending, AdminSecretsPublished } from "../admin/AdminSecret
 import AdminBuzzPending from "../admin/AdminBuzzPending";
 import AdminPlayers from "../admin/AdminPlayers";
 import AdminStaffList from "../admin/AdminStaffList";
+import AdminCronControls from "../admin/AdminCronControls";
 
 export default async function AdminTab({ formationId }: { formationId: string }) {
-  const [pendingSecrets, publishedSecrets, pendingBuzzes, players, staff, quotaConfig] = await Promise.all([
+  const [pendingSecrets, publishedSecrets, pendingBuzzes, players, staff, quotaConfig, lastNightlyRunConfig] = await Promise.all([
     prisma.secret.findMany({
       where: { status: "PENDING", formationId },
       orderBy: { createdAt: "asc" },
@@ -55,9 +56,19 @@ export default async function AdminTab({ formationId }: { formationId: string })
       select: { id: true, firstName: true, role: true, username: true },
     }),
     prisma.config.findUnique({ where: { formationId_key: { formationId, key: "buzzQuota" } } }),
+    prisma.config.findUnique({ where: { formationId_key: { formationId, key: "lastNightlyRun" } } }),
   ]);
 
   const quota = Number(quotaConfig?.value ?? 3);
+
+  let lastNightlyRun: { at: string; updated: number } | null = null;
+  if (lastNightlyRunConfig) {
+    try {
+      lastNightlyRun = JSON.parse(lastNightlyRunConfig.value);
+    } catch {
+      lastNightlyRun = null;
+    }
+  }
 
   function Section({ title, children }: { title: string; children: React.ReactNode }) {
     return (
@@ -92,6 +103,28 @@ export default async function AdminTab({ formationId }: { formationId: string })
       <Section title={`Joueurs (${players.length})`}>
         {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
         <AdminPlayers players={players as any} quota={quota} />
+      </Section>
+
+      <Section title="Cron nocturne (reset buzz + points)">
+        <div className="card">
+          {lastNightlyRun ? (
+            <>
+              <div className="row">
+                <div className="label">Dernière exécution</div>
+                <div className="value">
+                  {new Date(lastNightlyRun.at).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}
+                </div>
+              </div>
+              <div className="row">
+                <div className="label">Joueurs mis à jour</div>
+                <div className="value">+1 pt pour {lastNightlyRun.updated} joueur(s)</div>
+              </div>
+            </>
+          ) : (
+            <p style={{ color: "#dc2626", fontWeight: 700 }}>Jamais exécuté depuis la mise en place de ce suivi.</p>
+          )}
+          <AdminCronControls formationId={formationId} />
+        </div>
       </Section>
     </div>
   );

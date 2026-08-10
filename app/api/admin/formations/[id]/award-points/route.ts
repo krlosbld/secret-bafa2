@@ -1,18 +1,17 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getSession, isSuperAdmin } from "@/lib/auth";
+import { getGameAdminAuth } from "@/lib/gameAdminAuth";
 
 export const runtime = "nodejs";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function POST(_req: Request, { params }: Params) {
-  const session = await getSession();
-  if (!isSuperAdmin(session)) {
+  const auth = await getGameAdminAuth();
+  const { id: formationId } = await params;
+  if (!auth.ok || (auth.formationId && auth.formationId !== formationId)) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
-
-  const { id: formationId } = await params;
 
   const unpublished = await prisma.secret.findMany({
     where: { status: "PUBLISHED", formationId },
