@@ -281,6 +281,9 @@ async function PersonalSpace({
     await getEvaluationData(playerId);
   const { dailyFillRatio, dailyTrend } = await getStagiaireIndicators(dayCount, [playerId]);
   const playerNotes = await getPlayerNotes(playerId, canEditEvaluations);
+  const remarkRows = await prisma.dailyRemark.findMany({ where: { playerId } });
+  const remarks: Record<number, string> = {};
+  for (const r of remarkRows) remarks[r.day] = r.note;
 
   const initialDay =
     requestedDay !== undefined && Number.isInteger(requestedDay) && requestedDay >= 0 && requestedDay < dayCount
@@ -379,6 +382,10 @@ async function PersonalSpace({
               canEditPersonal={!canEditEvaluations}
               canEditStaffNotes={canEditEvaluations}
               initialNotes={playerNotes}
+              dayCount={dayCount}
+              startDate={startDate}
+              initialDay={initialDay}
+              initialRemarks={remarks}
             />
           )}
         </div>

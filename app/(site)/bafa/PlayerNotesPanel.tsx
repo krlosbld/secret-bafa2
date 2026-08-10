@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import DailyRemarkBox from "./DailyRemarkBox";
 
 type Notes = {
   personalNote: string;
@@ -19,11 +20,19 @@ export default function PlayerNotesPanel({
   canEditPersonal,
   canEditStaffNotes,
   initialNotes,
+  dayCount,
+  startDate,
+  initialDay,
+  initialRemarks,
 }: {
   playerId: string;
   canEditPersonal: boolean;
   canEditStaffNotes: boolean;
   initialNotes: Notes;
+  dayCount: number;
+  startDate: string;
+  initialDay: number;
+  initialRemarks: Record<number, string>;
 }) {
   const [notes, setNotes] = useState<Notes>(initialNotes);
   const [drafts, setDrafts] = useState<Record<TextField, string>>({
@@ -119,6 +128,15 @@ export default function PlayerNotesPanel({
         justSaved={savedFlash === "personalNote"}
         onChange={(v) => setDrafts((d) => ({ ...d, personalNote: v }))}
         onSave={() => persist("personalNote", drafts.personalNote)}
+      />
+
+      <DailyRemarkBox
+        playerId={playerId}
+        dayCount={dayCount}
+        startDate={startDate}
+        initialDay={initialDay}
+        initialNotes={initialRemarks}
+        canEdit={canEditStaffNotes}
       />
 
       <NoteBox
