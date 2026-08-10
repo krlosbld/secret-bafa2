@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
+import { getPlayerSession } from "@/lib/playerAuth";
+import { prisma } from "@/lib/prisma";
 import NavSubmitButton from "@/components/NavSubmitButton";
 
 export default async function Navbar() {
@@ -7,6 +9,20 @@ export default async function Navbar() {
   const role = store.get("auth_role")?.value;
   const until = Number(store.get("auth_until")?.value ?? "0");
   const isAdmin = !!role && Date.now() < until;
+
+  let gearHref = "/admin";
+  if (!isAdmin) {
+    const playerSession = await getPlayerSession();
+    if (playerSession) {
+      const player = await prisma.player.findUnique({
+        where: { id: playerSession.playerId },
+        select: { role: true },
+      });
+      if (player?.role === "DIRECTEUR") {
+        gearHref = "/bafa?tab=admin";
+      }
+    }
+  }
 
   return (
     <header className="navbar">
@@ -26,7 +42,7 @@ export default async function Navbar() {
           <Link className="nav-link" href="/bafa">
             BAFA
           </Link>
-          <Link className="nav-link" href="/admin" title="Administration">
+          <Link className="nav-link" href={gearHref} title="Administration">
             ⚙️
           </Link>
         </div>
