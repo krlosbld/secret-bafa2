@@ -14,13 +14,15 @@ type DirectorAccountOption = { id: string; firstName: string; username: string }
 export default function AdminCreateCode({
   formationId,
   directorAccounts,
+  allowDirector = true,
 }: {
   formationId: string;
   directorAccounts: DirectorAccountOption[];
+  allowDirector?: boolean;
 }) {
   const router = useRouter();
   const [firstName, setFirstName] = useState("");
-  const [role, setRole] = useState("DIRECTEUR");
+  const [role, setRole] = useState(allowDirector ? "DIRECTEUR" : "FORMATEUR");
   const [directorSource, setDirectorSource] = useState<"existing" | "new">(directorAccounts.length > 0 ? "existing" : "new");
   const [existingDirectorAccountId, setExistingDirectorAccountId] = useState(directorAccounts[0]?.id ?? "");
   const [username, setUsername] = useState("");
@@ -88,11 +90,13 @@ export default function AdminCreateCode({
               disabled={loading}
               style={{ border: "1px solid #ddd", borderRadius: 6, padding: "6px 8px", fontSize: 14 }}
             >
-              {Object.entries(ROLE_LABELS).map(([value, label]) => (
-                <option key={value} value={value}>
-                  {label}
-                </option>
-              ))}
+              {Object.entries(ROLE_LABELS)
+                .filter(([value]) => allowDirector || value !== "DIRECTEUR")
+                .map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
             </select>
           </label>
 

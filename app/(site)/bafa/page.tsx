@@ -586,7 +586,7 @@ export default async function BafaPage({
     );
   }
 
-  // Un joueur voit toujours son propre espace ; l'édition (staff) exige que sa formation soit active.
+  // Un joueur voit toujours son propre espace.
   let formationId: string;
   if (player) {
     formationId = player.formationId;
@@ -601,14 +601,11 @@ export default async function BafaPage({
     }
     formationId = resolved.formationId;
   }
-  const formationIsActive = player
-    ? !!(await prisma.formation.findUnique({ where: { id: formationId }, select: { active: true } }))?.active
-    : true; // session admin/gestionnaire : comportement inchangé, toujours sur la formation active
-  // La formation inactive = lecture seule, pas invisible : le staff garde l'accès en consultation,
-  // seules les actions d'édition (planning) sont bloquées via `canEdit` ci-dessous.
+  // La formation inactive = lecture seule pour les stagiaires (soumission de secret, buzz — bloqués
+  // côté API) ; le staff (formateur/directeur) garde tous ses droits, y compris l'édition, quel que
+  // soit l'état de la formation.
   const isStaff = (!!player && STAFF_ROLES.includes(player.role)) || !!adminSession;
   const isDirector = !!player && player.role === "DIRECTEUR";
-  const canEdit = isStaff && formationIsActive;
 
   if (showGroups && isStaff) {
     const [config, stagiaires] = await Promise.all([
@@ -717,7 +714,7 @@ export default async function BafaPage({
               initialBlocks={blocks}
               initialPostes={postes}
               dayCount={daysForType(sessionType)}
-              canEdit={canEdit}
+              canEdit={isStaff}
               initialPosition={hoursTablePos}
             />
           )}
@@ -727,7 +724,7 @@ export default async function BafaPage({
             initialPostes={postes}
             initialCriteria={criteria}
             initialCriterionStates={criterionStates}
-            canEdit={canEdit}
+            canEdit={isStaff}
             sessionType={sessionType}
             startDate={startDate}
           />

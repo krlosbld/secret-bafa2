@@ -4,6 +4,7 @@ import AdminBuzzPending from "../admin/AdminBuzzPending";
 import AdminPlayers from "../admin/AdminPlayers";
 import AdminStaffList from "../admin/AdminStaffList";
 import AdminCronControls from "../admin/AdminCronControls";
+import AdminCreateCode from "../admin/AdminCreateCode";
 
 export default async function AdminTab({ formationId }: { formationId: string }) {
   const [pendingSecrets, publishedSecrets, pendingBuzzes, players, staffRows, quotaConfig, lastNightlyRunConfig] = await Promise.all([
@@ -96,6 +97,10 @@ export default async function AdminTab({ formationId }: { formationId: string })
       <Section title={`Secrets validés (${publishedSecrets.length})`}>
         {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
         <AdminSecretsPublished secrets={publishedSecrets as any} />
+      </Section>
+
+      <Section title="Codes">
+        <AdminCreateCode formationId={formationId} directorAccounts={[]} allowDirector={false} />
       </Section>
 
       <Section title={`Équipe (${staff.length})`}>

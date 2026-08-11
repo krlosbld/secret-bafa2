@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession, isSuperAdmin } from "@/lib/auth";
+import { getPlayerSession } from "@/lib/playerAuth";
 import { generateUniquePlayerCode } from "@/lib/playerCode";
 import crypto from "crypto";
 
@@ -8,19 +9,37 @@ export const runtime = "nodejs";
 
 type Params = { params: Promise<{ id: string }> };
 
-// POST : créer un code (stagiaire/formateur) ou un directeur (nouveau ou déjà existant) dans cette formation
+// POST : créer un code (stagiaire/formateur) ou un directeur (nouveau ou déjà existant) dans cette formation.
+// Autorisé au super-admin (sans restriction) ou au directeur de cette formation (stagiaire/formateur seulement).
 export async function POST(req: Request, { params }: Params) {
+  const { id: formationId } = await params;
+
   const session = await getSession();
-  if (!isSuperAdmin(session)) {
+  const isSuper = isSuperAdmin(session);
+  let isDirectorOfFormation = false;
+  if (!isSuper) {
+    const playerSession = await getPlayerSession();
+    if (playerSession) {
+      const requester = await prisma.player.findUnique({
+        where: { id: playerSession.playerId },
+        select: { role: true, formationId: true },
+      });
+      isDirectorOfFormation = requester?.role === "DIRECTEUR" && requester.formationId === formationId;
+    }
+  }
+  if (!isSuper && !isDirectorOfFormation) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 
-  const { id: formationId } = await params;
   const formation = await prisma.formation.findUnique({ where: { id: formationId } });
   if (!formation) return NextResponse.json({ error: "Formation introuvable." }, { status: 404 });
 
   const body = await req.json().catch(() => ({}));
   const role = body.role === "STAGIAIRE" || body.role === "FORMATEUR" || body.role === "DIRECTEUR" ? body.role : "DIRECTEUR";
+
+  if (role === "DIRECTEUR" && !isSuper) {
+    return NextResponse.json({ error: "Seul le super-admin peut créer un compte directeur." }, { status: 403 });
+  }
 
   if (role === "DIRECTEUR") {
     const existingDirectorAccountId = String(body.existingDirectorAccountId ?? "").trim() || null;

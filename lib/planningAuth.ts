@@ -14,10 +14,10 @@ export async function canEditPlanning(): Promise<boolean> {
 
   const player = await prisma.player.findUnique({
     where: { id: playerSession.playerId },
-    select: { role: true, formation: { select: { active: true } } },
+    select: { role: true },
   });
 
-  return !!player && STAFF_ROLES.includes(player.role) && player.formation.active;
+  return !!player && STAFF_ROLES.includes(player.role);
 }
 
 // Comme canEditPlanning(), mais renvoie aussi la formation exacte à utiliser :
@@ -36,9 +36,9 @@ export async function getPlanningAuth(): Promise<{ ok: true; formationId: string
 
   const player = await prisma.player.findUnique({
     where: { id: playerSession.playerId },
-    select: { role: true, formationId: true, formation: { select: { active: true } } },
+    select: { role: true, formationId: true },
   });
-  if (!player || !STAFF_ROLES.includes(player.role) || !player.formation.active) return { ok: false };
+  if (!player || !STAFF_ROLES.includes(player.role)) return { ok: false };
 
   return { ok: true, formationId: player.formationId };
 }
