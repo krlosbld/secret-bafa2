@@ -190,6 +190,26 @@ async function getStagiaireIndicators(dayCount: number, formationId: string, pla
   return { dailyFillRatio, dailyTrend };
 }
 
+async function getGroupAssignment(formationId: string): Promise<{ groupByPlayerId: Record<string, string>; visible: boolean }> {
+  const config = await prisma.config.findUnique({ where: { formationId_key: { formationId, key: "stagiaireGroups" } } });
+  const groupByPlayerId: Record<string, string> = {};
+  let visible = true;
+  if (config) {
+    try {
+      const parsed = JSON.parse(config.value);
+      visible = parsed.visible !== false;
+      (parsed.groups ?? []).forEach((g: unknown, idx: number) => {
+        const name = Array.isArray(g) ? `Groupe ${idx + 1}` : (g as { name?: string }).name || `Groupe ${idx + 1}`;
+        const members = Array.isArray(g) ? g : (g as { members?: { id: string }[] }).members ?? [];
+        for (const m of members as { id: string }[]) groupByPlayerId[m.id] = name;
+      });
+    } catch {
+      // ignore malformed config
+    }
+  }
+  return { groupByPlayerId, visible };
+}
+
 function lerpColor(a: string, b: string, t: number): string {
   const pa = parseInt(a.slice(1), 16);
   const pb = parseInt(b.slice(1), 16);
@@ -332,6 +352,10 @@ async function PersonalSpace({
   const remarks: Record<number, string> = {};
   for (const r of remarkRows) remarks[r.day] = r.note;
 
+  const groupAssignment = await getGroupAssignment(formationId);
+  const groupName =
+    groupAssignment.visible || canEditEvaluations ? groupAssignment.groupByPlayerId[playerId] : undefined;
+
   const initialDay =
     requestedDay !== undefined && Number.isInteger(requestedDay) && requestedDay >= 0 && requestedDay < dayCount
       ? requestedDay
@@ -377,6 +401,21 @@ async function PersonalSpace({
       </div>
       <p className="sub" style={{ marginBottom: 12 }}>
         {subLabel ? `${subLabel} · ` : ""}#{code}
+        {groupName && (
+          <span
+            style={{
+              marginLeft: 8,
+              fontSize: 12,
+              fontWeight: 800,
+              color: "#0f766e",
+              background: "#ccfbf1",
+              padding: "2px 9px",
+              borderRadius: 999,
+            }}
+          >
+            {groupName}
+          </span>
+        )}
       </p>
 
       <PersonalSpaceBody
@@ -726,7 +765,7 @@ export default async function BafaPage({
       }
     }
 
-    const [players, abandonedCount, configRows, groupsConfig] = await Promise.all([
+    const [players, abandonedCount, configRows, groupAssignment] = await Promise.all([
       prisma.player.findMany({
         where: { role: "STAGIAIRE", active: true, formationId },
         orderBy: { firstName: "asc" },
@@ -734,27 +773,13 @@ export default async function BafaPage({
       }),
       prisma.player.count({ where: { role: "STAGIAIRE", active: false, formationId } }),
       prisma.config.findMany({ where: { formationId, key: { in: ["planningSessionType"] } } }),
-      prisma.config.findUnique({ where: { formationId_key: { formationId, key: "stagiaireGroups" } } }),
+      getGroupAssignment(formationId),
     ]);
     const sessionType = configRows.find((r) => r.key === "planningSessionType")?.value ?? DEFAULT_SESSION_TYPE;
     const dayCount = daysForType(sessionType);
     const { dailyFillRatio, dailyTrend } = await getStagiaireIndicators(dayCount, formationId);
 
-    const groupByPlayerId: Record<string, string> = {};
-    if (groupsConfig) {
-      try {
-        const parsed = JSON.parse(groupsConfig.value);
-        if (parsed.visible !== false) {
-          (parsed.groups ?? []).forEach((g: unknown, idx: number) => {
-            const name = Array.isArray(g) ? `Groupe ${idx + 1}` : (g as { name?: string }).name || `Groupe ${idx + 1}`;
-            const members = Array.isArray(g) ? g : (g as { members?: { id: string }[] }).members ?? [];
-            for (const m of members as { id: string }[]) groupByPlayerId[m.id] = name;
-          });
-        }
-      } catch {
-        // ignore malformed config
-      }
-    }
+    const groupByPlayerId = groupAssignment.visible ? groupAssignment.groupByPlayerId : {};
 
     return (
       <main className="page">
