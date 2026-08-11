@@ -265,9 +265,10 @@ function NameGauge({
   );
 }
 
-function StatusSquare({ label, title, filled }: { label: string; title: string; filled: boolean }) {
+function StatusSquare({ label, title, filled, href }: { label: string; title: string; filled: boolean; href: string }) {
   return (
-    <span
+    <Link
+      href={href}
       title={`${title} : ${filled ? "rempli" : "non rempli"}`}
       style={{
         width: 22,
@@ -281,10 +282,12 @@ function StatusSquare({ label, title, filled }: { label: string; title: string; 
         background: filled ? "#16a34a" : "#e2e8f0",
         color: filled ? "#fff" : "#64748b",
         flexShrink: 0,
+        textDecoration: "none",
+        cursor: "pointer",
       }}
     >
       {label}
-    </span>
+    </Link>
   );
 }
 
@@ -527,8 +530,8 @@ function StagiaireList({
                 />
               </Link>
               <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-                <StatusSquare label="EMS" title="EMS (entretien de mi-stage)" filled={!!p.ems.trim()} />
-                <StatusSquare label="AF" title="Appréciation finale" filled={!!p.finalAppraisal.trim()} />
+                <StatusSquare label="EMS" title="EMS (entretien de mi-stage)" filled={!!p.ems.trim()} href={`/bafa?as=${p.id}`} />
+                <StatusSquare label="AF" title="Appréciation finale" filled={!!p.finalAppraisal.trim()} href={`/bafa?as=${p.id}`} />
               </div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
                 {Array.from({ length: dayCount }, (_, d) => d).map((d) => (
