@@ -190,14 +190,12 @@ async function getStagiaireIndicators(dayCount: number, formationId: string, pla
   return { dailyFillRatio, dailyTrend };
 }
 
-async function getGroupAssignment(formationId: string): Promise<{ groupByPlayerId: Record<string, string>; visible: boolean }> {
+async function getGroupAssignment(formationId: string): Promise<{ groupByPlayerId: Record<string, string> }> {
   const config = await prisma.config.findUnique({ where: { formationId_key: { formationId, key: "stagiaireGroups" } } });
   const groupByPlayerId: Record<string, string> = {};
-  let visible = true;
   if (config) {
     try {
       const parsed = JSON.parse(config.value);
-      visible = parsed.visible !== false;
       (parsed.groups ?? []).forEach((g: unknown, idx: number) => {
         const name = Array.isArray(g) ? `Groupe ${idx + 1}` : (g as { name?: string }).name || `Groupe ${idx + 1}`;
         const members = Array.isArray(g) ? g : (g as { members?: { id: string }[] }).members ?? [];
@@ -207,7 +205,7 @@ async function getGroupAssignment(formationId: string): Promise<{ groupByPlayerI
       // ignore malformed config
     }
   }
-  return { groupByPlayerId, visible };
+  return { groupByPlayerId };
 }
 
 function lerpColor(a: string, b: string, t: number): string {
@@ -353,8 +351,8 @@ async function PersonalSpace({
   for (const r of remarkRows) remarks[r.day] = r.note;
 
   const groupAssignment = await getGroupAssignment(formationId);
-  const groupName =
-    groupAssignment.visible || canEditEvaluations ? groupAssignment.groupByPlayerId[playerId] : undefined;
+  // Le groupe n'est visible que pour le staff (formateur/directeur), jamais pour le stagiaire lui-même.
+  const groupName = canEditEvaluations ? groupAssignment.groupByPlayerId[playerId] : undefined;
 
   const initialDay =
     requestedDay !== undefined && Number.isInteger(requestedDay) && requestedDay >= 0 && requestedDay < dayCount
@@ -779,7 +777,7 @@ export default async function BafaPage({
     const dayCount = daysForType(sessionType);
     const { dailyFillRatio, dailyTrend } = await getStagiaireIndicators(dayCount, formationId);
 
-    const groupByPlayerId = groupAssignment.visible ? groupAssignment.groupByPlayerId : {};
+    const { groupByPlayerId } = groupAssignment;
 
     return (
       <main className="page">
