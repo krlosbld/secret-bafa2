@@ -1,7 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
-export const PLAYER_AUTH_TTL = 60 * 60 * 24 * 7; // 7 jours
+export const PLAYER_AUTH_TTL = 60 * 10; // 10 minutes, glissant (comme la session admin)
 
 export async function getPlayerSession(): Promise<{ playerId: string } | null> {
   const store = await cookies();

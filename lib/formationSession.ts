@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
-export const FORMATION_COOKIE_TTL = 60 * 60 * 24 * 365; // 1 an
+export const FORMATION_COOKIE_TTL = 60 * 60 * 24 * 7; // 7 jours
 
 type FormationCookieRow = { id: string; name: string; active: boolean };
 
