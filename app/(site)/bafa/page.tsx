@@ -496,11 +496,7 @@ export default async function BafaPage({
         select: { id: true, firstName: true },
       }),
     ]);
-    let assignment: {
-      groupCount: number;
-      groups: { id: string; firstName: string }[][];
-      generatedAt: string;
-    } | null = null;
+    let assignment: unknown = null;
     if (config) {
       try {
         assignment = JSON.parse(config.value);

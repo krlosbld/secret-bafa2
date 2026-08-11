@@ -30,73 +30,37 @@ export async function POST(req: Request) {
   }
 
   const body = await req.json().catch(() => ({}));
+  if (!Array.isArray(body.groups)) {
+    return NextResponse.json({ error: "Format de groupes invalide." }, { status: 400 });
+  }
+
+  const rawGroups = body.groups as unknown[];
+  const valid = rawGroups.every(
+    (g) =>
+      g && typeof g === "object" &&
+      typeof (g as { name?: unknown }).name === "string" &&
+      Array.isArray((g as { ids?: unknown }).ids) &&
+      (g as { ids: unknown[] }).ids.every((id) => typeof id === "string")
+  );
+  if (!valid) {
+    return NextResponse.json({ error: "Format de groupes invalide." }, { status: 400 });
+  }
+  const inputGroups = rawGroups as { name: string; ids: string[] }[];
+
   const formationId = await getActiveFormationId();
-
-  // Répartition manuelle : { groups: string[][] } (tableaux d'ids de stagiaires)
-  if (Array.isArray(body.groups)) {
-    const ids = body.groups as unknown[];
-    if (!ids.every((g) => Array.isArray(g) && g.every((id) => typeof id === "string"))) {
-      return NextResponse.json({ error: "Format de groupes invalide." }, { status: 400 });
-    }
-    const manualGroups = body.groups as string[][];
-    const allIds = manualGroups.flat();
-    if (allIds.length === 0) {
-      return NextResponse.json({ error: "Aucun stagiaire assigné." }, { status: 400 });
-    }
-
-    const players = await prisma.player.findMany({
-      where: { id: { in: allIds }, role: "STAGIAIRE", active: true, formationId },
-      select: { id: true, firstName: true },
-    });
-    const byId = new Map(players.map((p) => [p.id, p]));
-
-    const groups: { id: string; firstName: string }[][] = manualGroups.map((ids) =>
-      ids.map((id) => byId.get(id)).filter((p): p is { id: string; firstName: string } => !!p)
-    );
-
-    const assignment = { groupCount: groups.length, groups, generatedAt: new Date().toISOString() };
-    await prisma.config.upsert({
-      where: { formationId_key: { formationId, key: KEY } },
-      update: { value: JSON.stringify(assignment) },
-      create: { formationId, key: KEY, value: JSON.stringify(assignment) },
-    });
-
-    return NextResponse.json({ ok: true, assignment });
-  }
-
-  // Répartition aléatoire : { groupCount: number }
-  const groupCount = Number(body.groupCount);
-  if (!Number.isInteger(groupCount) || groupCount < 1) {
-    return NextResponse.json({ error: "Nombre de groupes invalide." }, { status: 400 });
-  }
-
+  const allIds = inputGroups.flatMap((g) => g.ids);
   const players = await prisma.player.findMany({
-    where: { role: "STAGIAIRE", active: true, formationId },
+    where: { id: { in: allIds }, role: "STAGIAIRE", active: true, formationId },
     select: { id: true, firstName: true },
   });
+  const byId = new Map(players.map((p) => [p.id, p]));
 
-  if (players.length === 0) {
-    return NextResponse.json({ error: "Aucun stagiaire trouvé." }, { status: 400 });
-  }
-  if (groupCount > players.length) {
-    return NextResponse.json(
-      { error: `Pas assez de stagiaires (${players.length}) pour ${groupCount} groupes.` },
-      { status: 400 }
-    );
-  }
+  const groups = inputGroups.map((g) => ({
+    name: g.name.trim().slice(0, 60) || "Groupe",
+    members: g.ids.map((id) => byId.get(id)).filter((p): p is { id: string; firstName: string } => !!p),
+  }));
 
-  const shuffled = [...players];
-  for (let i = shuffled.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-  }
-
-  const groups: { id: string; firstName: string }[][] = Array.from({ length: groupCount }, () => []);
-  shuffled.forEach((p, idx) => {
-    groups[idx % groupCount].push(p);
-  });
-
-  const assignment = { groupCount, groups, generatedAt: new Date().toISOString() };
+  const assignment = { groups, generatedAt: new Date().toISOString() };
   await prisma.config.upsert({
     where: { formationId_key: { formationId, key: KEY } },
     update: { value: JSON.stringify(assignment) },
