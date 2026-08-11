@@ -716,6 +716,8 @@ export default async function BafaPage({
               dayCount={daysForType(sessionType)}
               canEdit={isStaff}
               initialPosition={hoursTablePos}
+              sessionType={sessionType}
+              startDate={startDate}
             />
           )}
           <TabNav active="planning" showGroups={isStaff} showAdmin={isDirector} />

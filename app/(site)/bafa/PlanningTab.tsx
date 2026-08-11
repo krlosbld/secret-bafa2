@@ -7,8 +7,8 @@ import {
   daysForType,
   dateForDayIndex,
   formatDayHeader,
-  POSTE_CATEGORIES,
   DEFAULT_POSTE_CATEGORY,
+  categoriesForSessionType,
 } from "@/lib/planningConfig";
 
 export type Block = {
@@ -159,6 +159,7 @@ export default function PlanningTab({
   const areaRef = useRef<HTMLDivElement | null>(null);
 
   const dayCount = daysForType(sessionType);
+  const posteCategories = categoriesForSessionType(sessionType);
   const dayDates = useMemo(
     () => Array.from({ length: dayCount }, (_, i) => dateForDayIndex(startDate, i)),
     [dayCount, startDate]
@@ -718,7 +719,7 @@ export default function PlanningTab({
 
             <div style={{ borderTop: "1px solid #eee", marginTop: 20, paddingTop: 16 }}>
               <div style={{ fontWeight: 800, marginBottom: 10 }}>Types de créneaux</div>
-              <PosteManager postes={postes} onAdd={addPoste} onUpdate={updatePoste} onRemove={removePoste} />
+              <PosteManager postes={postes} categories={posteCategories} onAdd={addPoste} onUpdate={updatePoste} onRemove={removePoste} />
             </div>
 
             <div style={{ borderTop: "1px solid #eee", marginTop: 20, paddingTop: 16 }}>
@@ -879,11 +880,13 @@ function EditBlockForm({
 
 function PosteManager({
   postes,
+  categories,
   onAdd,
   onUpdate,
   onRemove,
 }: {
   postes: Poste[];
+  categories: Record<string, string>;
   onAdd: (label: string, color: string, evaluable: boolean, category: string) => Promise<void>;
   onUpdate: (id: string, patch: { label?: string; color?: string; evaluable?: boolean; category?: string }) => Promise<void>;
   onRemove: (id: string) => Promise<string | null>;
@@ -937,7 +940,7 @@ function PosteManager({
               onChange={(e) => onUpdate(p.id, { category: e.target.value })}
               style={{ border: "1px solid #ddd", borderRadius: 6, padding: "5px 6px", fontSize: 12 }}
             >
-              {Object.entries(POSTE_CATEGORIES).map(([value, label]) => (
+              {Object.entries(categories).map(([value, label]) => (
                 <option key={value} value={value}>
                   {label}
                 </option>
@@ -987,7 +990,7 @@ function PosteManager({
           onChange={(e) => setNewCategory(e.target.value)}
           style={{ border: "1px solid #ddd", borderRadius: 6, padding: "5px 6px", fontSize: 12 }}
         >
-          {Object.entries(POSTE_CATEGORIES).map(([value, label]) => (
+          {Object.entries(categories).map(([value, label]) => (
             <option key={value} value={value}>
               {label}
             </option>

@@ -7,6 +7,20 @@ export const POSTE_CATEGORIES: Record<string, string> = {
 
 export const DEFAULT_POSTE_CATEGORY = "AUTRE";
 
+// Catégories supplémentaires, propres à certains types de session (ex. l'Approfondissement
+// introduit "Thématique" et "Retours stage pratique", absents d'une Formation générale).
+const EXTRA_CATEGORIES_BY_SESSION_TYPE: Record<string, Record<string, string>> = {
+  APPRO: {
+    THEMATIQUE: "Thématique",
+    RETOUR_STAGE: "Retours stage pratique",
+  },
+};
+
+export function categoriesForSessionType(sessionType: string): Record<string, string> {
+  const { AUTRE, ...rest } = POSTE_CATEGORIES;
+  return { ...rest, ...(EXTRA_CATEGORIES_BY_SESSION_TYPE[sessionType] ?? {}), AUTRE };
+}
+
 export const SESSION_TYPES: Record<string, { label: string; days: number }> = {
   BAFA: { label: "Formation générale (BAFA)", days: 8 },
   APPRO: { label: "Approfondissement", days: 6 },
