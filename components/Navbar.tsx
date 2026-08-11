@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { getPlayerSession } from "@/lib/playerAuth";
 import { prisma } from "@/lib/prisma";
 import NavSubmitButton from "@/components/NavSubmitButton";
+import BrandLink from "@/components/BrandLink";
 
 export default async function Navbar() {
   const store = await cookies();
@@ -27,9 +28,7 @@ export default async function Navbar() {
   return (
     <header className="navbar">
       <div className="nav-container">
-        <Link className="brand" href="/">
-          KiCéKi 🤫
-        </Link>
+        <BrandLink />
 
         <div className="nav-links">
           <NavSubmitButton />
