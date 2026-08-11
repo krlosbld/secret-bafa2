@@ -389,6 +389,9 @@ async function PersonalSpace({
                 Suivant →
               </Link>
             )}
+            <a className="btn btn-ghost" href={`/api/players/${playerId}/pdf`}>
+              📄 PDF
+            </a>
             <Link className="btn btn-ghost" href={backHref}>
               Liste des stagiaires
             </Link>
