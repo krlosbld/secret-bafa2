@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { canEditPlanning } from "@/lib/planningAuth";
-import { getActiveFormationId } from "@/lib/formation";
+import { getPlanningAuth } from "@/lib/planningAuth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,11 +8,12 @@ export const dynamic = "force-dynamic";
 const KEY = "stagiaireGroups";
 
 export async function GET() {
-  if (!(await canEditPlanning())) {
+  const auth = await getPlanningAuth();
+  if (!auth.ok) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 
-  const formationId = await getActiveFormationId();
+  const formationId = auth.formationId;
   const config = await prisma.config.findUnique({ where: { formationId_key: { formationId, key: KEY } } });
   if (!config) return NextResponse.json({ ok: true, assignment: null });
 
@@ -25,7 +25,8 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  if (!(await canEditPlanning())) {
+  const auth = await getPlanningAuth();
+  if (!auth.ok) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 
@@ -47,7 +48,7 @@ export async function POST(req: Request) {
   }
   const inputGroups = rawGroups as { name: string; ids: string[] }[];
 
-  const formationId = await getActiveFormationId();
+  const formationId = auth.formationId;
   const allIds = inputGroups.flatMap((g) => g.ids);
   const players = await prisma.player.findMany({
     where: { id: { in: allIds }, role: "STAGIAIRE", active: true, formationId },

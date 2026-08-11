@@ -8,6 +8,7 @@ import AdminPlayers from "../../../AdminPlayers";
 import AdminStaffList from "../../../AdminStaffList";
 import AdminCreateCode from "../../../AdminCreateCode";
 import AdminActivateFormation from "../../../AdminActivateFormation";
+import AdminFormationDates from "../../../AdminFormationDates";
 import AdminReset from "../../../AdminReset";
 import AdminCronControls from "../../../AdminCronControls";
 import LogoutClient from "../../../LogoutClient";
@@ -135,18 +136,29 @@ export default async function FormationDetailPage({ params }: { params: Promise<
           <h1 className="h1" style={{ margin: 0 }}>
             {formation.name}
           </h1>
-          {formation.active ? (
+          {formation.active && (
             <span style={{ fontSize: 12, fontWeight: 800, color: "#16a34a", background: "#dcfce7", padding: "2px 8px", borderRadius: 999 }}>
               Active
             </span>
-          ) : (
-            superAdmin && <AdminActivateFormation formationId={formation.id} formationName={formation.name} />
+          )}
+          {superAdmin && (
+            <AdminActivateFormation formationId={formation.id} formationName={formation.name} active={formation.active} />
           )}
         </div>
         <p className="sub" style={{ marginBottom: 32 }}>
           Créée le {new Date(formation.createdAt).toLocaleDateString("fr-FR")} · Code de session :{" "}
           <span style={{ fontWeight: 900, color: "#0f766e" }}>{formation.code}</span>
         </p>
+
+        {superAdmin && (
+          <Section title="Dates">
+            <AdminFormationDates
+              formationId={formation.id}
+              startDate={formation.startDate ? formation.startDate.toISOString().slice(0, 10) : ""}
+              endDate={formation.endDate ? formation.endDate.toISOString().slice(0, 10) : ""}
+            />
+          </Section>
+        )}
 
         <Section title={`Buzz à valider (${pendingBuzzes.length})`}>
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}

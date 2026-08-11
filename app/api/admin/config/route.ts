@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getGameAdminAuth } from "@/lib/gameAdminAuth";
-import { getActiveFormationId } from "@/lib/formation";
+import { resolveAdminFormationId } from "@/lib/formation";
 
 export const runtime = "nodejs";
 
@@ -9,7 +9,12 @@ export async function GET() {
   const auth = await getGameAdminAuth();
   if (!auth.ok) return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
 
-  const formationId = auth.formationId ?? (await getActiveFormationId());
+  let formationId = auth.formationId;
+  if (!formationId) {
+    const resolved = await resolveAdminFormationId();
+    if (!resolved.ok) return NextResponse.json({ error: "Choisis une formation." }, { status: 409 });
+    formationId = resolved.formationId;
+  }
   const quota = await prisma.config.findUnique({ where: { formationId_key: { formationId, key: "buzzQuota" } } });
   return NextResponse.json({ buzzQuota: Number(quota?.value ?? 3) });
 }
@@ -24,7 +29,12 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "Quota invalide (1-20)." }, { status: 400 });
   }
 
-  const formationId = auth.formationId ?? (await getActiveFormationId());
+  let formationId = auth.formationId;
+  if (!formationId) {
+    const resolved = await resolveAdminFormationId();
+    if (!resolved.ok) return NextResponse.json({ error: "Choisis une formation." }, { status: 409 });
+    formationId = resolved.formationId;
+  }
   await prisma.config.upsert({
     where: { formationId_key: { formationId, key: "buzzQuota" } },
     update: { value: String(val) },

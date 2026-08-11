@@ -13,9 +13,10 @@ import StagiaireCardMenu from "./StagiaireCardMenu";
 import ReactivateButton from "./ReactivateButton";
 import { DEFAULT_SESSION_TYPE, todayISO, daysForType, todayDayIndex } from "@/lib/planningConfig";
 import { getPlayerNotes } from "@/lib/playerNotes";
-import { getActiveFormationId } from "@/lib/formation";
+import { resolveAdminFormationId } from "@/lib/formation";
 import { getFormationFromCookie } from "@/lib/formationSession";
 import SessionCodeGate from "@/components/SessionCodeGate";
+import AdminFormationPicker from "./AdminFormationPicker";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -586,7 +587,20 @@ export default async function BafaPage({
   }
 
   // Un joueur voit toujours son propre espace ; l'édition (staff) exige que sa formation soit active.
-  const formationId = player ? player.formationId : await getActiveFormationId();
+  let formationId: string;
+  if (player) {
+    formationId = player.formationId;
+  } else {
+    const resolved = await resolveAdminFormationId();
+    if (!resolved.ok && resolved.reason === "ambiguous") {
+      const activeFormations = await prisma.formation.findMany({ where: { active: true }, select: { id: true, name: true }, orderBy: { name: "asc" } });
+      return <AdminFormationPicker options={activeFormations} />;
+    }
+    if (!resolved.ok) {
+      throw new Error("Aucune formation active. Contactez un administrateur.");
+    }
+    formationId = resolved.formationId;
+  }
   const formationIsActive = player
     ? !!(await prisma.formation.findUnique({ where: { id: formationId }, select: { active: true } }))?.active
     : true; // session admin/gestionnaire : comportement inchangé, toujours sur la formation active

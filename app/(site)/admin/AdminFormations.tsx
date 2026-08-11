@@ -26,6 +26,8 @@ export default function AdminFormations({
 }) {
   const router = useRouter();
   const [name, setName] = useState("");
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [directorMode, setDirectorMode] = useState<"none" | "existing" | "new">("none");
   const [existingDirectorAccountId, setExistingDirectorAccountId] = useState(directorAccounts[0]?.id ?? "");
   const [directorFirstName, setDirectorFirstName] = useState("");
@@ -54,11 +56,7 @@ export default function AdminFormations({
       setError("Prénom, identifiant et mot de passe du directeur requis ensemble.");
       return;
     }
-    if (
-      !confirm(
-        `Créer la formation "${name.trim()}" et la rendre active ? Les nouvelles inscriptions et connexions basculeront dessus immédiatement ; les données de la formation actuelle restent intactes.`
-      )
-    ) {
+    if (!confirm(`Créer la formation "${name.trim()}" (active) ? Les autres formations actives ne sont pas affectées.`)) {
       return;
     }
     setLoading(true);
@@ -67,6 +65,8 @@ export default function AdminFormations({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         name,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
         existingDirectorAccountId: directorMode === "existing" ? existingDirectorAccountId : undefined,
         directorFirstName: directorMode === "new" ? directorFirstName.trim() : undefined,
         directorUsername: directorMode === "new" ? directorUsername.trim() : undefined,
@@ -80,6 +80,8 @@ export default function AdminFormations({
       return;
     }
     setName("");
+    setStartDate("");
+    setEndDate("");
     setDirectorFirstName("");
     setDirectorUsername("");
     setDirectorPassword("");
@@ -107,6 +109,15 @@ export default function AdminFormations({
                 placeholder='ex. "BAFA - Session 2"'
                 disabled={loading}
               />
+            </label>
+
+            <label className="sb-field">
+              <span>Début (optionnel)</span>
+              <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} disabled={loading} />
+            </label>
+            <label className="sb-field">
+              <span>Fin (optionnel)</span>
+              <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} disabled={loading} />
             </label>
 
             <label className="sb-field">

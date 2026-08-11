@@ -12,6 +12,8 @@ model Formation {
   name      String
   code      String   @unique
   active    Boolean  @default(false)
+  startDate DateTime?
+  endDate   DateTime?
   createdAt DateTime @default(now())
 
   players        Player[]

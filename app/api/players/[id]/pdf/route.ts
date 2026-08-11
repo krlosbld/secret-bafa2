@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
 import React from "react";
 import { renderToBuffer } from "@react-pdf/renderer";
-import { canEditPlanning } from "@/lib/planningAuth";
-import { getActiveFormationId } from "@/lib/formation";
+import { getPlanningAuth } from "@/lib/planningAuth";
 import { buildPlayerReport } from "@/lib/playerReport";
 import PlayerReportDocument from "@/lib/pdf/PlayerReportDocument";
 
@@ -11,13 +10,13 @@ export const runtime = "nodejs";
 type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_req: Request, { params }: Params) {
-  if (!(await canEditPlanning())) {
+  const auth = await getPlanningAuth();
+  if (!auth.ok) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 
   const { id } = await params;
-  const formationId = await getActiveFormationId();
-  const report = await buildPlayerReport(id, formationId);
+  const report = await buildPlayerReport(id, auth.formationId);
   if (!report) {
     return NextResponse.json({ error: "Introuvable." }, { status: 404 });
   }

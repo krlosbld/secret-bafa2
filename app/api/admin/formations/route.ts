@@ -42,12 +42,13 @@ export async function POST(req: Request) {
   }
 
   const formationCode = await generateUniqueFormationCode();
+  const startDate = body.startDate ? new Date(String(body.startDate)) : null;
+  const endDate = body.endDate ? new Date(String(body.endDate)) : null;
 
   let formation, director;
   try {
     ({ formation, director } = await prisma.$transaction(async (tx) => {
-      await tx.formation.updateMany({ where: { active: true }, data: { active: false } });
-      const formation = await tx.formation.create({ data: { name, code: formationCode, active: true } });
+      const formation = await tx.formation.create({ data: { name, code: formationCode, active: true, startDate, endDate } });
 
       let director = null;
 

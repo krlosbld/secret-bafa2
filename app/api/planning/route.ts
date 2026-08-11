@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { canEditPlanning } from "@/lib/planningAuth";
-import { getActiveFormationId } from "@/lib/formation";
+import { getPlanningAuth } from "@/lib/planningAuth";
+import { resolveAdminFormationId } from "@/lib/formation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,13 +28,15 @@ function isValidNewBlock(body: Record<string, unknown>): boolean {
 }
 
 export async function GET() {
-  const formationId = await getActiveFormationId();
-  const blocks = await prisma.planningBlock.findMany({ where: { formationId }, orderBy: { startMin: "asc" } });
+  const resolved = await resolveAdminFormationId();
+  if (!resolved.ok) return NextResponse.json({ ok: true, blocks: [] });
+  const blocks = await prisma.planningBlock.findMany({ where: { formationId: resolved.formationId }, orderBy: { startMin: "asc" } });
   return NextResponse.json({ ok: true, blocks });
 }
 
 export async function POST(req: Request) {
-  if (!(await canEditPlanning())) {
+  const auth = await getPlanningAuth();
+  if (!auth.ok) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 
@@ -43,7 +45,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Créneau invalide." }, { status: 400 });
   }
 
-  const formationId = await getActiveFormationId();
+  const formationId = auth.formationId;
   const block = await prisma.planningBlock.create({
     data: {
       day: body.day,

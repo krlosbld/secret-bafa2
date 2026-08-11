@@ -1,14 +1,16 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { canEditPlanning } from "@/lib/planningAuth";
+import { getPlanningAuth } from "@/lib/planningAuth";
 import { SESSION_TYPES, DEFAULT_SESSION_TYPE, todayISO } from "@/lib/planningConfig";
-import { getActiveFormationId } from "@/lib/formation";
+import { resolveAdminFormationId } from "@/lib/formation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const formationId = await getActiveFormationId();
+  const resolved = await resolveAdminFormationId();
+  if (!resolved.ok) return NextResponse.json({ ok: true, sessionType: DEFAULT_SESSION_TYPE, startDate: todayISO() });
+  const formationId = resolved.formationId;
   const rows = await prisma.config.findMany({
     where: { formationId, key: { in: ["planningSessionType", "planningStartDate"] } },
   });
@@ -18,7 +20,8 @@ export async function GET() {
 }
 
 export async function PATCH(req: Request) {
-  if (!(await canEditPlanning())) {
+  const auth = await getPlanningAuth();
+  if (!auth.ok) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 
@@ -32,7 +35,7 @@ export async function PATCH(req: Request) {
     return NextResponse.json({ error: "Date invalide." }, { status: 400 });
   }
 
-  const formationId = await getActiveFormationId();
+  const formationId = auth.formationId;
   await prisma.$transaction([
     prisma.config.upsert({
       where: { formationId_key: { formationId, key: "planningSessionType" } },
