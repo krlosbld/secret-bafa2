@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { canEditPlanning } from "@/lib/planningAuth";
+import { getPlanningAuth } from "@/lib/planningAuth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,14 +8,15 @@ export const dynamic = "force-dynamic";
 type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_req: Request, { params }: Params) {
-  if (!(await canEditPlanning())) {
+  const auth = await getPlanningAuth();
+  if (!auth.ok) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 
   const { id } = await params;
 
   const block = await prisma.planningBlock.findUnique({ where: { id }, select: { formationId: true } });
-  if (!block) {
+  if (!block || block.formationId !== auth.formationId) {
     return NextResponse.json({ error: "Créneau introuvable." }, { status: 404 });
   }
 
@@ -41,16 +42,30 @@ export async function GET(_req: Request, { params }: Params) {
 }
 
 export async function PUT(req: Request, { params }: Params) {
-  if (!(await canEditPlanning())) {
+  const auth = await getPlanningAuth();
+  if (!auth.ok) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 
   const { id } = await params;
+
+  const block = await prisma.planningBlock.findUnique({ where: { id }, select: { formationId: true } });
+  if (!block || block.formationId !== auth.formationId) {
+    return NextResponse.json({ error: "Créneau introuvable." }, { status: 404 });
+  }
+
   const body = await req.json().catch(() => ({}));
-  const playerIds = Array.isArray(body.playerIds) ? body.playerIds.filter((v: unknown) => typeof v === "string") : null;
-  if (playerIds === null) {
+  const rawPlayerIds = Array.isArray(body.playerIds) ? body.playerIds.filter((v: unknown) => typeof v === "string") : null;
+  if (rawPlayerIds === null) {
     return NextResponse.json({ error: "playerIds requis (tableau)." }, { status: 400 });
   }
+
+  // Ne garder que les stagiaires appartenant réellement à la formation de ce créneau.
+  const validPlayers = await prisma.player.findMany({
+    where: { id: { in: rawPlayerIds }, formationId: block.formationId },
+    select: { id: true },
+  });
+  const playerIds = validPlayers.map((p) => p.id);
 
   await prisma.$transaction([
     prisma.blockAssignment.deleteMany({ where: { blockId: id } }),

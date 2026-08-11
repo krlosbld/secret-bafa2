@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { canEditPlanning } from "@/lib/planningAuth";
+import { getPlanningAuth } from "@/lib/planningAuth";
 import { getPlayerSession } from "@/lib/playerAuth";
 
 export const runtime = "nodejs";
@@ -11,10 +11,15 @@ type Params = { params: Promise<{ id: string }> };
 export async function GET(_req: Request, { params }: Params) {
   const { id } = await params;
 
-  const staff = await canEditPlanning();
-  if (!staff) {
+  const auth = await getPlanningAuth();
+  if (!auth.ok) {
     const session = await getPlayerSession();
     if (!session || session.playerId !== id) {
+      return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+    }
+  } else {
+    const player = await prisma.player.findUnique({ where: { id }, select: { formationId: true } });
+    if (!player || player.formationId !== auth.formationId) {
       return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
     }
   }
@@ -27,7 +32,8 @@ export async function GET(_req: Request, { params }: Params) {
 }
 
 export async function POST(req: Request, { params }: Params) {
-  if (!(await canEditPlanning())) {
+  const auth = await getPlanningAuth();
+  if (!auth.ok) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 
@@ -41,7 +47,9 @@ export async function POST(req: Request, { params }: Params) {
   }
 
   const player = await prisma.player.findUnique({ where: { id } });
-  if (!player) return NextResponse.json({ error: "Introuvable." }, { status: 404 });
+  if (!player || player.formationId !== auth.formationId) {
+    return NextResponse.json({ error: "Introuvable." }, { status: 404 });
+  }
 
   const remark = await prisma.dailyRemark.upsert({
     where: { playerId_day: { playerId: id, day } },

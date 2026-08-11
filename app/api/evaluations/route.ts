@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { canEditPlanning } from "@/lib/planningAuth";
+import { getPlanningAuth } from "@/lib/planningAuth";
 import { getPlayerSession } from "@/lib/playerAuth";
 
 export const runtime = "nodejs";
@@ -12,10 +12,15 @@ export async function GET(req: Request) {
     return NextResponse.json({ error: "playerId requis." }, { status: 400 });
   }
 
-  const staff = await canEditPlanning();
-  if (!staff) {
+  const auth = await getPlanningAuth();
+  if (!auth.ok) {
     const session = await getPlayerSession();
     if (!session || session.playerId !== playerId) {
+      return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+    }
+  } else {
+    const player = await prisma.player.findUnique({ where: { id: playerId }, select: { formationId: true } });
+    if (!player || player.formationId !== auth.formationId) {
       return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
     }
   }
@@ -28,7 +33,8 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-  if (!(await canEditPlanning())) {
+  const auth = await getPlanningAuth();
+  if (!auth.ok) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 
@@ -45,7 +51,7 @@ export async function POST(req: Request) {
     prisma.player.findUnique({ where: { id: playerId } }),
     prisma.planningBlock.findUnique({ where: { id: blockId } }),
   ]);
-  if (!player || !block) {
+  if (!player || !block || player.formationId !== auth.formationId || block.formationId !== auth.formationId) {
     return NextResponse.json({ error: "Introuvable." }, { status: 404 });
   }
 

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { canEditPlanning } from "@/lib/planningAuth";
+import { getPlanningAuth } from "@/lib/planningAuth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,13 +11,16 @@ const DAY_MAX = 18 * 60 + 30; // 18:30
 type Params = { params: Promise<{ id: string }> };
 
 export async function PATCH(req: Request, { params }: Params) {
-  if (!(await canEditPlanning())) {
+  const auth = await getPlanningAuth();
+  if (!auth.ok) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 
   const { id } = await params;
   const current = await prisma.planningBlock.findUnique({ where: { id } });
-  if (!current) return NextResponse.json({ error: "Introuvable." }, { status: 404 });
+  if (!current || current.formationId !== auth.formationId) {
+    return NextResponse.json({ error: "Introuvable." }, { status: 404 });
+  }
 
   const body = await req.json().catch(() => ({}));
   const data: Record<string, unknown> = {};
@@ -53,11 +56,17 @@ export async function PATCH(req: Request, { params }: Params) {
 }
 
 export async function DELETE(_req: Request, { params }: Params) {
-  if (!(await canEditPlanning())) {
+  const auth = await getPlanningAuth();
+  if (!auth.ok) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 
   const { id } = await params;
-  await prisma.planningBlock.delete({ where: { id } }).catch(() => null);
+  const current = await prisma.planningBlock.findUnique({ where: { id }, select: { formationId: true } });
+  if (!current || current.formationId !== auth.formationId) {
+    return NextResponse.json({ error: "Introuvable." }, { status: 404 });
+  }
+
+  await prisma.planningBlock.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }

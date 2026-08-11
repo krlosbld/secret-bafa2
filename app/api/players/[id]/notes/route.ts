@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { canEditPlanning } from "@/lib/planningAuth";
+import { getPlanningAuth } from "@/lib/planningAuth";
 import { getPlayerSession } from "@/lib/playerAuth";
 import { getPlayerNotes } from "@/lib/playerNotes";
 
@@ -10,9 +10,16 @@ export const dynamic = "force-dynamic";
 type Params = { params: Promise<{ id: string }> };
 
 async function checkAccess(id: string) {
-  const staff = await canEditPlanning();
   const session = await getPlayerSession();
   const isSelf = session?.playerId === id;
+
+  const auth = await getPlanningAuth();
+  let staff = false;
+  if (auth.ok) {
+    const player = await prisma.player.findUnique({ where: { id }, select: { formationId: true } });
+    staff = !!player && player.formationId === auth.formationId;
+  }
+
   return { staff, isSelf, allowed: staff || isSelf };
 }
 
