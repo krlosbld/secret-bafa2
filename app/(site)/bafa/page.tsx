@@ -488,7 +488,14 @@ export default async function BafaPage({
   const isDirector = !!player && formationIsActive && player.role === "DIRECTEUR";
 
   if (showGroups && isStaff) {
-    const config = await prisma.config.findUnique({ where: { formationId_key: { formationId, key: "stagiaireGroups" } } });
+    const [config, stagiaires] = await Promise.all([
+      prisma.config.findUnique({ where: { formationId_key: { formationId, key: "stagiaireGroups" } } }),
+      prisma.player.findMany({
+        where: { formationId, role: "STAGIAIRE", active: true },
+        orderBy: { firstName: "asc" },
+        select: { id: true, firstName: true },
+      }),
+    ]);
     let assignment: {
       groupCount: number;
       groups: { id: string; firstName: string }[][];
@@ -519,10 +526,10 @@ export default async function BafaPage({
             {player && <BafaLogoutClient />}
           </div>
           <p className="sub" style={{ marginBottom: 20 }}>
-            Répartition aléatoire des stagiaires en groupes.
+            Répartition des stagiaires en groupes, aléatoire ou manuelle.
           </p>
           <TabNav active="groupes" showGroups={isStaff} showAdmin={isDirector} />
-          <GroupGenerator initialAssignment={assignment} />
+          <GroupGenerator initialAssignment={assignment} stagiaires={stagiaires} />
         </div>
       </main>
     );
