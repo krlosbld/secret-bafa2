@@ -744,11 +744,13 @@ export default async function BafaPage({
     if (groupsConfig) {
       try {
         const parsed = JSON.parse(groupsConfig.value);
-        (parsed.groups ?? []).forEach((g: unknown, idx: number) => {
-          const name = Array.isArray(g) ? `Groupe ${idx + 1}` : (g as { name?: string }).name || `Groupe ${idx + 1}`;
-          const members = Array.isArray(g) ? g : (g as { members?: { id: string }[] }).members ?? [];
-          for (const m of members as { id: string }[]) groupByPlayerId[m.id] = name;
-        });
+        if (parsed.visible !== false) {
+          (parsed.groups ?? []).forEach((g: unknown, idx: number) => {
+            const name = Array.isArray(g) ? `Groupe ${idx + 1}` : (g as { name?: string }).name || `Groupe ${idx + 1}`;
+            const members = Array.isArray(g) ? g : (g as { members?: { id: string }[] }).members ?? [];
+            for (const m of members as { id: string }[]) groupByPlayerId[m.id] = name;
+          });
+        }
       } catch {
         // ignore malformed config
       }

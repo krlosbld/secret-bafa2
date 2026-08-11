@@ -60,7 +60,8 @@ export async function POST(req: Request) {
     members: g.ids.map((id) => byId.get(id)).filter((p): p is { id: string; firstName: string } => !!p),
   }));
 
-  const assignment = { groups, generatedAt: new Date().toISOString() };
+  const visible = body.visible !== false;
+  const assignment = { groups, visible, generatedAt: new Date().toISOString() };
   await prisma.config.upsert({
     where: { formationId_key: { formationId, key: KEY } },
     update: { value: JSON.stringify(assignment) },

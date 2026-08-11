@@ -33,6 +33,9 @@ export default function GroupGenerator({
   const [generatedAt, setGeneratedAt] = useState<string | null>(
     (initialAssignment as { generatedAt?: string } | null)?.generatedAt ?? null
   );
+  const [visible, setVisible] = useState<boolean>(
+    (initialAssignment as { visible?: boolean } | null)?.visible ?? true
+  );
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -54,6 +57,7 @@ export default function GroupGenerator({
         if (data?.ok && data.assignment) {
           setGroups(normalizeGroups(data.assignment));
           setGeneratedAt(data.assignment.generatedAt);
+          setVisible(data.assignment.visible ?? true);
         }
       } catch {
         // ignore transient network errors, will retry on next tick
@@ -119,7 +123,10 @@ export default function GroupGenerator({
       const res = await fetch("/api/groups", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ groups: groups.map((g) => ({ name: g.name, ids: g.members.map((m) => m.id) })) }),
+        body: JSON.stringify({
+          groups: groups.map((g) => ({ name: g.name, ids: g.members.map((m) => m.id) })),
+          visible,
+        }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -128,6 +135,7 @@ export default function GroupGenerator({
       }
       setGroups(normalizeGroups(data.assignment));
       setGeneratedAt(data.assignment.generatedAt);
+      setVisible(data.assignment.visible ?? true);
       setDirty(false);
     } catch {
       setError("Erreur réseau.");
@@ -163,6 +171,17 @@ export default function GroupGenerator({
           <button className="btn btn-main" onClick={save} disabled={saving || !dirty}>
             {saving ? "Enregistrement…" : "✅ Enregistrer"}
           </button>
+          <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600, color: "#334155" }}>
+            <input
+              type="checkbox"
+              checked={visible}
+              onChange={(e) => {
+                setVisible(e.target.checked);
+                setDirty(true);
+              }}
+            />
+            Afficher le groupe sur la page des stagiaires
+          </label>
           <span style={{ fontSize: 12, color: dirty ? "#dc2626" : "#64748b" }}>
             {dirty
               ? "Modifications non enregistrées"
