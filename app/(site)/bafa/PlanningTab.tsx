@@ -152,6 +152,7 @@ export default function PlanningTab({
   const [criteria, setCriteria] = useState<Criterion[]>(initialCriteria);
   const [criterionStates, setCriterionStates] = useState<CriterionStateDef[]>(initialCriterionStates);
   const [selectedPoste, setSelectedPoste] = useState<string>(initialPostes[0]?.id ?? "");
+  const [expandedPosteCategory, setExpandedPosteCategory] = useState<string | null>(initialPostes[0]?.category ?? null);
   const [eraser, setEraser] = useState(false);
   const [drag, setDrag] = useState<DragState | null>(null);
   const [editing, setEditing] = useState<Block | null>(null);
@@ -435,18 +436,38 @@ export default function PlanningTab({
   return (
     <div>
       {canEdit && (
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-          {postes.map((p) => (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
+            {Object.entries(posteCategories).map(([catKey, catLabel]) => {
+              const postesInCat = postes.filter((p) => p.category === catKey);
+              if (postesInCat.length === 0) return null;
+              const isOpen = expandedPosteCategory === catKey;
+              return (
+                <button
+                  key={catKey}
+                  onClick={() => setExpandedPosteCategory(isOpen ? null : catKey)}
+                  style={{
+                    background: isOpen ? "#0f172a" : "#fff",
+                    color: isOpen ? "#fff" : "#0f172a",
+                    border: "2px solid #0f172a",
+                    borderRadius: 10,
+                    padding: "6px 14px",
+                    fontWeight: 800,
+                    fontSize: 13,
+                    cursor: "pointer",
+                  }}
+                >
+                  {isOpen ? "▾ " : "▸ "}
+                  {catLabel}
+                </button>
+              );
+            })}
             <button
-              key={p.id}
-              onClick={() => {
-                setSelectedPoste(p.id);
-                setEraser(false);
-              }}
+              onClick={() => setEraser((v) => !v)}
               style={{
-                background: selectedPoste === p.id && !eraser ? p.color : "#fff",
-                color: selectedPoste === p.id && !eraser ? "#fff" : p.color,
-                border: `2px solid ${p.color}`,
+                background: eraser ? "#0f172a" : "#fff",
+                color: eraser ? "#fff" : "#0f172a",
+                border: "2px solid #0f172a",
                 borderRadius: 10,
                 padding: "6px 14px",
                 fontWeight: 800,
@@ -454,40 +475,53 @@ export default function PlanningTab({
                 cursor: "pointer",
               }}
             >
-              {p.label}
+              🧽 Gomme
             </button>
-          ))}
-          <button
-            onClick={() => setEraser((v) => !v)}
-            style={{
-              background: eraser ? "#0f172a" : "#fff",
-              color: eraser ? "#fff" : "#0f172a",
-              border: "2px solid #0f172a",
-              borderRadius: 10,
-              padding: "6px 14px",
-              fontWeight: 800,
-              fontSize: 13,
-              cursor: "pointer",
-            }}
-          >
-            🧽 Gomme
-          </button>
-          <button
-            onClick={() => setShowSettings(true)}
-            style={{
-              background: "#fff",
-              color: "#0f172a",
-              border: "2px solid #cbd5e1",
-              borderRadius: 10,
-              padding: "6px 14px",
-              fontWeight: 800,
-              fontSize: 13,
-              cursor: "pointer",
-              marginLeft: "auto",
-            }}
-          >
-            ⚙️ Réglages
-          </button>
+            <button
+              onClick={() => setShowSettings(true)}
+              style={{
+                background: "#fff",
+                color: "#0f172a",
+                border: "2px solid #cbd5e1",
+                borderRadius: 10,
+                padding: "6px 14px",
+                fontWeight: 800,
+                fontSize: 13,
+                cursor: "pointer",
+                marginLeft: "auto",
+              }}
+            >
+              ⚙️ Réglages
+            </button>
+          </div>
+
+          {expandedPosteCategory && (
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: 10, background: "#f8fafc", borderRadius: 10 }}>
+              {postes
+                .filter((p) => p.category === expandedPosteCategory)
+                .map((p) => (
+                  <button
+                    key={p.id}
+                    onClick={() => {
+                      setSelectedPoste(p.id);
+                      setEraser(false);
+                    }}
+                    style={{
+                      background: selectedPoste === p.id && !eraser ? p.color : "#fff",
+                      color: selectedPoste === p.id && !eraser ? "#fff" : p.color,
+                      border: `2px solid ${p.color}`,
+                      borderRadius: 10,
+                      padding: "6px 14px",
+                      fontWeight: 800,
+                      fontSize: 13,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {p.label}
+                  </button>
+                ))}
+            </div>
+          )}
         </div>
       )}
 
