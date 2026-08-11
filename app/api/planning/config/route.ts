@@ -2,13 +2,13 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getPlanningAuth } from "@/lib/planningAuth";
 import { SESSION_TYPES, DEFAULT_SESSION_TYPE, todayISO } from "@/lib/planningConfig";
-import { resolveAdminFormationId } from "@/lib/formation";
+import { resolveViewFormationId } from "@/lib/formation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export async function GET() {
-  const resolved = await resolveAdminFormationId();
+  const resolved = await resolveViewFormationId();
   if (!resolved.ok) return NextResponse.json({ ok: true, sessionType: DEFAULT_SESSION_TYPE, startDate: todayISO() });
   const formationId = resolved.formationId;
   const rows = await prisma.config.findMany({

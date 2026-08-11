@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getPlanningAuth } from "@/lib/planningAuth";
-import { resolveAdminFormationId } from "@/lib/formation";
+import { resolveViewFormationId } from "@/lib/formation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -28,7 +28,7 @@ function isValidNewBlock(body: Record<string, unknown>): boolean {
 }
 
 export async function GET() {
-  const resolved = await resolveAdminFormationId();
+  const resolved = await resolveViewFormationId();
   if (!resolved.ok) return NextResponse.json({ ok: true, blocks: [] });
   const blocks = await prisma.planningBlock.findMany({ where: { formationId: resolved.formationId }, orderBy: { startMin: "asc" } });
   return NextResponse.json({ ok: true, blocks });

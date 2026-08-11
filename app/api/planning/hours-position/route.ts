@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getPlanningAuth } from "@/lib/planningAuth";
-import { resolveAdminFormationId } from "@/lib/formation";
+import { resolveViewFormationId } from "@/lib/formation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 const KEY = "planningHoursTablePos";
 
 export async function GET() {
-  const resolved = await resolveAdminFormationId();
+  const resolved = await resolveViewFormationId();
   if (!resolved.ok) return NextResponse.json({ ok: true, position: null });
   const formationId = resolved.formationId;
   const config = await prisma.config.findUnique({ where: { formationId_key: { formationId, key: KEY } } });
