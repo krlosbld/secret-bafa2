@@ -510,8 +510,15 @@ function StagiaireList({
       <div className="cards">
         {players.map((p) => (
           <StagiaireCardMenu key={p.id} playerId={p.id} firstName={p.firstName}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-              <Link href={`/bafa?as=${p.id}`} style={{ textDecoration: "none", color: "inherit" }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "minmax(160px, 260px) 56px 1fr",
+                alignItems: "center",
+                gap: 12,
+              }}
+            >
+              <Link href={`/bafa?as=${p.id}`} style={{ textDecoration: "none", color: "inherit", minWidth: 0 }}>
                 <NameGauge
                   firstName={p.firstName}
                   code={p.code}
@@ -519,11 +526,11 @@ function StagiaireList({
                   groupName={groupByPlayerId[p.id]}
                 />
               </Link>
-              <div style={{ display: "flex", gap: 4 }}>
+              <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
                 <StatusSquare label="EMS" title="EMS (entretien de mi-stage)" filled={!!p.ems.trim()} />
                 <StatusSquare label="AF" title="Appréciation finale" filled={!!p.finalAppraisal.trim()} />
               </div>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
                 {Array.from({ length: dayCount }, (_, d) => d).map((d) => (
                   <TrendArrow key={d} day={d} score={dailyTrend(p.id, d)} href={`/bafa?as=${p.id}&day=${d}`} />
                 ))}
