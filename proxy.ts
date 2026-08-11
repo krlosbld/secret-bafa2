@@ -7,7 +7,8 @@ export function proxy(req: NextRequest) {
 
   const authRole = req.cookies.get("auth_role")?.value;
   const authUntil = Number(req.cookies.get("auth_until")?.value ?? "0");
-  if (authRole && Number.isFinite(authUntil) && Date.now() < authUntil) {
+  // Ne pas prolonger une session posée sous une ancienne durée de vie plus longue (force la reconnexion).
+  if (authRole && Number.isFinite(authUntil) && Date.now() < authUntil && authUntil - Date.now() <= AUTH_TTL * 1000 + 5000) {
     const opts = { httpOnly: true, sameSite: "lax" as const, path: "/", maxAge: AUTH_TTL };
     res.cookies.set("auth_role", authRole, opts);
     res.cookies.set("auth_until", String(Date.now() + AUTH_TTL * 1000), opts);
@@ -17,7 +18,7 @@ export function proxy(req: NextRequest) {
 
   const playerId = req.cookies.get("player_id")?.value;
   const playerUntil = Number(req.cookies.get("player_until")?.value ?? "0");
-  if (playerId && Number.isFinite(playerUntil) && Date.now() < playerUntil) {
+  if (playerId && Number.isFinite(playerUntil) && Date.now() < playerUntil && playerUntil - Date.now() <= PLAYER_AUTH_TTL * 1000 + 5000) {
     const opts = { httpOnly: true, sameSite: "lax" as const, path: "/", maxAge: PLAYER_AUTH_TTL };
     res.cookies.set("player_id", playerId, opts);
     res.cookies.set("player_until", String(Date.now() + PLAYER_AUTH_TTL * 1000), opts);

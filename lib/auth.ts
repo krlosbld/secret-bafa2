@@ -16,6 +16,8 @@ export async function getSession(): Promise<AuthSession | null> {
   const until = Number(store.get("auth_until")?.value ?? "0");
 
   if (!role || !Number.isFinite(until) || Date.now() >= until) return null;
+  // Session posée sous une ancienne durée de vie plus longue : forcer une reconnexion.
+  if (until - Date.now() > AUTH_TTL * 1000 + 5000) return null;
 
   if (role === "superadmin") return { role };
 

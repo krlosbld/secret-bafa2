@@ -9,6 +9,8 @@ export async function getPlayerSession(): Promise<{ playerId: string } | null> {
   const until = Number(store.get("player_until")?.value ?? "0");
 
   if (!playerId || !Number.isFinite(until) || Date.now() >= until) return null;
+  // Session posée sous une ancienne durée de vie plus longue : forcer une reconnexion.
+  if (until - Date.now() > PLAYER_AUTH_TTL * 1000 + 5000) return null;
 
   return { playerId };
 }
