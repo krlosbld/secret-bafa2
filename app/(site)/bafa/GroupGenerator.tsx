@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type Member = { id: string; firstName: string };
 type Group = { name: string; members: Member[] };
@@ -37,12 +37,20 @@ export default function GroupGenerator({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  const dirtyRef = useRef(dirty);
+  useEffect(() => {
+    dirtyRef.current = dirty;
+  }, [dirty]);
+
+  // Poll en continu (même pendant l'édition) pour garder la session active — le glisser-déposer
+  // et le renommage ne font aucune requête serveur, donc sans ça la session (10 min) expirait
+  // pendant qu'on travaille et "Enregistrer" échouait avec "Non autorisé".
   useEffect(() => {
     const id = setInterval(async () => {
-      if (dirty) return;
       try {
         const res = await fetch("/api/groups", { cache: "no-store" });
         const data = await res.json().catch(() => null);
+        if (dirtyRef.current) return; // garde la session active sans écraser les modifications en cours
         if (data?.ok && data.assignment) {
           setGroups(normalizeGroups(data.assignment));
           setGeneratedAt(data.assignment.generatedAt);
@@ -52,7 +60,7 @@ export default function GroupGenerator({
       }
     }, 5000);
     return () => clearInterval(id);
-  }, [dirty]);
+  }, []);
 
   const assignedIds = new Set(groups.flatMap((g) => g.members.map((m) => m.id)));
   const unassigned = stagiaires.filter((s) => !assignedIds.has(s.id));

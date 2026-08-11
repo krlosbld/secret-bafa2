@@ -201,11 +201,36 @@ function lerpColor(a: string, b: string, t: number): string {
   return `rgb(${r},${g},${bl})`;
 }
 
-function NameGauge({ firstName, code, dayRatios }: { firstName: string; code: string; dayRatios: number[] }) {
+function NameGauge({
+  firstName,
+  code,
+  dayRatios,
+  groupName,
+}: {
+  firstName: string;
+  code: string;
+  dayRatios: number[];
+  groupName?: string;
+}) {
   return (
     <div>
       <div>
         {firstName} · #{code}
+        {groupName && (
+          <span
+            style={{
+              marginLeft: 8,
+              fontSize: 11,
+              fontWeight: 800,
+              color: "#0f766e",
+              background: "#ccfbf1",
+              padding: "1px 7px",
+              borderRadius: 999,
+            }}
+          >
+            {groupName}
+          </span>
+        )}
       </div>
       <div style={{ marginTop: 6, display: "flex", gap: 3 }}>
         {dayRatios.map((ratio, d) => (
@@ -383,6 +408,7 @@ function StagiaireList({
   dailyFillRatio,
   dailyTrend,
   abandonedCount,
+  groupByPlayerId,
 }: {
   players: { id: string; firstName: string; code: string }[];
   showLogout: boolean;
@@ -390,6 +416,7 @@ function StagiaireList({
   dailyFillRatio: (playerId: string, day: number) => number;
   dailyTrend: (playerId: string, day: number) => number | null;
   abandonedCount: number;
+  groupByPlayerId: Record<string, string>;
 }) {
   return (
     <>
@@ -426,6 +453,7 @@ function StagiaireList({
                   firstName={p.firstName}
                   code={p.code}
                   dayRatios={Array.from({ length: dayCount }, (_, d) => dailyFillRatio(p.id, d))}
+                  groupName={groupByPlayerId[p.id]}
                 />
               </Link>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
@@ -698,7 +726,7 @@ export default async function BafaPage({
       }
     }
 
-    const [players, abandonedCount, configRows] = await Promise.all([
+    const [players, abandonedCount, configRows, groupsConfig] = await Promise.all([
       prisma.player.findMany({
         where: { role: "STAGIAIRE", active: true, formationId },
         orderBy: { firstName: "asc" },
@@ -706,10 +734,25 @@ export default async function BafaPage({
       }),
       prisma.player.count({ where: { role: "STAGIAIRE", active: false, formationId } }),
       prisma.config.findMany({ where: { formationId, key: { in: ["planningSessionType"] } } }),
+      prisma.config.findUnique({ where: { formationId_key: { formationId, key: "stagiaireGroups" } } }),
     ]);
     const sessionType = configRows.find((r) => r.key === "planningSessionType")?.value ?? DEFAULT_SESSION_TYPE;
     const dayCount = daysForType(sessionType);
     const { dailyFillRatio, dailyTrend } = await getStagiaireIndicators(dayCount, formationId);
+
+    const groupByPlayerId: Record<string, string> = {};
+    if (groupsConfig) {
+      try {
+        const parsed = JSON.parse(groupsConfig.value);
+        (parsed.groups ?? []).forEach((g: unknown, idx: number) => {
+          const name = Array.isArray(g) ? `Groupe ${idx + 1}` : (g as { name?: string }).name || `Groupe ${idx + 1}`;
+          const members = Array.isArray(g) ? g : (g as { members?: { id: string }[] }).members ?? [];
+          for (const m of members as { id: string }[]) groupByPlayerId[m.id] = name;
+        });
+      } catch {
+        // ignore malformed config
+      }
+    }
 
     return (
       <main className="page">
@@ -719,6 +762,7 @@ export default async function BafaPage({
             players={players}
             showLogout={!!player}
             dayCount={dayCount}
+            groupByPlayerId={groupByPlayerId}
             dailyFillRatio={dailyFillRatio}
             dailyTrend={dailyTrend}
             abandonedCount={abandonedCount}
