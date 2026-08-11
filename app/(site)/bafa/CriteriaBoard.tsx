@@ -75,6 +75,25 @@ export default function CriteriaBoard({
     }
   }
 
+  async function clearValue(criterionId: string) {
+    const key = `${criterionId}:${activeDay}`;
+    setValues((v) => {
+      const next = { ...v };
+      delete next[key];
+      return next;
+    });
+    pendingRef.current.add(key);
+    try {
+      await fetch("/api/ratings", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ playerId, criterionId, day: activeDay }),
+      });
+    } finally {
+      pendingRef.current.delete(key);
+    }
+  }
+
   if (criteria.length === 0) {
     return <p style={{ color: "#64748b", fontSize: 14 }}>Aucun critère configuré.</p>;
   }
@@ -97,7 +116,7 @@ export default function CriteriaBoard({
                     return (
                       <button
                         key={s.id}
-                        onClick={() => setValue(c.id, s.id)}
+                        onClick={() => (active ? clearValue(c.id) : setValue(c.id, s.id))}
                         style={{
                           background: active ? s.color : "#fff",
                           color: active ? "#fff" : "#475569",

@@ -62,3 +62,22 @@ export async function POST(req: Request) {
 
   return NextResponse.json({ ok: true, rating });
 }
+
+export async function DELETE(req: Request) {
+  if (!(await canEditPlanning())) {
+    return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+  }
+
+  const body = await req.json().catch(() => ({}));
+  const playerId = String(body.playerId ?? "");
+  const criterionId = String(body.criterionId ?? "");
+  const day = Number(body.day);
+
+  if (!playerId || !criterionId || !Number.isInteger(day) || day < 0) {
+    return NextResponse.json({ error: "Champs manquants." }, { status: 400 });
+  }
+
+  await prisma.criterionRating.deleteMany({ where: { playerId, criterionId, day } });
+
+  return NextResponse.json({ ok: true });
+}
