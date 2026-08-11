@@ -265,6 +265,29 @@ function NameGauge({
   );
 }
 
+function StatusSquare({ label, title, filled }: { label: string; title: string; filled: boolean }) {
+  return (
+    <span
+      title={`${title} : ${filled ? "rempli" : "non rempli"}`}
+      style={{
+        width: 22,
+        height: 22,
+        borderRadius: 5,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        fontSize: 9,
+        fontWeight: 800,
+        background: filled ? "#16a34a" : "#e2e8f0",
+        color: filled ? "#fff" : "#64748b",
+        flexShrink: 0,
+      }}
+    >
+      {label}
+    </span>
+  );
+}
+
 const SCORE_MIN = -1;
 const SCORE_MAX = 2;
 
@@ -450,7 +473,7 @@ function StagiaireList({
   abandonedCount,
   groupByPlayerId,
 }: {
-  players: { id: string; firstName: string; code: string }[];
+  players: { id: string; firstName: string; code: string; ems: string; finalAppraisal: string }[];
   showLogout: boolean;
   dayCount: number;
   dailyFillRatio: (playerId: string, day: number) => number;
@@ -496,6 +519,10 @@ function StagiaireList({
                   groupName={groupByPlayerId[p.id]}
                 />
               </Link>
+              <div style={{ display: "flex", gap: 4 }}>
+                <StatusSquare label="EMS" title="EMS (entretien de mi-stage)" filled={!!p.ems.trim()} />
+                <StatusSquare label="AF" title="Appréciation finale" filled={!!p.finalAppraisal.trim()} />
+              </div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                 {Array.from({ length: dayCount }, (_, d) => d).map((d) => (
                   <TrendArrow key={d} day={d} score={dailyTrend(p.id, d)} href={`/bafa?as=${p.id}&day=${d}`} />
@@ -770,7 +797,7 @@ export default async function BafaPage({
       prisma.player.findMany({
         where: { role: "STAGIAIRE", active: true, formationId },
         orderBy: { firstName: "asc" },
-        select: { id: true, firstName: true, code: true },
+        select: { id: true, firstName: true, code: true, ems: true, finalAppraisal: true },
       }),
       prisma.player.count({ where: { role: "STAGIAIRE", active: false, formationId } }),
       prisma.config.findMany({ where: { formationId, key: { in: ["planningSessionType"] } } }),
