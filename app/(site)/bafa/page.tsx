@@ -604,8 +604,11 @@ export default async function BafaPage({
   const formationIsActive = player
     ? !!(await prisma.formation.findUnique({ where: { id: formationId }, select: { active: true } }))?.active
     : true; // session admin/gestionnaire : comportement inchangé, toujours sur la formation active
-  const isStaff = (!!player && formationIsActive && STAFF_ROLES.includes(player.role)) || !!adminSession;
-  const isDirector = !!player && formationIsActive && player.role === "DIRECTEUR";
+  // La formation inactive = lecture seule, pas invisible : le staff garde l'accès en consultation,
+  // seules les actions d'édition (planning) sont bloquées via `canEdit` ci-dessous.
+  const isStaff = (!!player && STAFF_ROLES.includes(player.role)) || !!adminSession;
+  const isDirector = !!player && player.role === "DIRECTEUR";
+  const canEdit = isStaff && formationIsActive;
 
   if (showGroups && isStaff) {
     const [config, stagiaires] = await Promise.all([
@@ -714,7 +717,7 @@ export default async function BafaPage({
               initialBlocks={blocks}
               initialPostes={postes}
               dayCount={daysForType(sessionType)}
-              canEdit={isStaff}
+              canEdit={canEdit}
               initialPosition={hoursTablePos}
             />
           )}
@@ -724,7 +727,7 @@ export default async function BafaPage({
             initialPostes={postes}
             initialCriteria={criteria}
             initialCriterionStates={criterionStates}
-            canEdit={isStaff}
+            canEdit={canEdit}
             sessionType={sessionType}
             startDate={startDate}
           />
