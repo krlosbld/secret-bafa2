@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { setSessionCookies } from "@/lib/auth";
 import { setPlayerSessionCookies } from "@/lib/playerAuth";
 import { setDirectorAccountCookie } from "@/lib/directorAuth";
+import { setFormationCookie } from "@/lib/formationSession";
 import crypto from "crypto";
 
 export const runtime = "nodejs";
@@ -46,7 +47,7 @@ export async function POST(req: Request) {
       if (hash === account.passwordHash) {
         const players = await prisma.player.findMany({
           where: { directorAccountId: account.id },
-          select: { id: true },
+          select: { id: true, formationId: true },
         });
 
         if (players.length === 0) {
@@ -61,6 +62,7 @@ export async function POST(req: Request) {
         setDirectorAccountCookie(res, account.id);
         if (players.length === 1) {
           setPlayerSessionCookies(res, players[0].id);
+          setFormationCookie(res, players[0].formationId);
         }
         return res;
       }
