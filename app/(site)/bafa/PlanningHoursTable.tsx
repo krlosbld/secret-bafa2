@@ -113,7 +113,9 @@ export default function PlanningHoursTable({
   }
   for (const b of blocks) {
     if (b.day >= dayCount) continue;
-    const category = posteOf(postes, b.type)?.category ?? "AUTRE";
+    const poste = posteOf(postes, b.type);
+    if (poste && !poste.countedInHours) continue;
+    const category = poste?.category ?? "AUTRE";
     categoryMinutes[category] = (categoryMinutes[category] ?? 0) + (b.endMin - b.startMin);
     if (!blocksByCategory[category]) blocksByCategory[category] = [];
     blocksByCategory[category].push(b);

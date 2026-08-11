@@ -9,6 +9,7 @@ import {
   formatDayHeader,
   DEFAULT_POSTE_CATEGORY,
   categoriesForSessionType,
+  pickerGroupOf,
 } from "@/lib/planningConfig";
 
 export type Block = {
@@ -27,6 +28,7 @@ export type Poste = {
   order: number;
   evaluable: boolean;
   category: string;
+  countedInHours: boolean;
 };
 
 export type Criterion = {
@@ -55,6 +57,7 @@ const FALLBACK_POSTE: Poste = {
   order: 999,
   evaluable: false,
   category: DEFAULT_POSTE_CATEGORY,
+  countedInHours: true,
 };
 
 function posteOf(postes: Poste[], type: string): Poste {
@@ -152,7 +155,9 @@ export default function PlanningTab({
   const [criteria, setCriteria] = useState<Criterion[]>(initialCriteria);
   const [criterionStates, setCriterionStates] = useState<CriterionStateDef[]>(initialCriterionStates);
   const [selectedPoste, setSelectedPoste] = useState<string>(initialPostes[0]?.id ?? "");
-  const [expandedPosteCategory, setExpandedPosteCategory] = useState<string | null>(initialPostes[0]?.category ?? null);
+  const [expandedPosteCategory, setExpandedPosteCategory] = useState<string | null>(
+    initialPostes[0] ? pickerGroupOf(initialPostes[0].category) : null
+  );
   const [eraser, setEraser] = useState(false);
   const [drag, setDrag] = useState<DragState | null>(null);
   const [editing, setEditing] = useState<Block | null>(null);
@@ -331,13 +336,13 @@ export default function PlanningTab({
     setDrag({ kind: "resize", id: b.id, day: b.day, startMin: b.startMin, endMin: b.endMin });
   }
 
-  async function addPoste(label: string, color: string, evaluable: boolean, category: string) {
+  async function addPoste(label: string, color: string, evaluable: boolean, category: string, countedInHours: boolean) {
     const tmpId = `tmp-${Date.now()}`;
-    setPostes((ps) => [...ps, { id: tmpId, label, color, order: ps.length, evaluable, category }]);
+    setPostes((ps) => [...ps, { id: tmpId, label, color, order: ps.length, evaluable, category, countedInHours }]);
     const res = await fetch("/api/planning/postes", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ label, color, evaluable, category }),
+      body: JSON.stringify({ label, color, evaluable, category, countedInHours }),
     });
     const data = await res.json().catch(() => ({}));
     if (res.ok && data.poste) {
@@ -347,7 +352,10 @@ export default function PlanningTab({
     }
   }
 
-  async function updatePoste(id: string, patch: { label?: string; color?: string; evaluable?: boolean; category?: string }) {
+  async function updatePoste(
+    id: string,
+    patch: { label?: string; color?: string; evaluable?: boolean; category?: string; countedInHours?: boolean }
+  ) {
     setPostes((ps) => ps.map((p) => (p.id === id ? { ...p, ...patch } : p)));
     await fetch(`/api/planning/postes/${id}`, {
       method: "PATCH",
@@ -439,7 +447,7 @@ export default function PlanningTab({
         <div style={{ marginBottom: 16 }}>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
             {Object.entries(posteCategories).map(([catKey, catLabel]) => {
-              const postesInCat = postes.filter((p) => p.category === catKey);
+              const postesInCat = postes.filter((p) => pickerGroupOf(p.category) === catKey);
               if (postesInCat.length === 0) return null;
               const isOpen = expandedPosteCategory === catKey;
               return (
@@ -498,7 +506,7 @@ export default function PlanningTab({
           {expandedPosteCategory && (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: 10, background: "#f8fafc", borderRadius: 10 }}>
               {postes
-                .filter((p) => p.category === expandedPosteCategory)
+                .filter((p) => pickerGroupOf(p.category) === expandedPosteCategory)
                 .map((p) => (
                   <button
                     key={p.id}
@@ -921,24 +929,29 @@ function PosteManager({
 }: {
   postes: Poste[];
   categories: Record<string, string>;
-  onAdd: (label: string, color: string, evaluable: boolean, category: string) => Promise<void>;
-  onUpdate: (id: string, patch: { label?: string; color?: string; evaluable?: boolean; category?: string }) => Promise<void>;
+  onAdd: (label: string, color: string, evaluable: boolean, category: string, countedInHours: boolean) => Promise<void>;
+  onUpdate: (
+    id: string,
+    patch: { label?: string; color?: string; evaluable?: boolean; category?: string; countedInHours?: boolean }
+  ) => Promise<void>;
   onRemove: (id: string) => Promise<string | null>;
 }) {
   const [newLabel, setNewLabel] = useState("");
   const [newColor, setNewColor] = useState("#0f766e");
   const [newEvaluable, setNewEvaluable] = useState(false);
   const [newCategory, setNewCategory] = useState(DEFAULT_POSTE_CATEGORY);
+  const [newCountedInHours, setNewCountedInHours] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
   async function handleAdd() {
     if (!newLabel.trim()) return;
     setBusy("new");
-    await onAdd(newLabel.trim(), newColor, newEvaluable, newCategory);
+    await onAdd(newLabel.trim(), newColor, newEvaluable, newCategory, newCountedInHours);
     setNewLabel("");
     setNewEvaluable(false);
     setNewCategory(DEFAULT_POSTE_CATEGORY);
+    setNewCountedInHours(true);
     setBusy(null);
   }
 
@@ -988,6 +1001,14 @@ function PosteManager({
               />
               Évaluable
             </label>
+            <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "#475569", whiteSpace: "nowrap" }}>
+              <input
+                type="checkbox"
+                checked={p.countedInHours}
+                onChange={(e) => onUpdate(p.id, { countedInHours: e.target.checked })}
+              />
+              Compte dans le total
+            </label>
             <button
               onClick={() => handleRemove(p.id)}
               disabled={busy === p.id}
@@ -1033,6 +1054,10 @@ function PosteManager({
         <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "#475569", whiteSpace: "nowrap" }}>
           <input type="checkbox" checked={newEvaluable} onChange={(e) => setNewEvaluable(e.target.checked)} />
           Évaluable
+        </label>
+        <label style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12, color: "#475569", whiteSpace: "nowrap" }}>
+          <input type="checkbox" checked={newCountedInHours} onChange={(e) => setNewCountedInHours(e.target.checked)} />
+          Compte dans le total
         </label>
         <button className="btn btn-main" onClick={handleAdd} disabled={busy === "new" || !newLabel.trim()} style={{ padding: "6px 12px" }}>
           + Ajouter

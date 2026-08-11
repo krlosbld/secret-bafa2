@@ -147,13 +147,14 @@ model BlockAssignment {
 }
 
 model PosteType {
-  id        String   @id @default(cuid())
-  label     String
-  color     String
-  order     Int      @default(0)
-  evaluable Boolean  @default(false)
-  category  String   @default("AUTRE") // THEORIE | ANIMATION | PREPARATION | AUTRE
-  createdAt DateTime @default(now())
+  id              String   @id @default(cuid())
+  label           String
+  color           String
+  order           Int      @default(0)
+  evaluable       Boolean  @default(false)
+  category        String   @default("AUTRE") // THEORIE | ANIMATION | AUTRE | THEMATIQUE | RETOUR_STAGE
+  countedInHours  Boolean  @default(true)
+  createdAt       DateTime @default(now())
 }
 
 model Evaluation {

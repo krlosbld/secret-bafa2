@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { canEditPlanning } from "@/lib/planningAuth";
-import { POSTE_CATEGORIES } from "@/lib/planningConfig";
+import { isValidPosteCategory } from "@/lib/planningConfig";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,8 +26,11 @@ export async function PATCH(req: Request, { params }: Params) {
   if (typeof body.evaluable === "boolean") {
     data.evaluable = body.evaluable;
   }
-  if (typeof body.category === "string" && body.category in POSTE_CATEGORIES) {
+  if (typeof body.category === "string" && isValidPosteCategory(body.category)) {
     data.category = body.category;
+  }
+  if (typeof body.countedInHours === "boolean") {
+    data.countedInHours = body.countedInHours;
   }
 
   if (Object.keys(data).length === 0) {

@@ -20,6 +20,23 @@ export function categoriesForSessionType(sessionType: string): Record<string, st
   return { ...rest, ...(EXTRA_CATEGORIES_BY_SESSION_TYPE[sessionType] ?? {}), AUTRE };
 }
 
+export function isValidPosteCategory(key: string): boolean {
+  if (key in POSTE_CATEGORIES) return true;
+  return Object.values(EXTRA_CATEGORIES_BY_SESSION_TYPE).some((extra) => key in extra);
+}
+
+// Regroupement des types de créneau dans le sélecteur du planning (indépendant du décompte
+// d'heures) : Thématique et Retours stage pratique se choisissent sous le bouton "Autre",
+// mais gardent leur propre ligne dans le calcul des heures par catégorie.
+const POSTE_PICKER_GROUP: Record<string, string> = {
+  THEMATIQUE: "AUTRE",
+  RETOUR_STAGE: "AUTRE",
+};
+
+export function pickerGroupOf(category: string): string {
+  return POSTE_PICKER_GROUP[category] ?? category;
+}
+
 export const SESSION_TYPES: Record<string, { label: string; days: number }> = {
   BAFA: { label: "Formation générale (BAFA)", days: 8 },
   APPRO: { label: "Approfondissement", days: 6 },
