@@ -8,7 +8,7 @@ export const runtime = "nodejs";
 
 type Params = { params: Promise<{ id: string }> };
 
-// POST : créer un code (stagiaire/formateur) ou un compte identifiant/mot de passe (directeur) dans cette formation
+// POST : créer un code (stagiaire/formateur) ou un directeur (nouveau ou déjà existant) dans cette formation
 export async function POST(req: Request, { params }: Params) {
   const session = await getSession();
   if (!isSuperAdmin(session)) {
@@ -20,28 +20,39 @@ export async function POST(req: Request, { params }: Params) {
   if (!formation) return NextResponse.json({ error: "Formation introuvable." }, { status: 404 });
 
   const body = await req.json().catch(() => ({}));
-  const firstName = String(body.firstName ?? "").trim();
   const role = body.role === "STAGIAIRE" || body.role === "FORMATEUR" || body.role === "DIRECTEUR" ? body.role : "DIRECTEUR";
 
-  if (!firstName) {
-    return NextResponse.json({ error: "Prénom requis." }, { status: 400 });
-  }
-
   if (role === "DIRECTEUR") {
+    const existingDirectorAccountId = String(body.existingDirectorAccountId ?? "").trim() || null;
+
+    if (existingDirectorAccountId) {
+      const account = await prisma.directorAccount.findUnique({ where: { id: existingDirectorAccountId } });
+      if (!account) return NextResponse.json({ error: "Directeur introuvable." }, { status: 404 });
+
+      const code = await generateUniquePlayerCode(formationId); // valeur cachée, jamais communiquée
+      const player = await prisma.player.create({
+        data: { firstName: account.firstName, code, role, formationId, directorAccountId: account.id },
+        select: { id: true, firstName: true, role: true },
+      });
+      return NextResponse.json({ ok: true, player: { ...player, code: null, username: null } });
+    }
+
+    const firstName = String(body.firstName ?? "").trim();
     const username = String(body.username ?? "").trim();
     const password = String(body.password ?? "").trim();
-    if (!username || !password) {
-      return NextResponse.json({ error: "Identifiant et mot de passe requis." }, { status: 400 });
+    if (!firstName || !username || !password) {
+      return NextResponse.json({ error: "Prénom, identifiant et mot de passe requis." }, { status: 400 });
     }
 
     const code = await generateUniquePlayerCode(formationId); // valeur cachée, jamais communiquée
     const passwordHash = crypto.createHash("sha256").update(password).digest("hex");
     try {
+      const account = await prisma.directorAccount.create({ data: { firstName, username, passwordHash } });
       const player = await prisma.player.create({
-        data: { firstName, code, username, passwordHash, role, formationId },
-        select: { id: true, firstName: true, username: true, role: true },
+        data: { firstName, code, role, formationId, directorAccountId: account.id },
+        select: { id: true, firstName: true, role: true },
       });
-      return NextResponse.json({ ok: true, player: { ...player, code: null } });
+      return NextResponse.json({ ok: true, player: { ...player, code: null, username } });
     } catch (e: unknown) {
       if (e && typeof e === "object" && "code" in e && e.code === "P2002") {
         return NextResponse.json({ error: "Cet identifiant existe déjà." }, { status: 409 });
@@ -50,6 +61,10 @@ export async function POST(req: Request, { params }: Params) {
     }
   }
 
+  const firstName = String(body.firstName ?? "").trim();
+  if (!firstName) {
+    return NextResponse.json({ error: "Prénom requis." }, { status: 400 });
+  }
   const code = await generateUniquePlayerCode(formationId);
   const player = await prisma.player.create({
     data: { firstName, code, role, formationId },

@@ -86,11 +86,19 @@ export default async function FormationDetailPage({ params }: { params: Promise<
     : [];
 
   // "Équipe" : comptes formateur/directeur purement administratifs, sans secret (ne jouent pas).
-  const staff = superAdmin
+  const staffRows = superAdmin
     ? await prisma.player.findMany({
         where: { formationId, role: { in: ["FORMATEUR", "DIRECTEUR"] }, secret: null },
         orderBy: { firstName: "asc" },
-        select: { id: true, firstName: true, role: true, username: true },
+        select: { id: true, firstName: true, role: true, directorAccount: { select: { username: true } } },
+      })
+    : [];
+  const staff = staffRows.map((s) => ({ id: s.id, firstName: s.firstName, role: s.role, username: s.directorAccount?.username ?? null }));
+
+  const directorAccounts = superAdmin
+    ? await prisma.directorAccount.findMany({
+        select: { id: true, firstName: true, username: true },
+        orderBy: { firstName: "asc" },
       })
     : [];
 
@@ -158,7 +166,7 @@ export default async function FormationDetailPage({ params }: { params: Promise<
         {superAdmin && (
           <>
             <Section title="Codes">
-              <AdminCreateCode formationId={formation.id} />
+              <AdminCreateCode formationId={formation.id} directorAccounts={directorAccounts} />
             </Section>
 
             <Section title={`Équipe (${staff.length})`}>

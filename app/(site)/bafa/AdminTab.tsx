@@ -6,7 +6,7 @@ import AdminStaffList from "../admin/AdminStaffList";
 import AdminCronControls from "../admin/AdminCronControls";
 
 export default async function AdminTab({ formationId }: { formationId: string }) {
-  const [pendingSecrets, publishedSecrets, pendingBuzzes, players, staff, quotaConfig, lastNightlyRunConfig] = await Promise.all([
+  const [pendingSecrets, publishedSecrets, pendingBuzzes, players, staffRows, quotaConfig, lastNightlyRunConfig] = await Promise.all([
     prisma.secret.findMany({
       where: { status: "PENDING", formationId },
       orderBy: { createdAt: "asc" },
@@ -53,11 +53,13 @@ export default async function AdminTab({ formationId }: { formationId: string })
     prisma.player.findMany({
       where: { formationId, role: { in: ["FORMATEUR", "DIRECTEUR"] }, secret: null },
       orderBy: { firstName: "asc" },
-      select: { id: true, firstName: true, role: true, username: true },
+      select: { id: true, firstName: true, role: true, directorAccount: { select: { username: true } } },
     }),
     prisma.config.findUnique({ where: { formationId_key: { formationId, key: "buzzQuota" } } }),
     prisma.config.findUnique({ where: { formationId_key: { formationId, key: "lastNightlyRun" } } }),
   ]);
+
+  const staff = staffRows.map((s) => ({ id: s.id, firstName: s.firstName, role: s.role, username: s.directorAccount?.username ?? null }));
 
   const quota = Number(quotaConfig?.value ?? 3);
 

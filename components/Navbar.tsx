@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { getPlayerSession } from "@/lib/playerAuth";
+import { getDirectorAccountSession } from "@/lib/directorAuth";
 import { prisma } from "@/lib/prisma";
 import NavSubmitButton from "@/components/NavSubmitButton";
 import BrandLink from "@/components/BrandLink";
@@ -25,6 +26,8 @@ export default async function Navbar() {
     }
   }
 
+  const directorAccountSession = await getDirectorAccountSession();
+
   return (
     <header className="navbar">
       <div className="nav-container">
@@ -41,6 +44,11 @@ export default async function Navbar() {
           <Link className="nav-link" href="/bafa">
             BAFA
           </Link>
+          {directorAccountSession && (
+            <Link className="nav-link" href="/bafa/choisir-formation" title="Changer de formation">
+              🔀
+            </Link>
+          )}
           <Link className="nav-link" href={gearHref} title="Administration">
             ⚙️
           </Link>

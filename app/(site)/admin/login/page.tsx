@@ -29,7 +29,11 @@ export default function AdminLoginPage() {
       return;
     }
 
-    router.replace(data.role === "director" ? "/bafa" : "/admin");
+    if (data.role === "director") {
+      router.replace(data.chooseFormation ? "/bafa/choisir-formation" : "/bafa");
+    } else {
+      router.replace("/admin");
+    }
     router.refresh();
   }
 

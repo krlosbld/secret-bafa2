@@ -34,6 +34,13 @@ export default async function AdminPage() {
       })
     : [];
 
+  const directorAccounts = superAdmin
+    ? await prisma.directorAccount.findMany({
+        select: { id: true, firstName: true, username: true },
+        orderBy: { firstName: "asc" },
+      })
+    : [];
+
   return (
     <main className="page">
       <div className="container">
@@ -56,7 +63,7 @@ export default async function AdminPage() {
 
         <Section title="Formations">
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-          <AdminFormations formations={formations as any} canCreate={superAdmin} />
+          <AdminFormations formations={formations as any} directorAccounts={directorAccounts} canCreate={superAdmin} />
         </Section>
 
         {superAdmin && (

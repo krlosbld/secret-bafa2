@@ -21,18 +21,18 @@ model Formation {
 }
 
 model Player {
-  id               String            @id @default(cuid())
-  formationId      String
-  firstName        String
-  code             String
-  username         String?           @unique // connexion identifiant/mot de passe (DIRECTEUR), alternative au code
-  passwordHash     String?
-  role             String            @default("STAGIAIRE") // STAGIAIRE | FORMATEUR | DIRECTEUR
-  active           Boolean           @default(true) // false = abandon
-  points           Int               @default(0)
-  buzzCount        Int               @default(0)
-  createdAt        DateTime          @default(now())
-  formation        Formation         @relation(fields: [formationId], references: [id], onDelete: Cascade)
+  id                String            @id @default(cuid())
+  formationId       String
+  firstName         String
+  code              String
+  directorAccountId String?
+  role              String            @default("STAGIAIRE") // STAGIAIRE | FORMATEUR | DIRECTEUR
+  active            Boolean           @default(true) // false = abandon
+  points            Int               @default(0)
+  buzzCount         Int               @default(0)
+  createdAt         DateTime          @default(now())
+  formation         Formation         @relation(fields: [formationId], references: [id], onDelete: Cascade)
+  directorAccount   DirectorAccount?  @relation(fields: [directorAccountId], references: [id])
   secret           Secret?
   buzzesSent       Buzz[]            @relation("BuzzFrom")
   foundSecrets     Secret[]          @relation("FoundBy")
@@ -51,6 +51,16 @@ model Player {
   finalAppraisalVisible Boolean @default(false)
 
   @@unique([formationId, code])
+  @@index([directorAccountId])
+}
+
+model DirectorAccount {
+  id           String   @id @default(cuid())
+  firstName    String
+  username     String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+  players      Player[]
 }
 
 model Secret {

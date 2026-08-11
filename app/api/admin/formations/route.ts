@@ -31,10 +31,13 @@ export async function POST(req: Request) {
   if (!name) {
     return NextResponse.json({ error: "Nom requis." }, { status: 400 });
   }
+
+  const existingDirectorAccountId = String(body.existingDirectorAccountId ?? "").trim() || null;
   const directorFirstName = String(body.directorFirstName ?? "").trim();
   const directorUsername = String(body.directorUsername ?? "").trim();
   const directorPassword = String(body.directorPassword ?? "").trim();
-  if (directorFirstName && (!directorUsername || !directorPassword)) {
+  const wantsNewDirector = !existingDirectorAccountId && directorFirstName;
+  if (wantsNewDirector && (!directorUsername || !directorPassword)) {
     return NextResponse.json({ error: "Identifiant et mot de passe du directeur requis." }, { status: 400 });
   }
 
@@ -47,31 +50,55 @@ export async function POST(req: Request) {
       const formation = await tx.formation.create({ data: { name, code: formationCode, active: true } });
 
       let director = null;
-      if (directorFirstName) {
-        // Formation tout juste créée : aucun joueur existant, pas besoin de vérifier l'unicité du code masqué.
+
+      if (existingDirectorAccountId) {
+        const account = await tx.directorAccount.findUnique({ where: { id: existingDirectorAccountId } });
+        if (!account) throw new Error("DIRECTOR_ACCOUNT_NOT_FOUND");
+        const hiddenCode = String(Math.floor(1000 + Math.random() * 9000));
+        director = await tx.player.create({
+          data: {
+            firstName: account.firstName,
+            code: hiddenCode,
+            role: "DIRECTEUR",
+            formationId: formation.id,
+            directorAccountId: account.id,
+          },
+          select: { id: true, firstName: true },
+        });
+      } else if (wantsNewDirector) {
         const hiddenCode = String(Math.floor(1000 + Math.random() * 9000));
         const passwordHash = crypto.createHash("sha256").update(directorPassword).digest("hex");
+        const account = await tx.directorAccount.create({
+          data: { firstName: directorFirstName, username: directorUsername, passwordHash },
+        });
         director = await tx.player.create({
           data: {
             firstName: directorFirstName,
             code: hiddenCode,
-            username: directorUsername,
-            passwordHash,
             role: "DIRECTEUR",
             formationId: formation.id,
+            directorAccountId: account.id,
           },
-          select: { id: true, firstName: true, username: true },
+          select: { id: true, firstName: true },
         });
       }
 
       return { formation, director };
     }));
   } catch (e: unknown) {
+    if (e instanceof Error && e.message === "DIRECTOR_ACCOUNT_NOT_FOUND") {
+      return NextResponse.json({ error: "Directeur introuvable." }, { status: 404 });
+    }
     if (e && typeof e === "object" && "code" in e && e.code === "P2002") {
       return NextResponse.json({ error: "Cet identifiant directeur existe déjà." }, { status: 409 });
     }
     throw e;
   }
 
-  return NextResponse.json({ ok: true, formation, director });
+  return NextResponse.json({
+    ok: true,
+    formation,
+    director,
+    directorCredentials: !existingDirectorAccountId && director ? { username: directorUsername } : null,
+  });
 }

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { AUTH_TTL } from "@/lib/auth";
 import { PLAYER_AUTH_TTL } from "@/lib/playerAuth";
+import { DIRECTOR_ACCOUNT_TTL } from "@/lib/directorAuth";
 
 export function proxy(req: NextRequest) {
   const res = NextResponse.next();
@@ -22,6 +23,19 @@ export function proxy(req: NextRequest) {
     const opts = { httpOnly: true, sameSite: "lax" as const, path: "/", maxAge: PLAYER_AUTH_TTL };
     res.cookies.set("player_id", playerId, opts);
     res.cookies.set("player_until", String(Date.now() + PLAYER_AUTH_TTL * 1000), opts);
+  }
+
+  const directorAccountId = req.cookies.get("director_account_id")?.value;
+  const directorAccountUntil = Number(req.cookies.get("director_account_until")?.value ?? "0");
+  if (
+    directorAccountId &&
+    Number.isFinite(directorAccountUntil) &&
+    Date.now() < directorAccountUntil &&
+    directorAccountUntil - Date.now() <= DIRECTOR_ACCOUNT_TTL * 1000 + 5000
+  ) {
+    const opts = { httpOnly: true, sameSite: "lax" as const, path: "/", maxAge: DIRECTOR_ACCOUNT_TTL };
+    res.cookies.set("director_account_id", directorAccountId, opts);
+    res.cookies.set("director_account_until", String(Date.now() + DIRECTOR_ACCOUNT_TTL * 1000), opts);
   }
 
   return res;

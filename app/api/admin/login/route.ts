@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { setSessionCookies } from "@/lib/auth";
 import { setPlayerSessionCookies } from "@/lib/playerAuth";
+import { setDirectorAccountCookie } from "@/lib/directorAuth";
 import crypto from "crypto";
 
 export const runtime = "nodejs";
@@ -38,13 +39,29 @@ export async function POST(req: Request) {
       }
     }
 
-    // Directeur (identifiant/mot de passe, alternative au code à 4 chiffres)
-    const director = await prisma.player.findUnique({ where: { username } });
-    if (director && director.passwordHash) {
+    // Directeur (identifiant/mot de passe, réutilisable sur plusieurs formations)
+    const account = await prisma.directorAccount.findUnique({ where: { username } });
+    if (account) {
       const hash = crypto.createHash("sha256").update(password).digest("hex");
-      if (hash === director.passwordHash) {
-        const res = NextResponse.json({ ok: true, role: "director" });
-        setPlayerSessionCookies(res, director.id);
+      if (hash === account.passwordHash) {
+        const players = await prisma.player.findMany({
+          where: { directorAccountId: account.id },
+          select: { id: true },
+        });
+
+        if (players.length === 0) {
+          return NextResponse.json({ ok: false, error: "Ce compte n'est rattaché à aucune formation." }, { status: 401 });
+        }
+
+        const res = NextResponse.json({
+          ok: true,
+          role: "director",
+          chooseFormation: players.length > 1,
+        });
+        setDirectorAccountCookie(res, account.id);
+        if (players.length === 1) {
+          setPlayerSessionCookies(res, players[0].id);
+        }
         return res;
       }
     }
