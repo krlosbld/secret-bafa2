@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 
 export const FORMATION_COOKIE_TTL = 60 * 60 * 24 * 7; // 7 jours
 
-type FormationCookieRow = { id: string; name: string; active: boolean };
+type FormationCookieRow = { id: string; name: string; active: boolean; startDate: Date | null };
 
 export async function getFormationFromCookie(): Promise<FormationCookieRow | null> {
   const store = await cookies();
@@ -13,9 +13,15 @@ export async function getFormationFromCookie(): Promise<FormationCookieRow | nul
 
   const formation = await prisma.formation.findUnique({
     where: { id: formationId },
-    select: { id: true, name: true, active: true },
+    select: { id: true, name: true, active: true, startDate: true },
   });
   return formation;
+}
+
+// Une formation inactive dont la date de début n'est pas encore atteinte n'a jamais commencé —
+// à distinguer d'une formation inactive parce que terminée (message différent côté UI).
+export function hasNotStartedYet(formation: { active: boolean; startDate: Date | null }): boolean {
+  return !formation.active && !!formation.startDate && formation.startDate.getTime() > Date.now();
 }
 
 export function setFormationCookie(res: NextResponse, formationId: string) {

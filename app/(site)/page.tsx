@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { getFormationFromCookie } from "@/lib/formationSession";
+import { getFormationFromCookie, hasNotStartedYet } from "@/lib/formationSession";
 import SessionCodeGate from "@/components/SessionCodeGate";
 import SecretsClient from "./SecretsClient";
 
@@ -45,7 +45,9 @@ export default async function HomePage() {
               fontSize: 14,
             }}
           >
-            Cette formation est terminée — lecture seule, plus de nouveaux secrets ni de buzz possibles.
+            {hasNotStartedYet(formation)
+              ? "Cette formation n'a pas encore commencé — reviens à la date de début."
+              : "Cette formation est terminée — lecture seule, plus de nouveaux secrets ni de buzz possibles."}
           </div>
         )}
         <SecretsClient initial={secrets} />

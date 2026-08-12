@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { fuzzyMatch } from "@/lib/fuzzy";
-import { getFormationFromCookie } from "@/lib/formationSession";
+import { getFormationFromCookie, hasNotStartedYet } from "@/lib/formationSession";
 
 export const runtime = "nodejs";
 
@@ -44,7 +44,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Code de session manquant. Retourne sur la page d'accueil." }, { status: 400 });
     }
     if (!formation.active) {
-      return NextResponse.json({ error: "Cette formation est terminée, impossible de buzzer." }, { status: 403 });
+      return NextResponse.json(
+        {
+          error: hasNotStartedYet(formation)
+            ? "Cette formation n'a pas encore commencé."
+            : "Cette formation est terminée, impossible de buzzer.",
+        },
+        { status: 403 }
+      );
     }
     const formationId = formation.id;
 

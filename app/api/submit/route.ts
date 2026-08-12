@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { fuzzyMatch } from "@/lib/fuzzy";
 import { isFlagged } from "@/lib/contentFilter";
-import { getFormationFromCookie } from "@/lib/formationSession";
+import { getFormationFromCookie, hasNotStartedYet } from "@/lib/formationSession";
 import { generateUniquePlayerCode } from "@/lib/playerCode";
 
 export const runtime = "nodejs";
@@ -44,7 +44,12 @@ export async function POST(req: Request) {
     }
     if (!formation.active) {
       return NextResponse.json(
-        { ok: false, message: "Cette formation est terminée, impossible d'ajouter un secret." },
+        {
+          ok: false,
+          message: hasNotStartedYet(formation)
+            ? "Cette formation n'a pas encore commencé."
+            : "Cette formation est terminée, impossible d'ajouter un secret.",
+        },
         { status: 403 }
       );
     }

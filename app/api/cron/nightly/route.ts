@@ -13,6 +13,12 @@ async function runNightlyJob(req: Request) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 
+  // Active automatiquement les formations dont la date de début est atteinte.
+  const activated = await prisma.formation.updateMany({
+    where: { active: false, startDate: { lte: new Date() } },
+    data: { active: true },
+  });
+
   // Désactive automatiquement les formations dont la date de fin est dépassée depuis trop longtemps.
   const deactivated = await prisma.formation.updateMany({
     where: {
@@ -51,7 +57,7 @@ async function runNightlyJob(req: Request) {
     results.push({ formationId, updated: unpublished.length });
   }
 
-  return NextResponse.json({ ok: true, deactivated: deactivated.count, results });
+  return NextResponse.json({ ok: true, activated: activated.count, deactivated: deactivated.count, results });
 }
 
 export async function GET(req: Request) {
