@@ -69,6 +69,18 @@ export async function DELETE(_req: Request, { params }: Params) {
     return NextResponse.json({ error: "Introuvable." }, { status: 404 });
   }
 
+  // Sécurité : un créneau supprimé entraîne la suppression en cascade des évaluations qui y sont
+  // rattachées. Si un stagiaire a déjà quelque chose de rempli dessus, on refuse — la case doit rester.
+  const filledEvaluations = await prisma.evaluation.count({ where: { blockId: id, note: { not: "" } } });
+  if (filledEvaluations > 0) {
+    return NextResponse.json(
+      {
+        error: `${filledEvaluations} évaluation(s) rempli(es) sur ce créneau — suppression bloquée pour ne pas les perdre.`,
+      },
+      { status: 409 }
+    );
+  }
+
   await snapshotPlanning(auth.formationId);
   await prisma.planningBlock.delete({ where: { id } });
   return NextResponse.json({ ok: true });

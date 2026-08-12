@@ -186,8 +186,13 @@ export default function PlanningTab({
   }
 
   async function deleteBlock(id: string) {
+    const res = await fetch(`/api/planning/${id}`, { method: "DELETE" });
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      alert(data?.error || "Suppression refusée.");
+      return;
+    }
     setBlocks((bs) => bs.filter((b) => b.id !== id));
-    await fetch(`/api/planning/${id}`, { method: "DELETE" });
   }
 
   async function duplicateBlock(b: Block) {
