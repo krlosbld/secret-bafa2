@@ -81,6 +81,7 @@ export default async function FormationDetailPage({ params }: { params: Promise<
           role: true,
           points: true,
           buzzCount: true,
+          buzzQuotaOverride: true,
           secret: { select: { status: true, content: true, bonus: true } },
         },
       })

@@ -72,9 +72,9 @@ export async function POST(req: Request) {
       );
     }
 
-    // Vérifier le quota
+    // Vérifier le quota (override personnel s'il existe, sinon quota de la formation)
     const config = await prisma.config.findUnique({ where: { formationId_key: { formationId, key: "buzzQuota" } } });
-    const quota = Number(config?.value ?? 3);
+    const quota = player.buzzQuotaOverride ?? Number(config?.value ?? 3);
     if (player.buzzCount >= quota) {
       return NextResponse.json(
         { error: `Tu as atteint ton quota de ${quota} buzz.` },

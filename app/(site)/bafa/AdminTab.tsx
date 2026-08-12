@@ -48,6 +48,7 @@ export default async function AdminTab({ formationId }: { formationId: string })
         role: true,
         points: true,
         buzzCount: true,
+        buzzQuotaOverride: true,
         secret: { select: { status: true, content: true, bonus: true } },
       },
     }),

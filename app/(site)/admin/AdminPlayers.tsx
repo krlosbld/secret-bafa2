@@ -10,6 +10,7 @@ type Player = {
   role: string;
   points: number;
   buzzCount: number;
+  buzzQuotaOverride: number | null;
   secret: { status: string; content: string; bonus: number } | null;
 };
 
@@ -159,8 +160,35 @@ export default function AdminPlayers({
             </div>
             <div className="row">
               <div className="label">Buzz</div>
-              <div className="value">
-                {p.buzzCount} / {quota}
+              <div className="value" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <span>
+                  {p.buzzCount} / {p.buzzQuotaOverride ?? quota}
+                </span>
+                <button
+                  className="btn btn-ghost"
+                  style={{ padding: "2px 8px", fontSize: 12 }}
+                  disabled={loading === p.id}
+                  onClick={() => patchPlayer(p.id, { buzzQuotaOverride: (p.buzzQuotaOverride ?? quota) - 1 })}
+                >
+                  −
+                </button>
+                <button
+                  className="btn btn-ghost"
+                  style={{ padding: "2px 8px", fontSize: 12 }}
+                  disabled={loading === p.id}
+                  onClick={() => patchPlayer(p.id, { buzzQuotaOverride: (p.buzzQuotaOverride ?? quota) + 1 })}
+                >
+                  +
+                </button>
+                {p.buzzQuotaOverride !== null && (
+                  <span
+                    style={{ fontSize: 12, color: "#0f766e", fontWeight: 700, cursor: "pointer" }}
+                    onClick={() => !loading && patchPlayer(p.id, { buzzQuotaOverride: null })}
+                    title="Revenir au quota commun"
+                  >
+                    quota perso · ↺ défaut
+                  </span>
+                )}
               </div>
             </div>
             <div className="row">

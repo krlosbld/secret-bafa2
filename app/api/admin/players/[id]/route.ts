@@ -38,6 +38,11 @@ export async function PATCH(req: Request, { params }: Params) {
   if (body.resetBuzz === true) {
     data.buzzCount = 0;
   }
+  if (body.buzzQuotaOverride === null) {
+    data.buzzQuotaOverride = null;
+  } else if (typeof body.buzzQuotaOverride === "number" && Number.isInteger(body.buzzQuotaOverride)) {
+    data.buzzQuotaOverride = Math.min(50, Math.max(1, body.buzzQuotaOverride));
+  }
   if (typeof body.firstName === "string" && body.firstName.trim().length > 0) {
     data.firstName = body.firstName.trim();
   }

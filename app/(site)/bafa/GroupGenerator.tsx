@@ -121,11 +121,18 @@ export default function GroupGenerator({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           groups: groups.map((g) => ({ name: g.name, ids: g.members.map((m) => m.id) })),
+          baseGeneratedAt: generatedAt,
         }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
-        setError(data?.error || "Erreur.");
+        if (data?.conflict) {
+          setError(
+            "Quelqu'un d'autre a enregistré des groupes entre-temps — tes modifications n'ont pas été écrasées mais pas non plus enregistrées. Recharge la page pour voir la version la plus récente, puis réapplique tes changements."
+          );
+        } else {
+          setError(data?.error || "Erreur.");
+        }
         return;
       }
       setGroups(normalizeGroups(data.assignment));

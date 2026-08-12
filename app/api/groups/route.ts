@@ -47,8 +47,31 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Format de groupes invalide." }, { status: 400 });
   }
   const inputGroups = rawGroups as { name: string; ids: string[] }[];
+  const baseGeneratedAt = typeof body.baseGeneratedAt === "string" ? body.baseGeneratedAt : null;
 
   const formationId = auth.formationId;
+
+  // Détecte un enregistrement concurrent : si quelqu'un d'autre a sauvegardé entre le chargement
+  // de cette session et maintenant, on refuse d'écraser silencieusement son travail.
+  const existing = await prisma.config.findUnique({ where: { formationId_key: { formationId, key: KEY } } });
+  if (existing) {
+    let existingGeneratedAt: string | null = null;
+    try {
+      existingGeneratedAt = JSON.parse(existing.value)?.generatedAt ?? null;
+    } catch {
+      existingGeneratedAt = null;
+    }
+    if (existingGeneratedAt && existingGeneratedAt !== baseGeneratedAt) {
+      return NextResponse.json(
+        {
+          error: "Quelqu'un d'autre a modifié les groupes entre-temps. Recharge la page avant d'enregistrer à nouveau.",
+          conflict: true,
+        },
+        { status: 409 }
+      );
+    }
+  }
+
   const allIds = inputGroups.flatMap((g) => g.ids);
   const players = await prisma.player.findMany({
     where: { id: { in: allIds }, role: "STAGIAIRE", active: true, formationId },
