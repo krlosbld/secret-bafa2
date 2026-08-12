@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getPlanningAuth } from "@/lib/planningAuth";
+import { snapshotPlanning } from "@/lib/planningSnapshot";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -51,6 +52,7 @@ export async function PATCH(req: Request, { params }: Params) {
     return NextResponse.json({ error: "Durée minimale de 5 minutes." }, { status: 400 });
   }
 
+  await snapshotPlanning(auth.formationId);
   const updated = await prisma.planningBlock.update({ where: { id }, data });
   return NextResponse.json({ ok: true, block: updated });
 }
@@ -67,6 +69,7 @@ export async function DELETE(_req: Request, { params }: Params) {
     return NextResponse.json({ error: "Introuvable." }, { status: 404 });
   }
 
+  await snapshotPlanning(auth.formationId);
   await prisma.planningBlock.delete({ where: { id } });
   return NextResponse.json({ ok: true });
 }

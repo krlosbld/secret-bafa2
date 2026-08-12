@@ -477,7 +477,7 @@ function StagiaireList({
   abandonedCount,
   groupByPlayerId,
 }: {
-  players: { id: string; firstName: string; code: string; ems: string; finalAppraisal: string; complementaryNote: string }[];
+  players: { id: string; firstName: string; code: string; ems: string; retourEms: string; finalAppraisal: string; complementaryNote: string }[];
   showLogout: boolean;
   dayCount: number;
   dailyFillRatio: (playerId: string, day: number) => number;
@@ -517,7 +517,7 @@ function StagiaireList({
             <div
               style={{
                 display: "grid",
-                gridTemplateColumns: "minmax(160px, 260px) 82px 1fr",
+                gridTemplateColumns: "minmax(160px, 260px) 108px 1fr",
                 alignItems: "center",
                 gap: 12,
               }}
@@ -532,6 +532,7 @@ function StagiaireList({
               </Link>
               <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
                 <StatusSquare label="EMS" title="EMS (entretien de mi-stage)" filled={!!p.ems.trim()} href={`/bafa?as=${p.id}`} />
+                <StatusSquare label="RE" title="Retour EMS" filled={!!p.retourEms.trim()} href={`/bafa?as=${p.id}`} />
                 <StatusSquare label="EC" title="Entretien complémentaire" filled={!!p.complementaryNote.trim()} href={`/bafa?as=${p.id}`} />
                 <StatusSquare label="AF" title="Appréciation finale" filled={!!p.finalAppraisal.trim()} href={`/bafa?as=${p.id}`} />
               </div>
@@ -824,7 +825,7 @@ export default async function BafaPage({
       prisma.player.findMany({
         where: { role: "STAGIAIRE", active: true, formationId },
         orderBy: { firstName: "asc" },
-        select: { id: true, firstName: true, code: true, ems: true, finalAppraisal: true, complementaryNote: true },
+        select: { id: true, firstName: true, code: true, ems: true, retourEms: true, finalAppraisal: true, complementaryNote: true },
       }),
       prisma.player.count({ where: { role: "STAGIAIRE", active: false, formationId } }),
       prisma.config.findMany({ where: { formationId, key: { in: ["planningSessionType"] } } }),

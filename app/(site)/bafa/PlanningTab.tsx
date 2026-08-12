@@ -162,6 +162,7 @@ export default function PlanningTab({
   const [drag, setDrag] = useState<DragState | null>(null);
   const [editing, setEditing] = useState<Block | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const areaRef = useRef<HTMLDivElement | null>(null);
 
   const dayCount = daysForType(sessionType);
@@ -486,7 +487,7 @@ export default function PlanningTab({
               🧽 Gomme
             </button>
             <button
-              onClick={() => setShowSettings(true)}
+              onClick={() => setShowHistory(true)}
               style={{
                 background: "#fff",
                 color: "#0f172a",
@@ -497,6 +498,21 @@ export default function PlanningTab({
                 fontSize: 13,
                 cursor: "pointer",
                 marginLeft: "auto",
+              }}
+            >
+              🕘 Historique
+            </button>
+            <button
+              onClick={() => setShowSettings(true)}
+              style={{
+                background: "#fff",
+                color: "#0f172a",
+                border: "2px solid #cbd5e1",
+                borderRadius: 10,
+                padding: "6px 14px",
+                fontWeight: 800,
+                fontSize: 13,
+                cursor: "pointer",
               }}
             >
               ⚙️ Réglages
@@ -779,6 +795,102 @@ export default function PlanningTab({
               />
             </div>
           </div>
+        </div>
+      )}
+
+      {showHistory && (
+        <div className="sb-backdrop" onMouseDown={() => setShowHistory(false)}>
+          <div className="sb-modal" onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: 460, maxHeight: "85vh", overflowY: "auto" }}>
+            <div className="sb-modal__header">
+              <h2>Historique du planning</h2>
+              <button className="sb-x" onClick={() => setShowHistory(false)}>✕</button>
+            </div>
+            <HistoryPanel
+              onRestored={async () => {
+                const res = await fetch("/api/planning", { cache: "no-store" });
+                const data = await res.json().catch(() => null);
+                if (data?.ok) setBlocks(data.blocks);
+              }}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function HistoryPanel({ onRestored }: { onRestored: () => Promise<void> }) {
+  const [history, setHistory] = useState<{ id: string; createdAt: string; blockCount: number }[] | null>(null);
+  const [restoring, setRestoring] = useState<string | null>(null);
+  const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    (async () => {
+      const res = await fetch("/api/planning/history", { cache: "no-store" });
+      const data = await res.json().catch(() => null);
+      setHistory(data?.ok ? data.history : []);
+    })();
+  }, []);
+
+  async function restore(id: string) {
+    if (!confirm("Restaurer cette version ? Les créneaux manquants depuis cette photo seront recréés (rien n'est jamais supprimé).")) return;
+    setRestoring(id);
+    setMessage("");
+    const res = await fetch(`/api/planning/history/${id}/restore`, { method: "POST" });
+    const data = await res.json().catch(() => ({}));
+    setRestoring(null);
+    if (!res.ok) {
+      setMessage(data?.error || "Erreur.");
+      return;
+    }
+    await onRestored();
+    setMessage(data.restored > 0 ? `${data.restored} créneau(x) restauré(s).` : "Rien à restaurer, déjà à jour.");
+  }
+
+  return (
+    <div>
+      <p style={{ fontSize: 12, color: "#64748b", marginTop: 0, marginBottom: 12 }}>
+        Une photo du planning est prise avant chaque création, modification ou suppression de créneau.
+        Restaurer ne supprime jamais rien : ça recrée seulement ce qui a disparu depuis cette photo.
+      </p>
+      {message && (
+        <div style={{ background: "#f0fdf4", border: "1px solid #bbf7d0", borderRadius: 10, padding: 10, color: "#166534", fontWeight: 600, fontSize: 13, marginBottom: 10 }}>
+          {message}
+        </div>
+      )}
+      {history === null ? (
+        <p style={{ color: "#64748b", fontSize: 14 }}>Chargement…</p>
+      ) : history.length === 0 ? (
+        <p style={{ color: "#64748b", fontSize: 14 }}>Aucun historique pour l&apos;instant.</p>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          {history.map((h) => (
+            <div
+              key={h.id}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 10,
+                border: "1px solid #e5e7eb",
+                borderRadius: 10,
+                padding: "8px 12px",
+              }}
+            >
+              <span style={{ fontSize: 13, color: "#334155" }}>
+                {new Date(h.createdAt).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}
+                <span style={{ color: "#94a3b8" }}> · {h.blockCount} créneau{h.blockCount > 1 ? "x" : ""}</span>
+              </span>
+              <button
+                className="btn btn-ghost"
+                style={{ padding: "4px 12px", fontSize: 13 }}
+                disabled={restoring === h.id}
+                onClick={() => restore(h.id)}
+              >
+                {restoring === h.id ? "…" : "Restaurer"}
+              </button>
+            </div>
+          ))}
         </div>
       )}
     </div>

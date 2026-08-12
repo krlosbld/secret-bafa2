@@ -8,13 +8,15 @@ export type Notes = {
   personalNote: string;
   ems: string;
   emsVisible: boolean;
+  retourEms: string;
+  retourEmsVisible: boolean;
   complementaryNote: string;
   complementaryVisible: boolean;
   finalAppraisal: string;
   finalAppraisalVisible: boolean;
 };
 
-type TextField = "personalNote" | "ems" | "complementaryNote" | "finalAppraisal";
+type TextField = "personalNote" | "ems" | "retourEms" | "complementaryNote" | "finalAppraisal";
 
 export default function PlayerNotesPanel({
   playerId,
@@ -37,6 +39,7 @@ export default function PlayerNotesPanel({
   const [drafts, setDrafts] = useState<Record<TextField, string>>({
     personalNote: initialNotes.personalNote,
     ems: initialNotes.ems,
+    retourEms: initialNotes.retourEms,
     complementaryNote: initialNotes.complementaryNote,
     finalAppraisal: initialNotes.finalAppraisal,
   });
@@ -61,7 +64,7 @@ export default function PlayerNotesPanel({
     setTimeout(() => setSavedFlash((v) => (v === field ? null : v)), 1500);
   }
 
-  async function toggleVisible(field: "emsVisible" | "complementaryVisible" | "finalAppraisalVisible", value: boolean) {
+  async function toggleVisible(field: "emsVisible" | "retourEmsVisible" | "complementaryVisible" | "finalAppraisalVisible", value: boolean) {
     setNotes((n) => ({ ...n, [field]: value }));
     await fetch(`/api/players/${playerId}/notes`, {
       method: "PATCH",
@@ -76,7 +79,7 @@ export default function PlayerNotesPanel({
 
       const editable: TextField[] = [
         ...(canEditPersonal ? (["personalNote"] as TextField[]) : []),
-        ...(canEditStaffNotes ? (["ems", "complementaryNote", "finalAppraisal"] as TextField[]) : []),
+        ...(canEditStaffNotes ? (["ems", "retourEms", "complementaryNote", "finalAppraisal"] as TextField[]) : []),
       ];
       for (const field of editable) {
         if (curDrafts[field] !== curNotes[field]) {
@@ -95,7 +98,7 @@ export default function PlayerNotesPanel({
         const nextDrafts = { ...latestDrafts };
         let changed = false;
 
-        (["personalNote", "ems", "complementaryNote", "finalAppraisal"] as TextField[]).forEach((field) => {
+        (["personalNote", "ems", "retourEms", "complementaryNote", "finalAppraisal"] as TextField[]).forEach((field) => {
           const hasUnsavedEdit = latestDrafts[field] !== latestNotes[field];
           if (hasUnsavedEdit) return;
           if (nextDrafts[field] !== fresh[field]) {
@@ -150,6 +153,23 @@ export default function PlayerNotesPanel({
         visibleToggle={
           canEditStaffNotes
             ? { checked: notes.emsVisible, onChange: (v) => toggleVisible("emsVisible", v) }
+            : undefined
+        }
+      />
+
+      <NoteBox
+        title="Retour EMS"
+        value={drafts.retourEms}
+        savedValue={notes.retourEms}
+        editable={canEditStaffNotes}
+        visible={canEditStaffNotes || notes.retourEmsVisible}
+        saving={saving === "retourEms"}
+        justSaved={savedFlash === "retourEms"}
+        onChange={(v) => setDrafts((d) => ({ ...d, retourEms: v }))}
+        onSave={() => persist("retourEms", drafts.retourEms)}
+        visibleToggle={
+          canEditStaffNotes
+            ? { checked: notes.retourEmsVisible, onChange: (v) => toggleVisible("retourEmsVisible", v) }
             : undefined
         }
       />

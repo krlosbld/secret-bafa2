@@ -14,6 +14,7 @@ export type PlayerReport = {
   days: DayReport[];
   personalNote: string;
   ems: string;
+  retourEms: string;
   complementaryNote: string;
   finalAppraisal: string;
 };
@@ -91,6 +92,7 @@ export async function buildPlayerReport(playerId: string, formationId: string): 
     days,
     personalNote: player.personalNote,
     ems: player.ems,
+    retourEms: player.retourEms,
     complementaryNote: player.complementaryNote,
     finalAppraisal: player.finalAppraisal,
   };

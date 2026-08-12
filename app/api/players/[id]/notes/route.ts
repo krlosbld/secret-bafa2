@@ -49,6 +49,8 @@ export async function PATCH(req: Request, { params }: Params) {
   if (staff) {
     if (typeof body.ems === "string") data.ems = body.ems.slice(0, 4000);
     if (typeof body.emsVisible === "boolean") data.emsVisible = body.emsVisible;
+    if (typeof body.retourEms === "string") data.retourEms = body.retourEms.slice(0, 4000);
+    if (typeof body.retourEmsVisible === "boolean") data.retourEmsVisible = body.retourEmsVisible;
     if (typeof body.complementaryNote === "string") data.complementaryNote = body.complementaryNote.slice(0, 4000);
     if (typeof body.complementaryVisible === "boolean") data.complementaryVisible = body.complementaryVisible;
     if (typeof body.finalAppraisal === "string") data.finalAppraisal = body.finalAppraisal.slice(0, 4000);

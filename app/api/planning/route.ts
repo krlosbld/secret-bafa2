@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getPlanningAuth } from "@/lib/planningAuth";
 import { resolveViewFormationId } from "@/lib/formation";
+import { snapshotPlanning } from "@/lib/planningSnapshot";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -46,6 +47,7 @@ export async function POST(req: Request) {
   }
 
   const formationId = auth.formationId;
+  await snapshotPlanning(formationId);
   const block = await prisma.planningBlock.create({
     data: {
       day: body.day,

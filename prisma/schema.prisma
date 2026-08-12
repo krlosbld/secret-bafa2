@@ -16,10 +16,23 @@ model Formation {
   endDate   DateTime?
   createdAt DateTime @default(now())
 
-  players        Player[]
-  secrets        Secret[]
-  planningBlocks PlanningBlock[]
-  configs        Config[]
+  players           Player[]
+  secrets           Secret[]
+  planningBlocks    PlanningBlock[]
+  configs           Config[]
+  planningSnapshots PlanningSnapshot[]
+}
+
+// Photo de l'ensemble des créneaux d'une formation à un instant donné, prise avant toute
+// création/modification/suppression, pour pouvoir restaurer le planning en cas de perte.
+model PlanningSnapshot {
+  id          String   @id @default(cuid())
+  formationId String
+  blocks      String // JSON : { day, startMin, endMin, label, type }[]
+  createdAt   DateTime @default(now())
+  formation   Formation @relation(fields: [formationId], references: [id], onDelete: Cascade)
+
+  @@index([formationId, createdAt])
 }
 
 model Player {
@@ -48,6 +61,8 @@ model Player {
   personalNote          String  @default("") // écrit par le stagiaire lui-même
   ems                   String  @default("") // entretien de mi-stage
   emsVisible            Boolean @default(false)
+  retourEms             String  @default("") // retour suite à l'EMS
+  retourEmsVisible      Boolean @default(false)
   complementaryNote     String  @default("") // entretien complémentaire
   complementaryVisible  Boolean @default(false)
   finalAppraisal        String  @default("") // appréciation finale

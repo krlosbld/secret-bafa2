@@ -4,6 +4,8 @@ export type PlayerNotes = {
   personalNote: string;
   ems: string;
   emsVisible: boolean;
+  retourEms: string;
+  retourEmsVisible: boolean;
   complementaryNote: string;
   complementaryVisible: boolean;
   finalAppraisal: string;
@@ -17,6 +19,8 @@ export async function getPlayerNotes(playerId: string, staff: boolean): Promise<
       personalNote: true,
       ems: true,
       emsVisible: true,
+      retourEms: true,
+      retourEmsVisible: true,
       complementaryNote: true,
       complementaryVisible: true,
       finalAppraisal: true,
@@ -31,6 +35,8 @@ export async function getPlayerNotes(playerId: string, staff: boolean): Promise<
     personalNote: player.personalNote,
     ems: player.emsVisible ? player.ems : "",
     emsVisible: player.emsVisible,
+    retourEms: player.retourEmsVisible ? player.retourEms : "",
+    retourEmsVisible: player.retourEmsVisible,
     complementaryNote: player.complementaryVisible ? player.complementaryNote : "",
     complementaryVisible: player.complementaryVisible,
     finalAppraisal: player.finalAppraisalVisible ? player.finalAppraisal : "",

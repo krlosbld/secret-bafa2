@@ -76,6 +76,11 @@ export default function PlayerReportDocument({ report }: { report: PlayerReport 
             {report.ems || "Rien pour l'instant."}
           </Text>
 
+          <Text style={styles.sectionLabel}>Retour EMS</Text>
+          <Text style={report.retourEms ? styles.block : [styles.block, styles.empty]}>
+            {report.retourEms || "Rien pour l'instant."}
+          </Text>
+
           <Text style={styles.sectionLabel}>Entretien complémentaire</Text>
           <Text style={report.complementaryNote ? styles.block : [styles.block, styles.empty]}>
             {report.complementaryNote || "Rien pour l'instant."}
