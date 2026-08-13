@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import type { PendingBlock } from "@/lib/pendingEvaluations";
+
+const AUTOSAVE_IDLE_MS = 2 * 60 * 1000; // 2 min sans y retoucher
 
 function fmt(min: number) {
   const h = Math.floor(min / 60);
@@ -22,10 +24,66 @@ export default function PendingEvaluationsReminder({ initialBlocks }: { initialB
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
+  const lastEditedRef = useRef<Record<string, number>>({});
+  const savingKeysRef = useRef<Set<string>>(new Set());
+  const stateRef = useRef({ blocks, drafts });
+  useEffect(() => {
+    stateRef.current = { blocks, drafts };
+  }, [blocks, drafts]);
+
+  // Auto-enregistrement : toutes les 5s, toute case remplie et pas retouchée depuis 2 min est
+  // sauvegardée puis disparaît de la liste — pour ne jamais perdre une saisie oubliée sans clic sur
+  // "Enregistrer".
+  useEffect(() => {
+    const id = setInterval(async () => {
+      const { blocks: curBlocks, drafts: curDrafts } = stateRef.current;
+      const now = Date.now();
+      const due: { blockId: string; playerId: string; note: string; key: string }[] = [];
+
+      for (const b of curBlocks) {
+        for (const s of b.stagiaires) {
+          const key = `${b.id}:${s.id}`;
+          const value = curDrafts[key] ?? "";
+          if (!value.trim() || savingKeysRef.current.has(key)) continue;
+          const editedAt = lastEditedRef.current[key];
+          if (editedAt && now - editedAt >= AUTOSAVE_IDLE_MS) {
+            due.push({ blockId: b.id, playerId: s.id, note: value, key });
+          }
+        }
+      }
+      if (due.length === 0) return;
+
+      for (const entry of due) savingKeysRef.current.add(entry.key);
+      try {
+        for (const entry of due) {
+          await fetch("/api/evaluations", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ blockId: entry.blockId, playerId: entry.playerId, note: entry.note }),
+          });
+        }
+        const doneKeys = new Set(due.map((e) => e.key));
+        setBlocks((bs) =>
+          bs
+            .map((b) => ({ ...b, stagiaires: b.stagiaires.filter((s) => !doneKeys.has(`${b.id}:${s.id}`)) }))
+            .filter((b) => b.stagiaires.length > 0)
+        );
+        router.refresh();
+      } catch {
+        // ignore transient network errors, retry on next tick
+      } finally {
+        for (const entry of due) savingKeysRef.current.delete(entry.key);
+      }
+    }, 5000);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   if (!open || blocks.length === 0) return null;
 
   function setDraft(blockId: string, playerId: string, value: string) {
     setDrafts((d) => ({ ...d, [`${blockId}:${playerId}`]: value }));
+    lastEditedRef.current[`${blockId}:${playerId}`] = Date.now();
   }
 
   async function save() {
@@ -36,7 +94,7 @@ export default function PendingEvaluationsReminder({ initialBlocks }: { initialB
       for (const b of blocks) {
         for (const s of b.stagiaires) {
           const key = `${b.id}:${s.id}`;
-          if ((drafts[key] ?? "") !== s.note) {
+          if ((drafts[key] ?? "").trim()) {
             toSave.push({ blockId: b.id, playerId: s.id, note: drafts[key] ?? "" });
           }
         }
@@ -49,14 +107,12 @@ export default function PendingEvaluationsReminder({ initialBlocks }: { initialB
         });
       }
 
-      // Retire les créneaux désormais complets de l'affichage locale.
+      // Retire les stagiaires désormais remplis (et les créneaux devenus complets) de l'affichage.
+      const savedKeys = new Set(toSave.map((e) => `${e.blockId}:${e.playerId}`));
       setBlocks((bs) =>
         bs
-          .map((b) => ({
-            ...b,
-            stagiaires: b.stagiaires.map((s) => ({ ...s, note: drafts[`${b.id}:${s.id}`] ?? s.note })),
-          }))
-          .filter((b) => b.stagiaires.some((s) => !s.note.trim()))
+          .map((b) => ({ ...b, stagiaires: b.stagiaires.filter((s) => !savedKeys.has(`${b.id}:${s.id}`)) }))
+          .filter((b) => b.stagiaires.length > 0)
       );
       router.refresh();
     } catch {
@@ -75,7 +131,8 @@ export default function PendingEvaluationsReminder({ initialBlocks }: { initialB
 
         <p className="sb-help">
           Ces créneaux sont terminés et tu en es responsable — il manque au moins un retour. Remplis ce que tu peux
-          directement ici.
+          directement ici : c&apos;est enregistré automatiquement 2 min après ta dernière frappe sur une case, pas
+          besoin de cliquer sur &laquo;&nbsp;Enregistrer&nbsp;&raquo; pour ne rien perdre.
         </p>
 
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -125,7 +182,7 @@ export default function PendingEvaluationsReminder({ initialBlocks }: { initialB
             Plus tard
           </button>
           <button className="sb-btn sb-btn--main" onClick={save} disabled={saving}>
-            {saving ? "Enregistrement..." : "Enregistrer"}
+            {saving ? "Enregistrement..." : "Enregistrer maintenant"}
           </button>
         </div>
       </div>
