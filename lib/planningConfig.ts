@@ -1,6 +1,7 @@
 export const POSTE_CATEGORIES: Record<string, string> = {
   THEORIE: "Théorie",
   ANIMATION: "Temps d'animation",
+  PREPARATION: "Temps de préparation",
   AUTRE: "Autre",
 };
 
