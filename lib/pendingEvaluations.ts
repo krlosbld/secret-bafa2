@@ -11,9 +11,12 @@ export type PendingBlock = {
   stagiaires: PendingBlockStagiaire[];
 };
 
-// Créneaux dont ce formateur/directeur est responsable, déjà terminés, avec au moins un stagiaire
-// concerné sans retour saisi. Utilisé à la fois par le pop-up de rappel (PendingEvaluationsGate) et
-// par la route GET /api/planning/pending-evaluations qu'il interroge.
+// Créneaux déjà terminés avec au moins un stagiaire concerné sans retour saisi, à afficher à ce
+// formateur/directeur : soit parce qu'il en est explicitement désigné responsable, soit parce
+// qu'aucun responsable n'est désigné (dans ce cas tout le staff est relancé — le premier qui remplit
+// un stagiaire le fait disparaître pour tous les autres, puisque cette liste est recalculée à chaque
+// ouverture depuis les évaluations réellement enregistrées). Utilisé à la fois par le pop-up de rappel
+// (PendingEvaluationsGate) et par la route GET /api/planning/pending-evaluations qu'il interroge.
 export async function getPendingEvaluations(playerId: string): Promise<PendingBlock[]> {
   const staff = await prisma.player.findUnique({
     where: { id: playerId },
@@ -25,7 +28,7 @@ export async function getPendingEvaluations(playerId: string): Promise<PendingBl
 
   const [blocks, startDateConfig] = await Promise.all([
     prisma.planningBlock.findMany({
-      where: { formationId, responsibleStaffId: playerId },
+      where: { formationId, OR: [{ responsibleStaffId: playerId }, { responsibleStaffId: null }] },
       orderBy: [{ day: "asc" }, { startMin: "asc" }],
       select: { id: true, label: true, day: true, startMin: true, endMin: true },
     }),
