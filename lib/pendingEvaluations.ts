@@ -70,13 +70,15 @@ export async function getPendingEvaluations(playerId: string): Promise<PendingBl
   const result: PendingBlock[] = [];
   for (const b of pastBlocks) {
     const targetIds = assignedByBlock.get(b.id) ?? allStagiaires.map((s) => s.id);
+    // Uniquement ceux dont le retour n'est pas encore rempli — dès qu'une case est saisie (par
+    // n'importe qui), la personne disparaît de ce créneau.
     const stagiaires: PendingBlockStagiaire[] = targetIds
       .map((id) => stagiaireById.get(id))
       .filter((s): s is { id: string; firstName: string } => !!s)
-      .map((s) => ({ id: s.id, firstName: s.firstName, note: noteByBlockPlayer.get(`${b.id}:${s.id}`) ?? "" }));
+      .filter((s) => !(noteByBlockPlayer.get(`${b.id}:${s.id}`) ?? "").trim())
+      .map((s) => ({ id: s.id, firstName: s.firstName, note: "" }));
 
-    const hasMissing = stagiaires.some((s) => !s.note.trim());
-    if (hasMissing && stagiaires.length > 0) {
+    if (stagiaires.length > 0) {
       result.push({ id: b.id, label: b.label, day: b.day, startMin: b.startMin, endMin: b.endMin, stagiaires });
     }
   }
