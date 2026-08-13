@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { todayISO, dateForDayIndex } from "@/lib/planningConfig";
+import { todayISO } from "@/lib/planningConfig";
 
 export type PendingBlockStagiaire = { id: string; firstName: string; note: string };
 export type PendingBlock = {
@@ -10,6 +10,26 @@ export type PendingBlock = {
   endMin: number;
   stagiaires: PendingBlockStagiaire[];
 };
+
+// Jour courant (index relatif à startDateISO) et minutes écoulées depuis minuit, en heure de Paris —
+// calculés sans jamais mélanger une Date construite en "faux local" (le serveur tourne en UTC) avec
+// un vrai Date.now(), pour éviter tout décalage de fuseau (ex. le serveur croyant qu'un créneau finit
+// 2h plus tard qu'en réalité en été).
+function parisNowDayMinutes(startDateISO: string): { day: number; minutes: number } {
+  const todayParis = todayISO();
+  const day = Math.round(
+    (new Date(`${todayParis}T00:00:00`).getTime() - new Date(`${startDateISO}T00:00:00`).getTime()) / 86400000
+  );
+  const parts = new Intl.DateTimeFormat("fr-FR", {
+    timeZone: "Europe/Paris",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  }).formatToParts(new Date());
+  const hour = Number(parts.find((p) => p.type === "hour")?.value ?? "0");
+  const minute = Number(parts.find((p) => p.type === "minute")?.value ?? "0");
+  return { day, minutes: hour * 60 + minute };
+}
 
 // Créneaux déjà terminés avec au moins un stagiaire concerné sans retour saisi, à afficher à ce
 // formateur/directeur : soit parce qu'il en est explicitement désigné responsable, soit parce
@@ -37,15 +57,10 @@ export async function getPendingEvaluations(playerId: string): Promise<PendingBl
   if (blocks.length === 0) return [];
 
   const startDate = startDateConfig?.value ?? todayISO();
-  const now = Date.now();
-  const startOfToday = new Date(`${todayISO()}T00:00:00`).getTime();
-  const pastBlocks = blocks.filter((b) => {
-    const end = dateForDayIndex(startDate, b.day);
-    end.setMinutes(end.getMinutes() + b.endMin);
-    // Ignore tout ce qui s'est terminé avant aujourd'hui : on ne relance pas rétroactivement sur
-    // tout l'historique, seulement depuis ce matin.
-    return end.getTime() <= now && end.getTime() >= startOfToday;
-  });
+  const { day: currentDay, minutes: currentMinutes } = parisNowDayMinutes(startDate);
+  // Uniquement les créneaux d'aujourd'hui (on ignore tout l'historique des jours précédents) déjà
+  // terminés à l'heure qu'il est, en heure de Paris.
+  const pastBlocks = blocks.filter((b) => b.day === currentDay && b.endMin <= currentMinutes);
   if (pastBlocks.length === 0) return [];
 
   const blockIds = pastBlocks.map((b) => b.id);

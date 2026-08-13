@@ -32,24 +32,33 @@ export async function PATCH(req: Request, { params }: Params) {
   }
 
   if (action === "validate") {
-    await prisma.buzz.update({ where: { id }, data: { status: "VALIDATED" } });
-
     if (buzz.isCorrect && buzz.secret.status !== "FOUND") {
+      // Si plusieurs buzz corrects sont en attente sur ce secret, les points vont au premier
+      // chronologiquement — peu importe lequel a été cliqué ici.
+      const winner =
+        (await prisma.buzz.findFirst({
+          where: { secretId: buzz.secretId, status: "PENDING", isCorrect: true },
+          orderBy: { createdAt: "asc" },
+        })) ?? buzz;
+
       await prisma.$transaction([
+        prisma.buzz.update({ where: { id: winner.id }, data: { status: "VALIDATED" } }),
         prisma.player.update({
-          where: { id: buzz.fromPlayerId },
+          where: { id: winner.fromPlayerId },
           data: { points: { increment: 2 + buzz.secret.bonus } },
         }),
         prisma.secret.update({
           where: { id: buzz.secretId },
-          data: { status: "FOUND", foundByPlayerId: buzz.fromPlayerId },
+          data: { status: "FOUND", foundByPlayerId: winner.fromPlayerId },
         }),
-        // Rejeter tous les autres buzz en attente sur ce secret
+        // Rejeter tous les autres buzz en attente sur ce secret (corrects ou non)
         prisma.buzz.updateMany({
-          where: { secretId: buzz.secretId, status: "PENDING" },
+          where: { secretId: buzz.secretId, status: "PENDING", id: { not: winner.id } },
           data: { status: "REJECTED" },
         }),
       ]);
+    } else {
+      await prisma.buzz.update({ where: { id }, data: { status: "VALIDATED" } });
     }
 
     return NextResponse.json({ ok: true });

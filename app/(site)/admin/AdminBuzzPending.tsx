@@ -49,7 +49,13 @@ export default function AdminBuzzPending({ buzzes }: { buzzes: BuzzItem[] }) {
             <div className="value">
               {b.fromPlayer.firstName} · #{b.fromPlayer.code}
               <span style={{ marginLeft: 8, fontSize: 12, color: "#94a3b8" }}>
-                {new Date(b.createdAt).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}
+                {new Date(b.createdAt).toLocaleString("fr-FR", {
+                  timeZone: "Europe/Paris",
+                  day: "2-digit",
+                  month: "2-digit",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })}
               </span>
             </div>
           </div>
