@@ -38,10 +38,13 @@ export async function getPendingEvaluations(playerId: string): Promise<PendingBl
 
   const startDate = startDateConfig?.value ?? todayISO();
   const now = Date.now();
+  const startOfToday = new Date(`${todayISO()}T00:00:00`).getTime();
   const pastBlocks = blocks.filter((b) => {
     const end = dateForDayIndex(startDate, b.day);
     end.setMinutes(end.getMinutes() + b.endMin);
-    return end.getTime() <= now;
+    // Ignore tout ce qui s'est terminé avant aujourd'hui : on ne relance pas rétroactivement sur
+    // tout l'historique, seulement depuis ce matin.
+    return end.getTime() <= now && end.getTime() >= startOfToday;
   });
   if (pastBlocks.length === 0) return [];
 
