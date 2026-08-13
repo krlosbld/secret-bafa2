@@ -46,21 +46,25 @@ export async function getPendingEvaluations(playerId: string): Promise<PendingBl
 
   const formationId = staff.formationId;
 
-  const [blocks, startDateConfig] = await Promise.all([
+  const [blocks, startDateConfig, evaluableTypes] = await Promise.all([
     prisma.planningBlock.findMany({
       where: { formationId, OR: [{ responsibleStaffId: playerId }, { responsibleStaffId: null }] },
       orderBy: [{ day: "asc" }, { startMin: "asc" }],
-      select: { id: true, label: true, day: true, startMin: true, endMin: true },
+      select: { id: true, label: true, day: true, startMin: true, endMin: true, type: true },
     }),
     prisma.config.findUnique({ where: { formationId_key: { formationId, key: "planningStartDate" } } }),
+    prisma.posteType.findMany({ where: { evaluable: true }, select: { id: true } }),
   ]);
   if (blocks.length === 0) return [];
 
+  const evaluableTypeIds = new Set(evaluableTypes.map((t) => t.id));
   const startDate = startDateConfig?.value ?? todayISO();
   const { day: currentDay, minutes: currentMinutes } = parisNowDayMinutes(startDate);
-  // Uniquement les créneaux d'aujourd'hui (on ignore tout l'historique des jours précédents) déjà
-  // terminés à l'heure qu'il est, en heure de Paris.
-  const pastBlocks = blocks.filter((b) => b.day === currentDay && b.endMin <= currentMinutes);
+  // Uniquement les créneaux évaluables (ex. pas "Repas"), d'aujourd'hui (on ignore l'historique des
+  // jours précédents), déjà terminés à l'heure qu'il est, en heure de Paris.
+  const pastBlocks = blocks.filter(
+    (b) => evaluableTypeIds.has(b.type) && b.day === currentDay && b.endMin <= currentMinutes
+  );
   if (pastBlocks.length === 0) return [];
 
   const blockIds = pastBlocks.map((b) => b.id);
