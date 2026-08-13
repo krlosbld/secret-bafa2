@@ -19,7 +19,10 @@ export type Block = {
   endMin: number;
   label: string;
   type: string;
+  responsibleStaffId: string | null;
 };
+
+export type StaffOption = { id: string; firstName: string };
 
 export type Poste = {
   id: string;
@@ -140,6 +143,7 @@ export default function PlanningTab({
   canEdit,
   sessionType,
   startDate,
+  staff,
 }: {
   initialBlocks: Block[];
   initialPostes: Poste[];
@@ -148,6 +152,7 @@ export default function PlanningTab({
   canEdit: boolean;
   sessionType: string;
   startDate: string;
+  staff: StaffOption[];
 }) {
   const router = useRouter();
   const [blocks, setBlocks] = useState<Block[]>(initialBlocks);
@@ -219,7 +224,10 @@ export default function PlanningTab({
       if (end - start < 5) return;
       const poste = posteOf(postes, selectedPoste);
       const tmpId = `tmp-${Date.now()}`;
-      setBlocks((bs) => [...bs, { id: tmpId, day: d.day, startMin: start, endMin: end, label: poste.label, type: poste.id }]);
+      setBlocks((bs) => [
+        ...bs,
+        { id: tmpId, day: d.day, startMin: start, endMin: end, label: poste.label, type: poste.id, responsibleStaffId: null },
+      ]);
       const res = await fetch("/api/planning", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -737,6 +745,7 @@ export default function PlanningTab({
             <EditBlockForm
               block={editing}
               postes={postes}
+              staff={staff}
               onCancel={() => setEditing(null)}
               onSave={async (patch) => {
                 const id = editing.id;
@@ -949,18 +958,21 @@ function SettingsForm({
 function EditBlockForm({
   block,
   postes,
+  staff,
   onSave,
   onCancel,
   onDelete,
 }: {
   block: Block;
   postes: Poste[];
-  onSave: (patch: { label: string; type: string; startMin: number; endMin: number }) => void;
+  staff: StaffOption[];
+  onSave: (patch: { label: string; type: string; startMin: number; endMin: number; responsibleStaffId: string | null }) => void;
   onCancel: () => void;
   onDelete: () => void;
 }) {
   const [label, setLabel] = useState(block.label);
   const [type, setType] = useState(block.type);
+  const [responsibleStaffId, setResponsibleStaffId] = useState(block.responsibleStaffId);
   const [start, setStart] = useState(fmt(block.startMin));
   const [end, setEnd] = useState(fmt(block.endMin));
   const [error, setError] = useState<string | null>(null);
@@ -980,7 +992,7 @@ function EditBlockForm({
       setError(`Le créneau doit rester entre ${fmt(DAY_START)} et ${fmt(DAY_END)}.`);
       return;
     }
-    onSave({ label: label.trim() || "Sans titre", type, startMin: snap(startMin), endMin: snap(endMin) });
+    onSave({ label: label.trim() || "Sans titre", type, startMin: snap(startMin), endMin: snap(endMin), responsibleStaffId });
   }
 
   return (
@@ -1017,6 +1029,26 @@ function EditBlockForm({
           {error}
         </div>
       )}
+
+      <label className="sb-field">
+        <span>Formateur responsable</span>
+        <select
+          value={responsibleStaffId ?? ""}
+          onChange={(e) => setResponsibleStaffId(e.target.value || null)}
+          style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #ddd" }}
+        >
+          <option value="">Aucun</option>
+          {staff.map((s) => (
+            <option key={s.id} value={s.id}>
+              {s.firstName}
+            </option>
+          ))}
+        </select>
+        <span style={{ fontSize: 12, color: "#94a3b8" }}>
+          Une fois ce créneau terminé, un rappel s&apos;affichera à cette personne tant que les retours ne sont pas
+          tous saisis.
+        </span>
+      </label>
 
       {postes.find((p) => p.id === type)?.evaluable && <BlockAssignmentEditor blockId={block.id} />}
 

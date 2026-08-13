@@ -41,6 +41,17 @@ export async function PATCH(req: Request, { params }: Params) {
   if (typeof body.type === "string" && body.type.length > 0) {
     data.type = body.type;
   }
+  if (body.responsibleStaffId === null) {
+    data.responsibleStaffId = null;
+  } else if (typeof body.responsibleStaffId === "string" && body.responsibleStaffId.length > 0) {
+    const staff = await prisma.player.findUnique({
+      where: { id: body.responsibleStaffId },
+      select: { formationId: true, role: true },
+    });
+    if (staff && staff.formationId === auth.formationId && (staff.role === "FORMATEUR" || staff.role === "DIRECTEUR")) {
+      data.responsibleStaffId = body.responsibleStaffId;
+    }
+  }
 
   if (Object.keys(data).length === 0) {
     return NextResponse.json({ error: "Aucun champ valide." }, { status: 400 });

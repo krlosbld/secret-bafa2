@@ -673,7 +673,7 @@ export default async function BafaPage({
   }
 
   if (showPlanning) {
-    const [blocks, configRows, postes, criteria, criterionStates] = await Promise.all([
+    const [blocks, configRows, postes, criteria, criterionStates, staff] = await Promise.all([
       prisma.planningBlock.findMany({ where: { formationId }, orderBy: { startMin: "asc" } }),
       prisma.config.findMany({
         where: { formationId, key: { in: ["planningSessionType", "planningStartDate", "planningHoursTablePos"] } },
@@ -681,6 +681,11 @@ export default async function BafaPage({
       prisma.posteType.findMany({ orderBy: { order: "asc" } }),
       prisma.criterion.findMany({ orderBy: { order: "asc" } }),
       prisma.criterionState.findMany({ orderBy: { order: "asc" } }),
+      prisma.player.findMany({
+        where: { formationId, role: { in: ["FORMATEUR", "DIRECTEUR"] } },
+        orderBy: { firstName: "asc" },
+        select: { id: true, firstName: true },
+      }),
     ]);
     const sessionType = configRows.find((r) => r.key === "planningSessionType")?.value ?? DEFAULT_SESSION_TYPE;
     const startDate = configRows.find((r) => r.key === "planningStartDate")?.value ?? todayISO();
@@ -730,6 +735,7 @@ export default async function BafaPage({
             canEdit={isStaff}
             sessionType={sessionType}
             startDate={startDate}
+            staff={staff}
           />
         </div>
       </main>
