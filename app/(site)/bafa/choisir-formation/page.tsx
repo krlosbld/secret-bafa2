@@ -12,7 +12,7 @@ export default async function ChooseFormationPage() {
 
   const players = await prisma.player.findMany({
     where: { directorAccountId: session.directorAccountId },
-    select: { id: true, formation: { select: { name: true, active: true } } },
+    select: { id: true, formation: { select: { name: true, active: true, startDate: true } } },
     orderBy: { formation: { createdAt: "desc" } },
   });
 
@@ -20,6 +20,7 @@ export default async function ChooseFormationPage() {
     playerId: p.id,
     formationName: p.formation.name,
     active: p.formation.active,
+    startDate: p.formation.startDate ? p.formation.startDate.toISOString() : null,
   }));
 
   return (

@@ -7,7 +7,16 @@ type FormationOption = {
   playerId: string;
   formationName: string;
   active: boolean;
+  startDate: string | null;
 };
+
+function statusOf(o: FormationOption): { label: string; color: string; background: string } {
+  if (o.active) return { label: "Active", color: "#16a34a", background: "#dcfce7" };
+  if (o.startDate && new Date(o.startDate) > new Date()) {
+    return { label: "À venir", color: "#2563eb", background: "#dbeafe" };
+  }
+  return { label: "Terminée", color: "#64748b", background: "#f1f5f9" };
+}
 
 export default function ChooseFormationList({ options }: { options: FormationOption[] }) {
   const router = useRouter();
@@ -39,24 +48,32 @@ export default function ChooseFormationList({ options }: { options: FormationOpt
           {error}
         </div>
       )}
-      {options.map((o) => (
-        <button
-          key={o.playerId}
-          className="card"
-          onClick={() => choose(o.playerId)}
-          disabled={loading !== null}
-          style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, textAlign: "left", cursor: "pointer", border: "none" }}
-        >
-          <span style={{ fontWeight: 800 }}>{o.formationName}</span>
-          {o.active ? (
-            <span style={{ fontSize: 12, fontWeight: 800, color: "#16a34a", background: "#dcfce7", padding: "2px 8px", borderRadius: 999 }}>
-              Active
+      {options.map((o) => {
+        const status = statusOf(o);
+        return (
+          <button
+            key={o.playerId}
+            className="card"
+            onClick={() => choose(o.playerId)}
+            disabled={loading !== null}
+            style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, textAlign: "left", cursor: "pointer", border: "none" }}
+          >
+            <span style={{ fontWeight: 800 }}>{o.formationName}</span>
+            <span
+              style={{
+                fontSize: 12,
+                fontWeight: 800,
+                color: status.color,
+                background: status.background,
+                padding: "2px 8px",
+                borderRadius: 999,
+              }}
+            >
+              {status.label}
             </span>
-          ) : (
-            <span style={{ fontSize: 12, color: "#94a3b8" }}>Terminée</span>
-          )}
-        </button>
-      ))}
+          </button>
+        );
+      })}
     </div>
   );
 }
