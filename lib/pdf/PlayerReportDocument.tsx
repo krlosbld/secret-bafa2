@@ -15,11 +15,10 @@ const styles = StyleSheet.create({
   divider: { borderBottomWidth: 1, borderBottomColor: "#e2e8f0", marginVertical: 12 },
 });
 
-export default function PlayerReportDocument({ report }: { report: PlayerReport }) {
+export function PlayerReportPage({ report }: { report: PlayerReport }) {
   return (
-    <Document>
-      <Page size="A4" style={styles.page}>
-        <Text style={styles.title}>{report.firstName}</Text>
+    <Page size="A4" style={styles.page}>
+      <Text style={styles.title}>{report.firstName}</Text>
         <Text style={styles.sub}>Code #{report.code} — Dossier d&apos;évaluation</Text>
 
         {report.days.map((day, idx) => (
@@ -91,7 +90,14 @@ export default function PlayerReportDocument({ report }: { report: PlayerReport 
             {report.finalAppraisal || "Rien pour l'instant."}
           </Text>
         </View>
-      </Page>
+    </Page>
+  );
+}
+
+export default function PlayerReportDocument({ report }: { report: PlayerReport }) {
+  return (
+    <Document>
+      <PlayerReportPage report={report} />
     </Document>
   );
 }

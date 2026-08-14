@@ -503,6 +503,14 @@ function StagiaireList({
       <p className="sub" style={{ marginBottom: 8 }}>
         Sélectionne un stagiaire pour voir son espace. Clic droit sur une carte pour marquer un abandon.
       </p>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
+        <a className="btn btn-ghost" href="/api/players/pdf-all">
+          📄 Tous les dossiers (PDF)
+        </a>
+        <a className="btn btn-ghost" href="/api/players/pdf-appraisals">
+          📄 Appréciations finales uniquement (PDF)
+        </a>
+      </div>
       {abandonedCount > 0 && (
         <p style={{ marginBottom: 24 }}>
           <Link href="/bafa?abandoned=1" style={{ fontSize: 13, color: "#0f766e", fontWeight: 700 }}>

@@ -25,6 +25,7 @@ export default function AutoGrowTextarea({
   const [checking, setChecking] = useState(false);
   const [matches, setMatches] = useState<GrammarMatch[] | null>(null);
   const [checkError, setCheckError] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const el = ref.current;
@@ -33,20 +34,33 @@ export default function AutoGrowTextarea({
     el.style.height = `${el.scrollHeight}px`;
   }, [value]);
 
+  // Le timer en attente ne doit pas survivre au démontage (changement de stagiaire, fermeture de
+  // panneau, etc.), sinon il déclencherait un appel réseau et un setState sur un composant disparu.
+  useEffect(() => {
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, []);
+
   function handleChange(v: string) {
     setMatches(null);
     setCheckError(false);
     onChange(v);
+
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      if (v.trim()) void runCheck(v);
+    }, 1800);
   }
 
-  async function runCheck() {
+  async function runCheck(text: string) {
     setChecking(true);
     setCheckError(false);
     try {
       const res = await fetch("/api/grammar-check", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: value }),
+        body: JSON.stringify({ text }),
       });
       const data = await res.json().catch(() => null);
       if (!res.ok || !data?.ok) {
@@ -95,9 +109,12 @@ export default function AutoGrowTextarea({
           className="btn btn-ghost"
           style={{ padding: "4px 12px", fontSize: 12 }}
           disabled={checking || !value.trim()}
-          onClick={runCheck}
+          onClick={() => {
+            if (debounceRef.current) clearTimeout(debounceRef.current);
+            void runCheck(value);
+          }}
         >
-          {checking ? "Vérification…" : "✓ Vérifier l'orthographe"}
+          {checking ? "Vérification…" : "✓ Vérifier maintenant"}
         </button>
         {checkError && <span style={{ fontSize: 12, color: "#dc2626" }}>Correcteur indisponible, réessaie.</span>}
         {matches && matches.length === 0 && (
