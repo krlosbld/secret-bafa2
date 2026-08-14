@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 
 type GrammarMatch = {
   message: string;
@@ -84,8 +84,61 @@ export default function AutoGrowTextarea({
     onChange(next);
   }
 
+  // Segments du texte pour le calque de surlignage placé sous le textarea (fond transparent) : les
+  // caractères correspondants s'alignent parfaitement puisque police, taille et paddings sont
+  // identiques entre les deux éléments.
+  const segments: { text: string; kind: "spelling" | "grammar" | null }[] = [];
+  if (matches && matches.length > 0) {
+    const sorted = [...matches].sort((a, b) => a.offset - b.offset);
+    let cursor = 0;
+    for (const m of sorted) {
+      if (m.offset < cursor || m.offset + m.length > value.length) continue;
+      if (m.offset > cursor) segments.push({ text: value.slice(cursor, m.offset), kind: null });
+      segments.push({ text: value.slice(m.offset, m.offset + m.length), kind: m.kind });
+      cursor = m.offset + m.length;
+    }
+    if (cursor < value.length) segments.push({ text: value.slice(cursor), kind: null });
+  }
+
+  const sharedBoxStyle: CSSProperties = {
+    width: "100%",
+    border: "1px solid transparent",
+    borderRadius: 8,
+    padding: 8,
+    fontSize: 14,
+    minHeight,
+  };
+
   return (
-    <div>
+    <div style={{ position: "relative" }}>
+      {segments.length > 0 && (
+        <div
+          aria-hidden
+          style={{
+            ...sharedBoxStyle,
+            position: "absolute",
+            inset: 0,
+            whiteSpace: "pre-wrap",
+            overflowWrap: "break-word",
+            color: "transparent",
+            pointerEvents: "none",
+          }}
+        >
+          {segments.map((seg, i) =>
+            seg.kind === "spelling" ? (
+              <span key={i} style={{ textDecoration: "underline wavy #dc2626", textDecorationColor: "#dc2626" }}>
+                {seg.text}
+              </span>
+            ) : seg.kind === "grammar" ? (
+              <span key={i} style={{ background: "#dbeafe" }}>
+                {seg.text}
+              </span>
+            ) : (
+              <span key={i}>{seg.text}</span>
+            )
+          )}
+        </div>
+      )}
       <textarea
         ref={ref}
         value={value}
@@ -93,14 +146,12 @@ export default function AutoGrowTextarea({
         placeholder={placeholder}
         rows={5}
         style={{
-          width: "100%",
+          ...sharedBoxStyle,
+          position: "relative",
           border: "1px solid #ddd",
-          borderRadius: 8,
-          padding: 8,
-          fontSize: 14,
+          background: "transparent",
           resize: "none",
           overflow: "hidden",
-          minHeight,
         }}
       />
 
