@@ -16,7 +16,7 @@ export async function GET() {
   const stagiaires = await prisma.player.findMany({
     where: { formationId: auth.formationId, role: "STAGIAIRE", active: true },
     orderBy: { firstName: "asc" },
-    select: { firstName: true, code: true, finalAppraisal: true },
+    select: { firstName: true, finalAppraisal: true },
   });
 
   // @react-pdf/renderer types renderToBuffer's argument as a <Document> element specifically;
