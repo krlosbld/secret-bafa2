@@ -51,9 +51,11 @@ export async function PATCH(req: Request, { params }: Params) {
           where: { id: buzz.secretId },
           data: { status: "FOUND", foundByPlayerId: winner.fromPlayerId },
         }),
-        // Rejeter tous les autres buzz en attente sur ce secret (corrects ou non)
+        // Rejeter tous les autres buzz sur ce secret (en attente, ou déjà traités par erreur avant
+        // que celui-ci soit reconnu comme le bon) — dès que le bon est validé, plus aucun autre buzz
+        // sur ce même secret ne doit rester visible comme "à valider".
         prisma.buzz.updateMany({
-          where: { secretId: buzz.secretId, status: "PENDING", id: { not: winner.id } },
+          where: { secretId: buzz.secretId, id: { not: winner.id } },
           data: { status: "REJECTED" },
         }),
       ]);
