@@ -10,6 +10,7 @@ import {
   DEFAULT_POSTE_CATEGORY,
   categoriesForSessionType,
   pickerGroupOf,
+  todayDayIndex,
 } from "@/lib/planningConfig";
 
 export type Block = {
@@ -168,6 +169,8 @@ export default function PlanningTab({
   const [editing, setEditing] = useState<Block | null>(null);
   const [showSettings, setShowSettings] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [viewMode, setViewMode] = useState<"day" | "week">("week");
+  const [selectedDay, setSelectedDay] = useState(0);
   const areaRef = useRef<HTMLDivElement | null>(null);
 
   const dayCount = daysForType(sessionType);
@@ -177,6 +180,22 @@ export default function PlanningTab({
     [dayCount, startDate]
   );
 
+  // Sur mobile, on démarre par défaut sur la vue "Jour" (celui d'aujourd'hui) — la grille semaine
+  // complète est difficile à lire sur un petit écran. Ne s'applique qu'au premier rendu mobile pour
+  // ne pas écraser un choix déjà fait par l'utilisateur.
+  const mobileDefaultDone = useRef(false);
+  useEffect(() => {
+    if (mobileDefaultDone.current) return;
+    if (window.matchMedia("(max-width: 768px)").matches) {
+      mobileDefaultDone.current = true;
+      setViewMode("day");
+      setSelectedDay(todayDayIndex(startDate, dayCount));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const visibleDays = viewMode === "day" ? [Math.min(Math.max(selectedDay, 0), dayCount - 1)] : dayDates.map((_, i) => i);
+
   function minAtY(clientY: number) {
     const rect = areaRef.current?.getBoundingClientRect();
     if (!rect) return DAY_START;
@@ -185,9 +204,9 @@ export default function PlanningTab({
 
   function dayIndexAtX(clientX: number) {
     const rect = areaRef.current?.getBoundingClientRect();
-    if (!rect) return 0;
-    const idx = Math.floor(((clientX - rect.left) / rect.width) * dayCount);
-    return Math.min(dayCount - 1, Math.max(0, idx));
+    if (!rect) return visibleDays[0] ?? 0;
+    const colIdx = Math.floor(((clientX - rect.left) / rect.width) * visibleDays.length);
+    return visibleDays[Math.min(visibleDays.length - 1, Math.max(0, colIdx))];
   }
 
   async function deleteBlock(id: string) {
@@ -567,12 +586,72 @@ export default function PlanningTab({
         {formatDayHeader(dayDates[dayCount - 1])}
       </p>
 
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10, flexWrap: "wrap" }}>
+        <div style={{ display: "flex", border: "2px solid #0f172a", borderRadius: 10, overflow: "hidden" }}>
+          <button
+            onClick={() => {
+              setSelectedDay((d) => Math.min(Math.max(d, 0), dayCount - 1));
+              setViewMode("day");
+            }}
+            style={{
+              background: viewMode === "day" ? "#0f172a" : "#fff",
+              color: viewMode === "day" ? "#fff" : "#0f172a",
+              border: "none",
+              padding: "6px 14px",
+              fontWeight: 800,
+              fontSize: 13,
+              cursor: "pointer",
+            }}
+          >
+            Jour
+          </button>
+          <button
+            onClick={() => setViewMode("week")}
+            style={{
+              background: viewMode === "week" ? "#0f172a" : "#fff",
+              color: viewMode === "week" ? "#fff" : "#0f172a",
+              border: "none",
+              padding: "6px 14px",
+              fontWeight: 800,
+              fontSize: 13,
+              cursor: "pointer",
+            }}
+          >
+            Semaine
+          </button>
+        </div>
+
+        {viewMode === "day" && (
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <button
+              onClick={() => setSelectedDay((d) => Math.max(0, d - 1))}
+              disabled={selectedDay <= 0}
+              className="btn btn-ghost"
+              style={{ padding: "4px 10px" }}
+            >
+              ◀
+            </button>
+            <span style={{ fontWeight: 800, fontSize: 14, minWidth: 90, textAlign: "center" }}>
+              {formatDayHeader(dayDates[Math.min(Math.max(selectedDay, 0), dayCount - 1)])}
+            </span>
+            <button
+              onClick={() => setSelectedDay((d) => Math.min(dayCount - 1, d + 1))}
+              disabled={selectedDay >= dayCount - 1}
+              className="btn btn-ghost"
+              style={{ padding: "4px 10px" }}
+            >
+              ▶
+            </button>
+          </div>
+        )}
+      </div>
+
       <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, overflow: "hidden", background: "#fff" }}>
         <div style={{ display: "flex" }}>
           <div style={{ width: 56, flexShrink: 0, borderBottom: "1px solid #e5e7eb", background: "#f8fafc" }} />
-          {dayDates.map((d, i) => (
+          {visibleDays.map((dayIdx) => (
             <div
-              key={i}
+              key={dayIdx}
               style={{
                 flex: 1,
                 padding: "10px 8px",
@@ -583,7 +662,7 @@ export default function PlanningTab({
                 background: "#f8fafc",
               }}
             >
-              {formatDayHeader(d)}
+              {formatDayHeader(dayDates[dayIdx])}
             </div>
           ))}
         </div>
@@ -616,7 +695,7 @@ export default function PlanningTab({
               backgroundImage: `repeating-linear-gradient(to bottom, #eef2f6 0, #eef2f6 1px, transparent 1px, transparent ${60 * PX_PER_MIN}px)`,
             }}
           >
-            {dayDates.map((_, dayIdx) => {
+            {visibleDays.map((dayIdx, colIdx) => {
               const dayBlocks = effectiveBlocks.filter((b) => b.day === dayIdx);
               const layout = computeLayout(dayBlocks);
 
@@ -627,7 +706,7 @@ export default function PlanningTab({
                   style={{
                     flex: 1,
                     position: "relative",
-                    borderLeft: dayIdx === 0 ? "none" : "1px solid #e5e7eb",
+                    borderLeft: colIdx === 0 ? "none" : "1px solid #e5e7eb",
                     cursor: canEdit ? (eraser ? "not-allowed" : "crosshair") : "default",
                   }}
                 >
