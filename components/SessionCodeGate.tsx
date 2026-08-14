@@ -36,7 +36,7 @@ export default function SessionCodeGate({ title, hint }: { title?: string; hint?
       <div className="container">
         <h1 className="h1">{title ?? "Code de session"}</h1>
         <p className="sub">{hint ?? "Entre le code de session communiqué par ton directeur ou ta directrice."}</p>
-        <form onSubmit={onSubmit} className="card" style={{ marginTop: 16, maxWidth: 360 }}>
+        <form onSubmit={onSubmit} className="card" style={{ margin: "16px auto 0", maxWidth: 360 }}>
           <div className="sb-form">
             <label className="sb-field">
               <span>Code de session</span>

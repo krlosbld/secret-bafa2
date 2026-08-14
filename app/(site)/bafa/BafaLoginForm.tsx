@@ -32,7 +32,7 @@ export default function BafaLoginForm() {
   }
 
   return (
-    <form onSubmit={onSubmit} className="card" style={{ marginTop: 16, maxWidth: 360 }}>
+    <form onSubmit={onSubmit} className="card" style={{ margin: "16px auto 0", maxWidth: 360 }}>
       <div className="sb-form">
         <label className="sb-field">
           <span>Ton code personnel</span>
