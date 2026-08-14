@@ -8,6 +8,7 @@ type GrammarMatch = {
   offset: number;
   length: number;
   replacements: { value: string }[];
+  kind: "spelling" | "grammar";
 };
 
 export default function AutoGrowTextarea({
@@ -141,7 +142,13 @@ export default function AutoGrowTextarea({
               }}
             >
               <div style={{ marginBottom: m.replacements.length > 0 ? 6 : 0 }}>
-                <span style={{ fontWeight: 700, textDecoration: "underline wavy #dc2626" }}>
+                <span
+                  style={
+                    m.kind === "spelling"
+                      ? { fontWeight: 700, textDecoration: "underline wavy #dc2626" }
+                      : { fontWeight: 700, background: "#dbeafe", color: "#1e40af", borderRadius: 3, padding: "0 2px" }
+                  }
+                >
                   {value.slice(m.offset, m.offset + m.length)}
                 </span>
                 <span style={{ color: "#78716c" }}> — {m.shortMessage || m.message}</span>

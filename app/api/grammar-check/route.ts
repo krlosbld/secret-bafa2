@@ -11,6 +11,7 @@ type LanguageToolMatch = {
   offset: number;
   length: number;
   replacements: { value: string }[];
+  rule?: { issueType?: string; category?: { id?: string } };
 };
 
 export async function POST(req: Request) {
@@ -35,12 +36,14 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Correcteur indisponible." }, { status: 502 });
     }
     const data = await res.json();
-    const matches: LanguageToolMatch[] = (data.matches ?? []).map((m: LanguageToolMatch) => ({
+    const matches = (data.matches ?? []).map((m: LanguageToolMatch) => ({
       message: m.message,
       shortMessage: m.shortMessage,
       offset: m.offset,
       length: m.length,
       replacements: (m.replacements ?? []).slice(0, 5),
+      // "TYPOS" = faute d'orthographe (mot faux) ; tout le reste (accords, conjugaison...) = grammaire.
+      kind: m.rule?.issueType === "misspelling" || m.rule?.category?.id === "TYPOS" ? "spelling" : "grammar",
     }));
     return NextResponse.json({ ok: true, matches });
   } catch {
