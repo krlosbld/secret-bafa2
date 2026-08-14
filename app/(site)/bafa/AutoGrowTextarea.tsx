@@ -28,6 +28,27 @@ export default function AutoGrowTextarea({
   const [checkError, setCheckError] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Historique local pour le bouton "Annuler" — nécessaire car cliquer une suggestion (ou taper)
+  // change la valeur par programmation, ce qui casse le undo natif (Ctrl+Z) du navigateur sur un
+  // champ contrôlé par React.
+  const historyRef = useRef<string[]>([]);
+  const lastSnapshotRef = useRef(0);
+  const [canUndo, setCanUndo] = useState(false);
+
+  function pushHistory(v: string) {
+    historyRef.current.push(v);
+    if (historyRef.current.length > 100) historyRef.current.shift();
+    setCanUndo(true);
+  }
+
+  function undo() {
+    const prev = historyRef.current.pop();
+    if (prev === undefined) return;
+    setCanUndo(historyRef.current.length > 0);
+    setMatches(null);
+    onChange(prev);
+  }
+
   useEffect(() => {
     const el = ref.current;
     if (!el) return;
@@ -44,6 +65,12 @@ export default function AutoGrowTextarea({
   }, []);
 
   function handleChange(v: string) {
+    const now = Date.now();
+    if (now - lastSnapshotRef.current > 600) {
+      pushHistory(value);
+    }
+    lastSnapshotRef.current = now;
+
     setMatches(null);
     setCheckError(false);
     onChange(v);
@@ -79,6 +106,8 @@ export default function AutoGrowTextarea({
   }
 
   function applyReplacement(m: GrammarMatch, replacement: string) {
+    pushHistory(value);
+    lastSnapshotRef.current = Date.now();
     const next = value.slice(0, m.offset) + replacement + value.slice(m.offset + m.length);
     setMatches(null);
     onChange(next);
@@ -156,6 +185,16 @@ export default function AutoGrowTextarea({
       />
 
       <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
+        <button
+          type="button"
+          className="btn btn-ghost"
+          title="Annuler la dernière modification"
+          style={{ padding: "4px 12px", fontSize: 12 }}
+          disabled={!canUndo}
+          onClick={undo}
+        >
+          ↶ Annuler
+        </button>
         <button
           type="button"
           className="btn btn-ghost"
