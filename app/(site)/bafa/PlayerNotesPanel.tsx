@@ -201,6 +201,7 @@ export default function PlayerNotesPanel({
         justSaved={savedFlash === "finalAppraisal"}
         onChange={(v) => setDrafts((d) => ({ ...d, finalAppraisal: v }))}
         onSave={() => persist("finalAppraisal", drafts.finalAppraisal)}
+        showCharCount
         visibleToggle={
           canEditStaffNotes
             ? { checked: notes.finalAppraisalVisible, onChange: (v) => toggleVisible("finalAppraisalVisible", v) }
@@ -223,6 +224,7 @@ function NoteBox({
   onChange,
   onSave,
   visibleToggle,
+  showCharCount,
 }: {
   title: string;
   help?: string;
@@ -235,11 +237,25 @@ function NoteBox({
   onChange: (v: string) => void;
   onSave: () => void;
   visibleToggle?: { checked: boolean; onChange: (v: boolean) => void };
+  showCharCount?: boolean;
 }) {
   return (
     <div className="card">
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, gap: 8, flexWrap: "wrap" }}>
-        <div style={{ fontWeight: 800 }}>{title}</div>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <div style={{ fontWeight: 800 }}>{title}</div>
+          {showCharCount && editable && (
+            <span
+              style={{
+                fontSize: 12,
+                fontWeight: 700,
+                color: value.length > 999 ? "#dc2626" : "#94a3b8",
+              }}
+            >
+              {value.length} caractère{value.length !== 1 ? "s" : ""}
+            </span>
+          )}
+        </div>
         {visibleToggle && (
           <label style={{ display: "flex", alignItems: "center", gap: 6, fontSize: 12, color: "#475569" }}>
             <input type="checkbox" checked={visibleToggle.checked} onChange={(e) => visibleToggle.onChange(e.target.checked)} />
