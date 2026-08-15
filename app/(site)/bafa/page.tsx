@@ -447,7 +447,7 @@ async function PersonalSpace({
       </p>
 
       <PersonalSpaceBody
-        key={initialDay}
+        key={`${playerId}-${initialDay}`}
         playerId={playerId}
         evalBlocks={evalBlocks}
         postes={postes}
