@@ -66,6 +66,7 @@ model Player {
   retourEmsVisible      Boolean @default(false)
   complementaryNote     String  @default("") // entretien complémentaire
   complementaryVisible  Boolean @default(false)
+  finalOpinion          String  @default("EN_ATTENTE") // avis : EN_ATTENTE | FAVORABLE | DEFAVORABLE
   finalAppraisal        String  @default("") // appréciation finale
   finalAppraisalVisible Boolean @default(false)
 

@@ -12,8 +12,21 @@ export type Notes = {
   retourEmsVisible: boolean;
   complementaryNote: string;
   complementaryVisible: boolean;
+  finalOpinion: string;
   finalAppraisal: string;
   finalAppraisalVisible: boolean;
+};
+
+const OPINION_LABELS: Record<string, string> = {
+  EN_ATTENTE: "En attente",
+  FAVORABLE: "Favorable",
+  DEFAVORABLE: "Défavorable",
+};
+
+const OPINION_COLORS: Record<string, { color: string; background: string }> = {
+  EN_ATTENTE: { color: "#64748b", background: "#f1f5f9" },
+  FAVORABLE: { color: "#16a34a", background: "#dcfce7" },
+  DEFAVORABLE: { color: "#dc2626", background: "#fef2f2" },
 };
 
 type TextField = "personalNote" | "ems" | "retourEms" | "complementaryNote" | "finalAppraisal";
@@ -70,6 +83,15 @@ export default function PlayerNotesPanel({
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ [field]: value }),
+    });
+  }
+
+  async function setOpinion(value: string) {
+    setNotes((n) => ({ ...n, finalOpinion: value }));
+    await fetch(`/api/players/${playerId}/notes`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ finalOpinion: value }),
     });
   }
 
@@ -190,6 +212,37 @@ export default function PlayerNotesPanel({
             : undefined
         }
       />
+
+      {(canEditStaffNotes || notes.finalAppraisalVisible) && (
+        <div className="card" style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ fontWeight: 800 }}>Avis</div>
+          {canEditStaffNotes ? (
+            <select
+              value={notes.finalOpinion}
+              onChange={(e) => setOpinion(e.target.value)}
+              style={{ border: "1px solid #ddd", borderRadius: 8, padding: "6px 10px", fontSize: 14, fontWeight: 700 }}
+            >
+              {Object.entries(OPINION_LABELS).map(([value, label]) => (
+                <option key={value} value={value}>
+                  {label}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span
+              style={{
+                fontSize: 13,
+                fontWeight: 800,
+                padding: "3px 10px",
+                borderRadius: 999,
+                ...OPINION_COLORS[notes.finalOpinion],
+              }}
+            >
+              {OPINION_LABELS[notes.finalOpinion] ?? notes.finalOpinion}
+            </span>
+          )}
+        </div>
+      )}
 
       <NoteBox
         title="Appréciation finale"

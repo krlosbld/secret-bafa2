@@ -16,7 +16,14 @@ export type PlayerReport = {
   ems: string;
   retourEms: string;
   complementaryNote: string;
+  finalOpinion: string;
   finalAppraisal: string;
+};
+
+export const OPINION_LABELS: Record<string, string> = {
+  EN_ATTENTE: "En attente",
+  FAVORABLE: "Favorable",
+  DEFAVORABLE: "Défavorable",
 };
 
 function minToTime(min: number): string {
@@ -94,6 +101,7 @@ export async function buildPlayerReport(playerId: string, formationId: string): 
     ems: player.ems,
     retourEms: player.retourEms,
     complementaryNote: player.complementaryNote,
+    finalOpinion: player.finalOpinion,
     finalAppraisal: player.finalAppraisal,
   };
 }

@@ -1,5 +1,5 @@
 import { Document, Page, Text, View, StyleSheet } from "@react-pdf/renderer";
-import type { PlayerReport } from "@/lib/playerReport";
+import { OPINION_LABELS, type PlayerReport } from "@/lib/playerReport";
 
 const styles = StyleSheet.create({
   page: { padding: 32, fontSize: 10, fontFamily: "Helvetica", color: "#0f172a" },
@@ -84,6 +84,9 @@ export function PlayerReportPage({ report }: { report: PlayerReport }) {
           <Text style={report.complementaryNote ? styles.block : [styles.block, styles.empty]}>
             {report.complementaryNote || "Rien pour l'instant."}
           </Text>
+
+          <Text style={styles.sectionLabel}>Avis</Text>
+          <Text style={styles.block}>{OPINION_LABELS[report.finalOpinion] ?? report.finalOpinion}</Text>
 
           <Text style={styles.sectionLabel}>Appréciation finale</Text>
           <Text style={report.finalAppraisal ? styles.block : [styles.block, styles.empty]}>

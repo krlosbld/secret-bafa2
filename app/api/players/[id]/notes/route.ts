@@ -53,6 +53,12 @@ export async function PATCH(req: Request, { params }: Params) {
     if (typeof body.retourEmsVisible === "boolean") data.retourEmsVisible = body.retourEmsVisible;
     if (typeof body.complementaryNote === "string") data.complementaryNote = body.complementaryNote.slice(0, 4000);
     if (typeof body.complementaryVisible === "boolean") data.complementaryVisible = body.complementaryVisible;
+    if (
+      typeof body.finalOpinion === "string" &&
+      ["EN_ATTENTE", "FAVORABLE", "DEFAVORABLE"].includes(body.finalOpinion)
+    ) {
+      data.finalOpinion = body.finalOpinion;
+    }
     if (typeof body.finalAppraisal === "string") data.finalAppraisal = body.finalAppraisal.slice(0, 4000);
     if (typeof body.finalAppraisalVisible === "boolean") data.finalAppraisalVisible = body.finalAppraisalVisible;
   }

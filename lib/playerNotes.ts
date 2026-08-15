@@ -8,6 +8,7 @@ export type PlayerNotes = {
   retourEmsVisible: boolean;
   complementaryNote: string;
   complementaryVisible: boolean;
+  finalOpinion: string;
   finalAppraisal: string;
   finalAppraisalVisible: boolean;
 };
@@ -23,6 +24,7 @@ export async function getPlayerNotes(playerId: string, staff: boolean): Promise<
       retourEmsVisible: true,
       complementaryNote: true,
       complementaryVisible: true,
+      finalOpinion: true,
       finalAppraisal: true,
       finalAppraisalVisible: true,
     },
@@ -39,6 +41,7 @@ export async function getPlayerNotes(playerId: string, staff: boolean): Promise<
     retourEmsVisible: player.retourEmsVisible,
     complementaryNote: player.complementaryVisible ? player.complementaryNote : "",
     complementaryVisible: player.complementaryVisible,
+    finalOpinion: player.finalAppraisalVisible ? player.finalOpinion : "EN_ATTENTE",
     finalAppraisal: player.finalAppraisalVisible ? player.finalAppraisal : "",
     finalAppraisalVisible: player.finalAppraisalVisible,
   };
