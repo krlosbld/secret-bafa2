@@ -105,6 +105,20 @@ export async function POST(req: Request) {
       );
     }
 
+    // Chaque personne n'a qu'un seul secret : si celui de la personne devinée a déjà été trouvé
+    // (sur n'importe quel autre secret), cette réponse ne peut plus être correcte nulle part.
+    const foundSecrets = await prisma.secret.findMany({
+      where: { formationId, status: "FOUND" },
+      include: { player: { select: { firstName: true } } },
+    });
+    const alreadyFound = foundSecrets.find((s) => fuzzyMatch(guessedName, s.player.firstName));
+    if (alreadyFound) {
+      return NextResponse.json(
+        { error: `Le secret de ${alreadyFound.player.firstName} a déjà été trouvé — ce n'est plus une réponse possible.` },
+        { status: 400 }
+      );
+    }
+
     // Calculer si la réponse est correcte
     const isCorrect = fuzzyMatch(guessedName, secret.player.firstName);
 
