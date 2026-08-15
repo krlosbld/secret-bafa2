@@ -55,6 +55,13 @@ export async function POST(req: Request) {
     }
     const formationId = formation.id;
 
+    const gameEndedConfig = await prisma.config.findUnique({
+      where: { formationId_key: { formationId, key: "gameEnded" } },
+    });
+    if (gameEndedConfig?.value === "true") {
+      return NextResponse.json({ error: "Le jeu est terminé, il n'est plus possible de buzzer." }, { status: 403 });
+    }
+
     // Trouver le joueur par son code
     const player = await prisma.player.findUnique({ where: { formationId_code: { formationId, code: fromCode } } });
     if (!player) {

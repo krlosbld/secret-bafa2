@@ -5,9 +5,10 @@ import AdminPlayers from "../admin/AdminPlayers";
 import AdminStaffList from "../admin/AdminStaffList";
 import AdminCronControls from "../admin/AdminCronControls";
 import AdminCreateCode from "../admin/AdminCreateCode";
+import AdminEndGame from "../admin/AdminEndGame";
 
 export default async function AdminTab({ formationId }: { formationId: string }) {
-  const [pendingSecrets, publishedSecrets, pendingBuzzes, players, staffRows, quotaConfig, lastNightlyRunConfig] = await Promise.all([
+  const [pendingSecrets, publishedSecrets, pendingBuzzes, players, staffRows, quotaConfig, lastNightlyRunConfig, gameEndedConfig] = await Promise.all([
     prisma.secret.findMany({
       where: { status: "PENDING", formationId },
       orderBy: { createdAt: "asc" },
@@ -59,11 +60,13 @@ export default async function AdminTab({ formationId }: { formationId: string })
     }),
     prisma.config.findUnique({ where: { formationId_key: { formationId, key: "buzzQuota" } } }),
     prisma.config.findUnique({ where: { formationId_key: { formationId, key: "lastNightlyRun" } } }),
+    prisma.config.findUnique({ where: { formationId_key: { formationId, key: "gameEnded" } } }),
   ]);
 
   const staff = staffRows.map((s) => ({ id: s.id, firstName: s.firstName, role: s.role, username: s.directorAccount?.username ?? null }));
 
   const quota = Number(quotaConfig?.value ?? 3);
+  const gameEnded = gameEndedConfig?.value === "true";
 
   let lastNightlyRun: { at: string; updated: number } | null = null;
   if (lastNightlyRunConfig) {
@@ -85,6 +88,10 @@ export default async function AdminTab({ formationId }: { formationId: string })
 
   return (
     <div>
+      <Section title="Fin du jeu">
+        <AdminEndGame formationId={formationId} gameEnded={gameEnded} />
+      </Section>
+
       <Section title={`Buzz à valider (${pendingBuzzes.length})`}>
         {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
         <AdminBuzzPending buzzes={pendingBuzzes as any} />
