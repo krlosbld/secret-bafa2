@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getPlanningAuth } from "@/lib/planningAuth";
 import { getPlayerSession } from "@/lib/playerAuth";
+import { resolveAuthorNames } from "@/lib/authorNames";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -12,6 +13,7 @@ export async function GET(_req: Request, { params }: Params) {
   const { id } = await params;
 
   const auth = await getPlanningAuth();
+  const isStaff = auth.ok;
   if (!auth.ok) {
     const session = await getPlayerSession();
     if (!session || session.playerId !== id) {
@@ -28,7 +30,14 @@ export async function GET(_req: Request, { params }: Params) {
   const notes: Record<number, string> = {};
   for (const r of remarks) notes[r.day] = r.note;
 
-  return NextResponse.json({ ok: true, notes });
+  // L'auteur n'est renvoyé que côté staff — jamais exposé au stagiaire lui-même.
+  let authors: Record<number, string | null> = {};
+  if (isStaff) {
+    const authorNames = await resolveAuthorNames(remarks.map((r) => r.authorId));
+    authors = Object.fromEntries(remarks.map((r) => [r.day, r.authorId ? authorNames.get(r.authorId) ?? null : null]));
+  }
+
+  return NextResponse.json({ ok: true, notes, authors });
 }
 
 export async function POST(req: Request, { params }: Params) {
@@ -46,15 +55,20 @@ export async function POST(req: Request, { params }: Params) {
     return NextResponse.json({ error: "Jour invalide." }, { status: 400 });
   }
 
-  const player = await prisma.player.findUnique({ where: { id } });
+  const [player, session] = await Promise.all([
+    prisma.player.findUnique({ where: { id } }),
+    getPlayerSession(),
+  ]);
   if (!player || player.formationId !== auth.formationId) {
     return NextResponse.json({ error: "Introuvable." }, { status: 404 });
   }
 
+  const authorId = session?.playerId ?? null;
+
   const remark = await prisma.dailyRemark.upsert({
     where: { playerId_day: { playerId: id, day } },
-    update: { note },
-    create: { playerId: id, day, note },
+    update: { note, authorId },
+    create: { playerId: id, day, note, authorId },
   });
 
   return NextResponse.json({ ok: true, remark });

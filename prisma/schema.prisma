@@ -59,16 +59,20 @@ model Player {
   dailyRemarks     DailyRemark[]
 
   // Panneau latéral de la page stagiaire
-  personalNote          String  @default("") // écrit par le stagiaire lui-même
-  ems                   String  @default("") // entretien de mi-stage
-  emsVisible            Boolean @default(false)
-  retourEms             String  @default("") // retour suite à l'EMS
-  retourEmsVisible      Boolean @default(false)
-  complementaryNote     String  @default("") // entretien complémentaire
-  complementaryVisible  Boolean @default(false)
-  finalOpinion          String  @default("EN_ATTENTE") // avis : EN_ATTENTE | FAVORABLE | DEFAVORABLE
-  finalAppraisal        String  @default("") // appréciation finale
-  finalAppraisalVisible Boolean @default(false)
+  personalNote               String  @default("") // écrit par le stagiaire lui-même
+  ems                        String  @default("") // entretien de mi-stage
+  emsVisible                 Boolean @default(false)
+  emsAuthorId                String? // id du formateur/directeur qui a écrit la version actuelle
+  retourEms                  String  @default("") // retour suite à l'EMS
+  retourEmsVisible           Boolean @default(false)
+  retourEmsAuthorId          String?
+  complementaryNote          String  @default("") // entretien complémentaire
+  complementaryVisible       Boolean @default(false)
+  complementaryNoteAuthorId  String?
+  finalOpinion                String  @default("EN_ATTENTE") // avis : EN_ATTENTE | FAVORABLE | DEFAVORABLE
+  finalAppraisal              String  @default("") // appréciation finale
+  finalAppraisalVisible       Boolean @default(false)
+  finalAppraisalAuthorId      String?
 
   @@unique([formationId, code])
   @@index([directorAccountId])
@@ -182,6 +186,7 @@ model Evaluation {
   playerId  String
   blockId   String
   note      String        @default("")
+  authorId  String? // id du formateur/directeur qui a écrit la version actuelle
   createdAt DateTime      @default(now())
   updatedAt DateTime      @updatedAt
   player    Player        @relation(fields: [playerId], references: [id], onDelete: Cascade)
@@ -218,6 +223,7 @@ model DailyRemark {
   playerId  String
   day       Int
   note      String   @default("")
+  authorId  String? // id du formateur/directeur qui a écrit la version actuelle
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   player    Player   @relation(fields: [playerId], references: [id], onDelete: Cascade)

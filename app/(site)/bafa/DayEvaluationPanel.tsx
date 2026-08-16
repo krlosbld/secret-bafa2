@@ -15,6 +15,7 @@ export default function DayEvaluationPanel({
   activeDay,
   onDayChange,
   initialNotes,
+  initialNoteAuthors,
   initialRatingValues,
   canEdit,
   playerId,
@@ -28,6 +29,7 @@ export default function DayEvaluationPanel({
   activeDay: number;
   onDayChange: (day: number) => void;
   initialNotes: Record<string, string>;
+  initialNoteAuthors: Record<string, string | null>;
   initialRatingValues: Record<string, string>;
   canEdit: boolean;
   playerId: string;
@@ -77,7 +79,15 @@ export default function DayEvaluationPanel({
 
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontWeight: 800, marginBottom: 10, color: "#0f172a" }}>Créneaux évalués</div>
-        <EvaluationBoard blocks={blocks} postes={postes} activeDay={activeDay} initialNotes={initialNotes} canEdit={canEdit} playerId={playerId} />
+        <EvaluationBoard
+          blocks={blocks}
+          postes={postes}
+          activeDay={activeDay}
+          initialNotes={initialNotes}
+          initialAuthors={initialNoteAuthors}
+          canEdit={canEdit}
+          playerId={playerId}
+        />
       </div>
 
       <div>

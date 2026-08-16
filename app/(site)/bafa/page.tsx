@@ -13,6 +13,7 @@ import StagiaireCardMenu from "./StagiaireCardMenu";
 import ReactivateButton from "./ReactivateButton";
 import { DEFAULT_SESSION_TYPE, todayISO, daysForType, todayDayIndex } from "@/lib/planningConfig";
 import { getPlayerNotes } from "@/lib/playerNotes";
+import { resolveAuthorNames } from "@/lib/authorNames";
 import { resolveAdminFormationId } from "@/lib/formation";
 import { getFormationFromCookie } from "@/lib/formationSession";
 import SessionCodeGate from "@/components/SessionCodeGate";
@@ -72,7 +73,7 @@ function TabNav({
   );
 }
 
-async function getEvaluationData(playerId: string, formationId: string) {
+async function getEvaluationData(playerId: string, formationId: string, staff: boolean) {
   const [blocks, configRows, postes, criteria, criterionStates, evaluations, ratings, assignments] = await Promise.all([
     prisma.planningBlock.findMany({ where: { formationId }, orderBy: [{ day: "asc" }, { startMin: "asc" }] }),
     prisma.config.findMany({ where: { formationId, key: { in: ["planningSessionType", "planningStartDate"] } } }),
@@ -105,7 +106,14 @@ async function getEvaluationData(playerId: string, formationId: string) {
   const ratingValues: Record<string, string> = {};
   for (const r of ratings) ratingValues[`${r.criterionId}:${r.day}`] = r.value;
 
-  return { evalBlocks, postes, criteria, criterionStates, startDate, dayCount, notes, ratingValues };
+  // L'auteur n'est renseigné que côté staff — jamais exposé au stagiaire qui consulte son propre espace.
+  const noteAuthors: Record<string, string | null> = {};
+  if (staff) {
+    const authorNames = await resolveAuthorNames(evaluations.map((e) => e.authorId));
+    for (const e of evaluations) noteAuthors[e.blockId] = e.authorId ? authorNames.get(e.authorId) ?? null : null;
+  }
+
+  return { evalBlocks, postes, criteria, criterionStates, startDate, dayCount, notes, noteAuthors, ratingValues };
 }
 
 async function getStagiaireIndicators(dayCount: number, formationId: string, playerIds?: string[]) {
@@ -369,13 +377,19 @@ async function PersonalSpace({
   nextId?: string | null;
   requestedDay?: number;
 }) {
-  const { evalBlocks, postes, criteria, criterionStates, startDate, dayCount, notes, ratingValues } =
-    await getEvaluationData(playerId, formationId);
+  const { evalBlocks, postes, criteria, criterionStates, startDate, dayCount, notes, noteAuthors, ratingValues } =
+    await getEvaluationData(playerId, formationId, canEditEvaluations);
   const { dailyFillRatio, dailyTrend } = await getStagiaireIndicators(dayCount, formationId, [playerId]);
   const playerNotes = await getPlayerNotes(playerId, canEditEvaluations);
   const remarkRows = await prisma.dailyRemark.findMany({ where: { playerId } });
   const remarks: Record<number, string> = {};
   for (const r of remarkRows) remarks[r.day] = r.note;
+  // L'auteur n'est renseigné que côté staff — jamais exposé au stagiaire qui consulte son propre espace.
+  const remarkAuthors: Record<number, string | null> = {};
+  if (canEditEvaluations) {
+    const authorNames = await resolveAuthorNames(remarkRows.map((r) => r.authorId));
+    for (const r of remarkRows) remarkAuthors[r.day] = r.authorId ? authorNames.get(r.authorId) ?? null : null;
+  }
 
   const groupAssignment = await getGroupAssignment(formationId);
   // Le groupe n'est visible que pour le staff (formateur/directeur), jamais pour le stagiaire lui-même.
@@ -456,12 +470,14 @@ async function PersonalSpace({
         startDate={startDate}
         dayCount={dayCount}
         notes={notes}
+        noteAuthors={noteAuthors}
         ratingValues={ratingValues}
         canEditEvaluations={canEditEvaluations}
         fillRatios={fillRatios}
         trends={trends}
         playerNotes={playerNotes}
         initialRemarks={remarks}
+        initialRemarkAuthors={remarkAuthors}
         initialDay={initialDay}
       />
     </>

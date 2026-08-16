@@ -20,7 +20,11 @@ async function checkAccess(id: string) {
     staff = !!player && player.formationId === auth.formationId;
   }
 
-  return { staff, isSelf, allowed: staff || isSelf };
+  // Le compte de connexion (formateur/directeur) attribué comme auteur des cases modifiées — null si
+  // c'est un accès super-admin/gestionnaire sans compte joueur, auquel cas l'auteur reste inconnu.
+  const authorId = staff ? session?.playerId ?? null : null;
+
+  return { staff, isSelf, allowed: staff || isSelf, authorId };
 }
 
 export async function GET(_req: Request, { params }: Params) {
@@ -36,7 +40,7 @@ export async function GET(_req: Request, { params }: Params) {
 
 export async function PATCH(req: Request, { params }: Params) {
   const { id } = await params;
-  const { staff, isSelf, allowed } = await checkAccess(id);
+  const { staff, isSelf, allowed, authorId } = await checkAccess(id);
   if (!allowed) return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
 
   const body = await req.json().catch(() => ({}));
@@ -47,11 +51,20 @@ export async function PATCH(req: Request, { params }: Params) {
   }
 
   if (staff) {
-    if (typeof body.ems === "string") data.ems = body.ems.slice(0, 4000);
+    if (typeof body.ems === "string") {
+      data.ems = body.ems.slice(0, 4000);
+      data.emsAuthorId = authorId;
+    }
     if (typeof body.emsVisible === "boolean") data.emsVisible = body.emsVisible;
-    if (typeof body.retourEms === "string") data.retourEms = body.retourEms.slice(0, 4000);
+    if (typeof body.retourEms === "string") {
+      data.retourEms = body.retourEms.slice(0, 4000);
+      data.retourEmsAuthorId = authorId;
+    }
     if (typeof body.retourEmsVisible === "boolean") data.retourEmsVisible = body.retourEmsVisible;
-    if (typeof body.complementaryNote === "string") data.complementaryNote = body.complementaryNote.slice(0, 4000);
+    if (typeof body.complementaryNote === "string") {
+      data.complementaryNote = body.complementaryNote.slice(0, 4000);
+      data.complementaryNoteAuthorId = authorId;
+    }
     if (typeof body.complementaryVisible === "boolean") data.complementaryVisible = body.complementaryVisible;
     if (
       typeof body.finalOpinion === "string" &&
@@ -59,7 +72,10 @@ export async function PATCH(req: Request, { params }: Params) {
     ) {
       data.finalOpinion = body.finalOpinion;
     }
-    if (typeof body.finalAppraisal === "string") data.finalAppraisal = body.finalAppraisal.slice(0, 4000);
+    if (typeof body.finalAppraisal === "string") {
+      data.finalAppraisal = body.finalAppraisal.slice(0, 4000);
+      data.finalAppraisalAuthorId = authorId;
+    }
     if (typeof body.finalAppraisalVisible === "boolean") data.finalAppraisalVisible = body.finalAppraisalVisible;
   }
 

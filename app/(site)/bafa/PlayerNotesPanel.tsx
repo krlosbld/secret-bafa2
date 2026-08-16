@@ -8,13 +8,17 @@ export type Notes = {
   personalNote: string;
   ems: string;
   emsVisible: boolean;
+  emsAuthor: string | null;
   retourEms: string;
   retourEmsVisible: boolean;
+  retourEmsAuthor: string | null;
   complementaryNote: string;
   complementaryVisible: boolean;
+  complementaryNoteAuthor: string | null;
   finalOpinion: string;
   finalAppraisal: string;
   finalAppraisalVisible: boolean;
+  finalAppraisalAuthor: string | null;
 };
 
 const OPINION_LABELS: Record<string, string> = {
@@ -39,6 +43,7 @@ export default function PlayerNotesPanel({
   startDate,
   activeDay,
   initialRemarks,
+  initialRemarkAuthors,
 }: {
   playerId: string;
   canEditPersonal: boolean;
@@ -47,6 +52,7 @@ export default function PlayerNotesPanel({
   startDate: string;
   activeDay: number;
   initialRemarks: Record<number, string>;
+  initialRemarkAuthors: Record<number, string | null>;
 }) {
   const [notes, setNotes] = useState<Notes>(initialNotes);
   const [drafts, setDrafts] = useState<Record<TextField, string>>({
@@ -159,6 +165,7 @@ export default function PlayerNotesPanel({
         day={activeDay}
         startDate={startDate}
         initialNotes={initialRemarks}
+        initialAuthors={initialRemarkAuthors}
         canEdit={canEditStaffNotes}
       />
 
@@ -172,6 +179,7 @@ export default function PlayerNotesPanel({
         justSaved={savedFlash === "ems"}
         onChange={(v) => setDrafts((d) => ({ ...d, ems: v }))}
         onSave={() => persist("ems", drafts.ems)}
+        authorName={notes.emsAuthor}
         visibleToggle={
           canEditStaffNotes
             ? { checked: notes.emsVisible, onChange: (v) => toggleVisible("emsVisible", v) }
@@ -189,6 +197,7 @@ export default function PlayerNotesPanel({
         justSaved={savedFlash === "retourEms"}
         onChange={(v) => setDrafts((d) => ({ ...d, retourEms: v }))}
         onSave={() => persist("retourEms", drafts.retourEms)}
+        authorName={notes.retourEmsAuthor}
         visibleToggle={
           canEditStaffNotes
             ? { checked: notes.retourEmsVisible, onChange: (v) => toggleVisible("retourEmsVisible", v) }
@@ -206,6 +215,7 @@ export default function PlayerNotesPanel({
         justSaved={savedFlash === "complementaryNote"}
         onChange={(v) => setDrafts((d) => ({ ...d, complementaryNote: v }))}
         onSave={() => persist("complementaryNote", drafts.complementaryNote)}
+        authorName={notes.complementaryNoteAuthor}
         visibleToggle={
           canEditStaffNotes
             ? { checked: notes.complementaryVisible, onChange: (v) => toggleVisible("complementaryVisible", v) }
@@ -255,6 +265,7 @@ export default function PlayerNotesPanel({
         onChange={(v) => setDrafts((d) => ({ ...d, finalAppraisal: v }))}
         onSave={() => persist("finalAppraisal", drafts.finalAppraisal)}
         showCharCount
+        authorName={notes.finalAppraisalAuthor}
         visibleToggle={
           canEditStaffNotes
             ? { checked: notes.finalAppraisalVisible, onChange: (v) => toggleVisible("finalAppraisalVisible", v) }
@@ -278,6 +289,7 @@ function NoteBox({
   onSave,
   visibleToggle,
   showCharCount,
+  authorName,
 }: {
   title: string;
   help?: string;
@@ -291,6 +303,7 @@ function NoteBox({
   onSave: () => void;
   visibleToggle?: { checked: boolean; onChange: (v: boolean) => void };
   showCharCount?: boolean;
+  authorName?: string | null;
 }) {
   return (
     <div className="card">
@@ -318,6 +331,11 @@ function NoteBox({
       </div>
 
       {help && <p style={{ fontSize: 12, color: "#64748b", marginTop: 0, marginBottom: 8 }}>{help}</p>}
+      {editable && authorName && (
+        <p style={{ fontSize: 12, color: "#94a3b8", fontStyle: "italic", marginTop: 0, marginBottom: 8 }}>
+          Écrit par {authorName}
+        </p>
+      )}
 
       {editable ? (
         <>

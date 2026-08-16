@@ -23,6 +23,7 @@ export default function EvaluationBoard({
   postes,
   activeDay,
   initialNotes,
+  initialAuthors,
   canEdit,
   playerId,
 }: {
@@ -30,11 +31,13 @@ export default function EvaluationBoard({
   postes: Poste[];
   activeDay: number;
   initialNotes: Record<string, string>;
+  initialAuthors: Record<string, string | null>;
   canEdit: boolean;
   playerId: string;
 }) {
   const [notes, setNotes] = useState<Record<string, string>>(initialNotes);
   const [drafts, setDrafts] = useState<Record<string, string>>(initialNotes);
+  const [authors, setAuthors] = useState<Record<string, string | null>>(initialAuthors);
   const [saving, setSaving] = useState<string | null>(null);
   const [savedFlash, setSavedFlash] = useState<string | null>(null);
 
@@ -91,6 +94,7 @@ export default function EvaluationBoard({
           setNotes(nextNotes);
           setDrafts(nextDrafts);
         }
+        if (data.authors) setAuthors(data.authors);
       } catch {
         // ignore transient network errors, will retry on next tick
       }
@@ -121,6 +125,11 @@ export default function EvaluationBoard({
             </div>
             {canEdit ? (
               <>
+                {authors[b.id] && (
+                  <p style={{ fontSize: 12, color: "#94a3b8", fontStyle: "italic", marginTop: 0, marginBottom: 6 }}>
+                    Écrit par {authors[b.id]}
+                  </p>
+                )}
                 <textarea
                   value={drafts[b.id] ?? ""}
                   onChange={(e) => setDrafts((d) => ({ ...d, [b.id]: e.target.value }))}

@@ -44,12 +44,14 @@ export default function PersonalSpaceBody({
   startDate,
   dayCount,
   notes,
+  noteAuthors,
   ratingValues,
   canEditEvaluations,
   fillRatios,
   trends,
   playerNotes,
   initialRemarks,
+  initialRemarkAuthors,
   initialDay,
 }: {
   playerId: string;
@@ -60,12 +62,14 @@ export default function PersonalSpaceBody({
   startDate: string;
   dayCount: number;
   notes: Record<string, string>;
+  noteAuthors: Record<string, string | null>;
   ratingValues: Record<string, string>;
   canEditEvaluations: boolean;
   fillRatios: number[];
   trends: (number | null)[];
   playerNotes: Notes | null;
   initialRemarks: Record<number, string>;
+  initialRemarkAuthors: Record<number, string | null>;
   initialDay: number;
 }) {
   const [activeDay, setActiveDay] = useState(initialDay);
@@ -128,6 +132,7 @@ export default function PersonalSpaceBody({
           activeDay={activeDay}
           onDayChange={setActiveDay}
           initialNotes={notes}
+          initialNoteAuthors={noteAuthors}
           initialRatingValues={ratingValues}
           canEdit={canEditEvaluations}
           playerId={playerId}
@@ -144,6 +149,7 @@ export default function PersonalSpaceBody({
             startDate={startDate}
             activeDay={activeDay}
             initialRemarks={initialRemarks}
+            initialRemarkAuthors={initialRemarkAuthors}
           />
         )}
       </div>

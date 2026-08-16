@@ -9,15 +9,18 @@ export default function DailyRemarkBox({
   day,
   startDate,
   initialNotes,
+  initialAuthors,
   canEdit,
 }: {
   playerId: string;
   day: number;
   startDate: string;
   initialNotes: Record<number, string>;
+  initialAuthors: Record<number, string | null>;
   canEdit: boolean;
 }) {
   const [notes, setNotes] = useState<Record<number, string>>(initialNotes);
+  const [authors, setAuthors] = useState<Record<number, string | null>>(initialAuthors);
   const [draft, setDraft] = useState(initialNotes[day] ?? "");
   const [saving, setSaving] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
@@ -46,6 +49,7 @@ export default function DailyRemarkBox({
         if ((fresh[curDay] ?? "") !== curDraft) {
           setDraft((d) => (d === curDraft ? fresh[curDay] ?? "" : d));
         }
+        if (data.authors) setAuthors(data.authors);
       } catch {
         // ignore transient network errors, will retry on next tick
       }
@@ -67,6 +71,7 @@ export default function DailyRemarkBox({
   }
 
   const savedValue = notes[day] ?? "";
+  const authorName = authors[day];
 
   return (
     <div className="card postit-pink">
@@ -80,6 +85,11 @@ export default function DailyRemarkBox({
       <p style={{ fontSize: 12, color: "#9d174d", marginTop: 0, marginBottom: 8 }}>
         Conseils ou observations du jour, sans lien avec un créneau précis.
       </p>
+      {canEdit && authorName && (
+        <p style={{ fontSize: 12, color: "#9d174d", fontStyle: "italic", marginTop: 0, marginBottom: 8, opacity: 0.8 }}>
+          Écrit par {authorName}
+        </p>
+      )}
 
       {canEdit ? (
         <>
