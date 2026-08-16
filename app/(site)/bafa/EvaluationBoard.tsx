@@ -40,6 +40,7 @@ export default function EvaluationBoard({
   const [authors, setAuthors] = useState<Record<string, string | null>>(initialAuthors);
   const [saving, setSaving] = useState<string | null>(null);
   const [savedFlash, setSavedFlash] = useState<string | null>(null);
+  const [conflictFlash, setConflictFlash] = useState<string | null>(null);
 
   const stateRef = useRef({ notes, drafts });
   useEffect(() => {
@@ -48,15 +49,23 @@ export default function EvaluationBoard({
 
   async function persist(blockId: string, note: string) {
     setSaving(blockId);
-    await fetch("/api/evaluations", {
+    const base = stateRef.current.notes[blockId] ?? "";
+    const res = await fetch("/api/evaluations", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ playerId, blockId, note }),
+      body: JSON.stringify({ playerId, blockId, note, base }),
     });
-    setNotes((n) => ({ ...n, [blockId]: note }));
+    const data = await res.json().catch(() => null);
+    const finalNote = typeof data?.evaluation?.note === "string" ? data.evaluation.note : note;
+    setNotes((n) => ({ ...n, [blockId]: finalNote }));
+    setDrafts((d) => ({ ...d, [blockId]: finalNote }));
     setSaving(null);
     setSavedFlash(blockId);
     setTimeout(() => setSavedFlash((v) => (v === blockId ? null : v)), 1500);
+    if (data?.merged) {
+      setConflictFlash(blockId);
+      setTimeout(() => setConflictFlash((v) => (v === blockId ? null : v)), 5000);
+    }
   }
 
   // Toutes les 5s : sauvegarde les brouillons modifiés, puis récupère les notes des autres formateurs.
@@ -125,6 +134,11 @@ export default function EvaluationBoard({
             </div>
             {canEdit ? (
               <>
+                {conflictFlash === b.id && (
+                  <p style={{ fontSize: 12, color: "#b45309", fontWeight: 700, marginTop: 0, marginBottom: 6 }}>
+                    ⚠️ Un autre formateur venait de modifier cette case — ton texte a été ajouté à la suite plutôt que de remplacer le sien.
+                  </p>
+                )}
                 {authors[b.id] && (
                   <p style={{ fontSize: 12, color: "#94a3b8", fontStyle: "italic", marginTop: 0, marginBottom: 6 }}>
                     Écrit par {authors[b.id]}

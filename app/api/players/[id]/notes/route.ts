@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getPlanningAuth } from "@/lib/planningAuth";
 import { getPlayerSession } from "@/lib/playerAuth";
 import { getPlayerNotes } from "@/lib/playerNotes";
+import { mergeOnConflict } from "@/lib/conflictMerge";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -38,6 +39,8 @@ export async function GET(_req: Request, { params }: Params) {
   return NextResponse.json({ ok: true, notes });
 }
 
+const TEXT_FIELDS = ["ems", "retourEms", "complementaryNote", "finalAppraisal"] as const;
+
 export async function PATCH(req: Request, { params }: Params) {
   const { id } = await params;
   const { staff, isSelf, allowed, authorId } = await checkAccess(id);
@@ -45,36 +48,36 @@ export async function PATCH(req: Request, { params }: Params) {
 
   const body = await req.json().catch(() => ({}));
   const data: Record<string, unknown> = {};
+  const saved: Record<string, string> = {};
+  const conflicts: string[] = [];
 
   if (isSelf && typeof body.personalNote === "string") {
     data.personalNote = body.personalNote.slice(0, 4000);
   }
 
   if (staff) {
-    if (typeof body.ems === "string") {
-      data.ems = body.ems.slice(0, 4000);
-      data.emsAuthorId = authorId;
+    const touchedTextFields = TEXT_FIELDS.filter((f) => typeof body[f] === "string");
+    if (touchedTextFields.length > 0) {
+      const current = await prisma.player.findUnique({ where: { id }, select: { ems: true, retourEms: true, complementaryNote: true, finalAppraisal: true } });
+      for (const field of touchedTextFields) {
+        const draft = String(body[field]).slice(0, 4000);
+        const base = typeof body[`${field}Base`] === "string" ? String(body[`${field}Base`]) : draft;
+        const { value, merged } = mergeOnConflict(current?.[field] ?? "", base, draft);
+        data[field] = value;
+        data[`${field}AuthorId`] = authorId;
+        saved[field] = value;
+        if (merged) conflicts.push(field);
+      }
     }
+
     if (typeof body.emsVisible === "boolean") data.emsVisible = body.emsVisible;
-    if (typeof body.retourEms === "string") {
-      data.retourEms = body.retourEms.slice(0, 4000);
-      data.retourEmsAuthorId = authorId;
-    }
     if (typeof body.retourEmsVisible === "boolean") data.retourEmsVisible = body.retourEmsVisible;
-    if (typeof body.complementaryNote === "string") {
-      data.complementaryNote = body.complementaryNote.slice(0, 4000);
-      data.complementaryNoteAuthorId = authorId;
-    }
     if (typeof body.complementaryVisible === "boolean") data.complementaryVisible = body.complementaryVisible;
     if (
       typeof body.finalOpinion === "string" &&
       ["EN_ATTENTE", "FAVORABLE", "DEFAVORABLE"].includes(body.finalOpinion)
     ) {
       data.finalOpinion = body.finalOpinion;
-    }
-    if (typeof body.finalAppraisal === "string") {
-      data.finalAppraisal = body.finalAppraisal.slice(0, 4000);
-      data.finalAppraisalAuthorId = authorId;
     }
     if (typeof body.finalAppraisalVisible === "boolean") data.finalAppraisalVisible = body.finalAppraisalVisible;
   }
@@ -84,5 +87,5 @@ export async function PATCH(req: Request, { params }: Params) {
   }
 
   await prisma.player.update({ where: { id }, data }).catch(() => null);
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, saved, conflicts });
 }

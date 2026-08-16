@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getPlanningAuth } from "@/lib/planningAuth";
 import { getPlayerSession } from "@/lib/playerAuth";
 import { resolveAuthorNames } from "@/lib/authorNames";
+import { mergeOnConflict } from "@/lib/conflictMerge";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -49,21 +50,24 @@ export async function POST(req: Request, { params }: Params) {
   const { id } = await params;
   const body = await req.json().catch(() => ({}));
   const day = Number(body.day);
-  const note = String(body.note ?? "").slice(0, 2000);
+  const draft = String(body.note ?? "").slice(0, 2000);
+  const base = typeof body.base === "string" ? body.base : draft;
 
   if (!Number.isInteger(day) || day < 0) {
     return NextResponse.json({ error: "Jour invalide." }, { status: 400 });
   }
 
-  const [player, session] = await Promise.all([
+  const [player, session, existing] = await Promise.all([
     prisma.player.findUnique({ where: { id } }),
     getPlayerSession(),
+    prisma.dailyRemark.findUnique({ where: { playerId_day: { playerId: id, day } }, select: { note: true } }),
   ]);
   if (!player || player.formationId !== auth.formationId) {
     return NextResponse.json({ error: "Introuvable." }, { status: 404 });
   }
 
   const authorId = session?.playerId ?? null;
+  const { value: note, merged } = mergeOnConflict(existing?.note ?? "", base, draft);
 
   const remark = await prisma.dailyRemark.upsert({
     where: { playerId_day: { playerId: id, day } },
@@ -71,5 +75,5 @@ export async function POST(req: Request, { params }: Params) {
     create: { playerId: id, day, note, authorId },
   });
 
-  return NextResponse.json({ ok: true, remark });
+  return NextResponse.json({ ok: true, remark, merged });
 }

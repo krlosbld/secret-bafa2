@@ -24,6 +24,7 @@ export default function DailyRemarkBox({
   const [draft, setDraft] = useState(initialNotes[day] ?? "");
   const [saving, setSaving] = useState(false);
   const [savedFlash, setSavedFlash] = useState(false);
+  const [conflictFlash, setConflictFlash] = useState(false);
 
   const stateRef = useRef({ notes, day });
   useEffect(() => {
@@ -59,15 +60,23 @@ export default function DailyRemarkBox({
 
   async function persist() {
     setSaving(true);
-    await fetch(`/api/players/${playerId}/remarks`, {
+    const base = stateRef.current.notes[day] ?? "";
+    const res = await fetch(`/api/players/${playerId}/remarks`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ day, note: draft }),
+      body: JSON.stringify({ day, note: draft, base }),
     });
-    setNotes((n) => ({ ...n, [day]: draft }));
+    const data = await res.json().catch(() => null);
+    const finalNote = typeof data?.remark?.note === "string" ? data.remark.note : draft;
+    setNotes((n) => ({ ...n, [day]: finalNote }));
+    setDraft(finalNote);
     setSaving(false);
     setSavedFlash(true);
     setTimeout(() => setSavedFlash(false), 1500);
+    if (data?.merged) {
+      setConflictFlash(true);
+      setTimeout(() => setConflictFlash(false), 5000);
+    }
   }
 
   const savedValue = notes[day] ?? "";
@@ -85,6 +94,11 @@ export default function DailyRemarkBox({
       <p style={{ fontSize: 12, color: "#9d174d", marginTop: 0, marginBottom: 8 }}>
         Conseils ou observations du jour, sans lien avec un créneau précis.
       </p>
+      {canEdit && conflictFlash && (
+        <p style={{ fontSize: 12, color: "#b45309", fontWeight: 700, marginTop: 0, marginBottom: 8 }}>
+          ⚠️ Un autre formateur venait de modifier cette case — ton texte a été ajouté à la suite plutôt que de remplacer le sien.
+        </p>
+      )}
       {canEdit && authorName && (
         <p style={{ fontSize: 12, color: "#9d174d", fontStyle: "italic", marginTop: 0, marginBottom: 8, opacity: 0.8 }}>
           Écrit par {authorName}

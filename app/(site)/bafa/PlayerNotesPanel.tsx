@@ -64,6 +64,7 @@ export default function PlayerNotesPanel({
   });
   const [saving, setSaving] = useState<TextField | null>(null);
   const [savedFlash, setSavedFlash] = useState<TextField | null>(null);
+  const [conflictFlash, setConflictFlash] = useState<TextField | null>(null);
 
   const stateRef = useRef({ notes, drafts });
   useEffect(() => {
@@ -72,15 +73,23 @@ export default function PlayerNotesPanel({
 
   async function persist(field: TextField, value: string) {
     setSaving(field);
-    await fetch(`/api/players/${playerId}/notes`, {
+    const base = stateRef.current.notes[field];
+    const res = await fetch(`/api/players/${playerId}/notes`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ [field]: value }),
+      body: JSON.stringify({ [field]: value, [`${field}Base`]: base }),
     });
-    setNotes((n) => ({ ...n, [field]: value }));
+    const data = await res.json().catch(() => null);
+    const finalValue = typeof data?.saved?.[field] === "string" ? data.saved[field] : value;
+    setNotes((n) => ({ ...n, [field]: finalValue }));
+    setDrafts((d) => ({ ...d, [field]: finalValue }));
     setSaving(null);
     setSavedFlash(field);
     setTimeout(() => setSavedFlash((v) => (v === field ? null : v)), 1500);
+    if (data?.conflicts?.includes(field)) {
+      setConflictFlash(field);
+      setTimeout(() => setConflictFlash((v) => (v === field ? null : v)), 5000);
+    }
   }
 
   async function toggleVisible(field: "emsVisible" | "retourEmsVisible" | "complementaryVisible" | "finalAppraisalVisible", value: boolean) {
@@ -180,6 +189,7 @@ export default function PlayerNotesPanel({
         onChange={(v) => setDrafts((d) => ({ ...d, ems: v }))}
         onSave={() => persist("ems", drafts.ems)}
         authorName={notes.emsAuthor}
+        hasConflict={conflictFlash === "ems"}
         visibleToggle={
           canEditStaffNotes
             ? { checked: notes.emsVisible, onChange: (v) => toggleVisible("emsVisible", v) }
@@ -198,6 +208,7 @@ export default function PlayerNotesPanel({
         onChange={(v) => setDrafts((d) => ({ ...d, retourEms: v }))}
         onSave={() => persist("retourEms", drafts.retourEms)}
         authorName={notes.retourEmsAuthor}
+        hasConflict={conflictFlash === "retourEms"}
         visibleToggle={
           canEditStaffNotes
             ? { checked: notes.retourEmsVisible, onChange: (v) => toggleVisible("retourEmsVisible", v) }
@@ -216,6 +227,7 @@ export default function PlayerNotesPanel({
         onChange={(v) => setDrafts((d) => ({ ...d, complementaryNote: v }))}
         onSave={() => persist("complementaryNote", drafts.complementaryNote)}
         authorName={notes.complementaryNoteAuthor}
+        hasConflict={conflictFlash === "complementaryNote"}
         visibleToggle={
           canEditStaffNotes
             ? { checked: notes.complementaryVisible, onChange: (v) => toggleVisible("complementaryVisible", v) }
@@ -266,6 +278,7 @@ export default function PlayerNotesPanel({
         onSave={() => persist("finalAppraisal", drafts.finalAppraisal)}
         showCharCount
         authorName={notes.finalAppraisalAuthor}
+        hasConflict={conflictFlash === "finalAppraisal"}
         visibleToggle={
           canEditStaffNotes
             ? { checked: notes.finalAppraisalVisible, onChange: (v) => toggleVisible("finalAppraisalVisible", v) }
@@ -290,6 +303,7 @@ function NoteBox({
   visibleToggle,
   showCharCount,
   authorName,
+  hasConflict,
 }: {
   title: string;
   help?: string;
@@ -304,6 +318,7 @@ function NoteBox({
   visibleToggle?: { checked: boolean; onChange: (v: boolean) => void };
   showCharCount?: boolean;
   authorName?: string | null;
+  hasConflict?: boolean;
 }) {
   return (
     <div className="card">
@@ -330,6 +345,11 @@ function NoteBox({
         )}
       </div>
 
+      {hasConflict && (
+        <p style={{ fontSize: 12, color: "#b45309", fontWeight: 700, marginTop: 0, marginBottom: 8 }}>
+          ⚠️ Un autre formateur venait de modifier cette case — ton texte a été ajouté à la suite plutôt que de remplacer le sien.
+        </p>
+      )}
       {help && <p style={{ fontSize: 12, color: "#64748b", marginTop: 0, marginBottom: 8 }}>{help}</p>}
       {editable && authorName && (
         <p style={{ fontSize: 12, color: "#94a3b8", fontStyle: "italic", marginTop: 0, marginBottom: 8 }}>
