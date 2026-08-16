@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSession, isSuperAdmin } from "@/lib/auth";
 import { getPlayerSession } from "@/lib/playerAuth";
 import { generateUniquePlayerCode } from "@/lib/playerCode";
+import { findNameCollision, nameCollisionError } from "@/lib/nameCollision";
 import crypto from "crypto";
 
 export const runtime = "nodejs";
@@ -48,6 +49,11 @@ export async function POST(req: Request, { params }: Params) {
       const account = await prisma.directorAccount.findUnique({ where: { id: existingDirectorAccountId } });
       if (!account) return NextResponse.json({ error: "Directeur introuvable." }, { status: 404 });
 
+      const collision = await findNameCollision(formationId, account.firstName);
+      if (collision) {
+        return NextResponse.json({ error: nameCollisionError(collision, account.firstName) }, { status: 409 });
+      }
+
       const code = await generateUniquePlayerCode(formationId); // valeur cachée, jamais communiquée
       const player = await prisma.player.create({
         data: { firstName: account.firstName, code, role, formationId, directorAccountId: account.id },
@@ -61,6 +67,11 @@ export async function POST(req: Request, { params }: Params) {
     const password = String(body.password ?? "").trim();
     if (!firstName || !username || !password) {
       return NextResponse.json({ error: "Prénom, identifiant et mot de passe requis." }, { status: 400 });
+    }
+
+    const collision = await findNameCollision(formationId, firstName);
+    if (collision) {
+      return NextResponse.json({ error: nameCollisionError(collision, firstName) }, { status: 409 });
     }
 
     const code = await generateUniquePlayerCode(formationId); // valeur cachée, jamais communiquée
@@ -83,6 +94,10 @@ export async function POST(req: Request, { params }: Params) {
   const firstName = String(body.firstName ?? "").trim();
   if (!firstName) {
     return NextResponse.json({ error: "Prénom requis." }, { status: 400 });
+  }
+  const collision = await findNameCollision(formationId, firstName);
+  if (collision) {
+    return NextResponse.json({ error: nameCollisionError(collision, firstName) }, { status: 409 });
   }
   const code = await generateUniquePlayerCode(formationId);
   const player = await prisma.player.create({

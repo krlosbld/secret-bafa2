@@ -35,11 +35,20 @@ async function runNightlyJob(req: Request) {
     // Reset du compteur de buzz pour les joueurs de cette formation
     await prisma.player.updateMany({ where: { formationId }, data: { buzzCount: 0 } });
 
-    // +1 pt à chaque auteur dont le secret est PUBLISHED (pas encore trouvé)
-    const unpublished = await prisma.secret.findMany({
-      where: { status: "PUBLISHED", formationId },
-      select: { playerId: true },
+    // Une fois le jeu terminé ("Terminer le jeu"), les secrets non trouvés ont déjà reçu leur bonus
+    // final — ne pas continuer à leur donner +1 pt chaque nuit indéfiniment.
+    const gameEndedConfig = await prisma.config.findUnique({
+      where: { formationId_key: { formationId, key: "gameEnded" } },
     });
+    const gameEnded = gameEndedConfig?.value === "true";
+
+    // +1 pt à chaque auteur dont le secret est PUBLISHED (pas encore trouvé)
+    const unpublished = gameEnded
+      ? []
+      : await prisma.secret.findMany({
+          where: { status: "PUBLISHED", formationId },
+          select: { playerId: true },
+        });
 
     if (unpublished.length > 0) {
       await prisma.player.updateMany({

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession, isSuperAdmin } from "@/lib/auth";
 import { getPlayerSession } from "@/lib/playerAuth";
+import { findNameCollision, nameCollisionError } from "@/lib/nameCollision";
 
 export const runtime = "nodejs";
 
@@ -44,7 +45,12 @@ export async function PATCH(req: Request, { params }: Params) {
     data.buzzQuotaOverride = Math.min(50, Math.max(1, body.buzzQuotaOverride));
   }
   if (typeof body.firstName === "string" && body.firstName.trim().length > 0) {
-    data.firstName = body.firstName.trim();
+    const newFirstName = body.firstName.trim();
+    const collision = await findNameCollision(target.formationId, newFirstName, id);
+    if (collision) {
+      return NextResponse.json({ error: nameCollisionError(collision, newFirstName) }, { status: 409 });
+    }
+    data.firstName = newFirstName;
   }
   if (body.role === "STAGIAIRE" || body.role === "FORMATEUR" || body.role === "DIRECTEUR") {
     data.role = body.role;
