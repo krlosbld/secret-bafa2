@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getDirectorAccountSession } from "@/lib/directorAuth";
+import { todayISO } from "@/lib/planningConfig";
 import ChooseFormationList from "./ChooseFormationList";
 
 export const dynamic = "force-dynamic";
@@ -30,7 +31,7 @@ export default async function ChooseFormationPage() {
         <p className="sub" style={{ marginBottom: 20 }}>
           Ton compte est rattaché à plusieurs formations — laquelle veux-tu gérer ?
         </p>
-        <ChooseFormationList options={options} />
+        <ChooseFormationList options={options} today={todayISO()} />
       </div>
     </main>
   );

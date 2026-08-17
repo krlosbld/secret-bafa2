@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { todayISO } from "@/lib/planningConfig";
 
 export const runtime = "nodejs";
 
@@ -13,9 +14,15 @@ async function runNightlyJob(req: Request) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 
+  // startDate/endDate sont stockés comme "minuit UTC du jour visé en heure de Paris" (ex. un input
+  // <date>) — comparer avec new Date() (l'instant UTC réel) décale la bascule de ~2h en été et peut
+  // faire manquer la fenêtre d'un jour entier puisque ce cron ne tourne qu'une fois par nuit. On
+  // compare donc à la date du jour à Paris, reconstruite avec le même biais, pour rester cohérent.
+  const todayAsStoredMidnight = new Date(`${todayISO()}T00:00:00.000Z`);
+
   // Active automatiquement les formations dont la date de début est atteinte.
   const activated = await prisma.formation.updateMany({
-    where: { active: false, startDate: { lte: new Date() } },
+    where: { active: false, startDate: { lte: todayAsStoredMidnight } },
     data: { active: true },
   });
 
@@ -23,7 +30,7 @@ async function runNightlyJob(req: Request) {
   const deactivated = await prisma.formation.updateMany({
     where: {
       active: true,
-      endDate: { lt: new Date(Date.now() - AUTO_DEACTIVATE_GRACE_DAYS * 24 * 60 * 60 * 1000) },
+      endDate: { lt: new Date(todayAsStoredMidnight.getTime() - AUTO_DEACTIVATE_GRACE_DAYS * 24 * 60 * 60 * 1000) },
     },
     data: { active: false },
   });

@@ -10,15 +10,19 @@ type FormationOption = {
   startDate: string | null;
 };
 
-function statusOf(o: FormationOption): { label: string; color: string; background: string } {
+// Comparaison en date (Europe/Paris) plutôt qu'en instant exact : le jour même du début, tant que le
+// cron nocturne n'a pas encore basculé la formation en "active" (il tourne une fois par nuit), elle
+// doit rester "À venir" et non retomber à tort sur "Terminée".
+function statusOf(o: FormationOption, today: string): { label: string; color: string; background: string } {
   if (o.active) return { label: "Active", color: "#16a34a", background: "#dcfce7" };
-  if (o.startDate && new Date(o.startDate) > new Date()) {
+  const startDateISO = o.startDate ? o.startDate.slice(0, 10) : null;
+  if (startDateISO && startDateISO >= today) {
     return { label: "À venir", color: "#2563eb", background: "#dbeafe" };
   }
   return { label: "Terminée", color: "#64748b", background: "#f1f5f9" };
 }
 
-export default function ChooseFormationList({ options }: { options: FormationOption[] }) {
+export default function ChooseFormationList({ options, today }: { options: FormationOption[]; today: string }) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -49,7 +53,7 @@ export default function ChooseFormationList({ options }: { options: FormationOpt
         </div>
       )}
       {options.map((o) => {
-        const status = statusOf(o);
+        const status = statusOf(o, today);
         return (
           <button
             key={o.playerId}
