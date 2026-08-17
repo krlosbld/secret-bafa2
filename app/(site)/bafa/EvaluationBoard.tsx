@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { Poste } from "./PlanningTab";
+import TextHistoryButton from "@/components/TextHistoryButton";
 
 export type EvalBlock = {
   id: string;
@@ -128,8 +129,17 @@ export default function EvaluationBoard({
               <div style={{ fontWeight: 700 }}>
                 {poste?.label ?? b.type} · {b.label}
               </div>
-              <div style={{ fontSize: 12, color: "#64748b" }}>
-                {fmt(b.startMin)}–{fmt(b.endMin)}
+              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                <div style={{ fontSize: 12, color: "#64748b" }}>
+                  {fmt(b.startMin)}–{fmt(b.endMin)}
+                </div>
+                {canEdit && (
+                  <TextHistoryButton
+                    entityType="evaluation"
+                    entityKey={`${playerId}:${b.id}`}
+                    onRestore={(value) => setDrafts((d) => ({ ...d, [b.id]: value }))}
+                  />
+                )}
               </div>
             </div>
             {canEdit ? (

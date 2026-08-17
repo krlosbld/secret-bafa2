@@ -4,6 +4,7 @@ import { getPlanningAuth } from "@/lib/planningAuth";
 import { getPlayerSession } from "@/lib/playerAuth";
 import { getPlayerNotes } from "@/lib/playerNotes";
 import { mergeOnConflict } from "@/lib/conflictMerge";
+import { logTextEdit } from "@/lib/textHistory";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -16,16 +17,18 @@ async function checkAccess(id: string) {
 
   const auth = await getPlanningAuth();
   let staff = false;
+  let formationId: string | null = null;
   if (auth.ok) {
     const player = await prisma.player.findUnique({ where: { id }, select: { formationId: true } });
     staff = !!player && player.formationId === auth.formationId;
+    if (staff) formationId = auth.formationId;
   }
 
   // Le compte de connexion (formateur/directeur) attribué comme auteur des cases modifiées — null si
   // c'est un accès super-admin/gestionnaire sans compte joueur, auquel cas l'auteur reste inconnu.
   const authorId = staff ? session?.playerId ?? null : null;
 
-  return { staff, isSelf, allowed: staff || isSelf, authorId };
+  return { staff, isSelf, allowed: staff || isSelf, authorId, formationId };
 }
 
 export async function GET(_req: Request, { params }: Params) {
@@ -43,13 +46,14 @@ const TEXT_FIELDS = ["ems", "retourEms", "complementaryNote", "finalAppraisal"] 
 
 export async function PATCH(req: Request, { params }: Params) {
   const { id } = await params;
-  const { staff, isSelf, allowed, authorId } = await checkAccess(id);
+  const { staff, isSelf, allowed, authorId, formationId } = await checkAccess(id);
   if (!allowed) return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
 
   const body = await req.json().catch(() => ({}));
   const data: Record<string, unknown> = {};
   const saved: Record<string, string> = {};
   const conflicts: string[] = [];
+  const historyEntries: { field: string; previousValue: string; newValue: string }[] = [];
 
   if (isSelf && typeof body.personalNote === "string") {
     data.personalNote = body.personalNote.slice(0, 4000);
@@ -62,11 +66,13 @@ export async function PATCH(req: Request, { params }: Params) {
       for (const field of touchedTextFields) {
         const draft = String(body[field]).slice(0, 4000);
         const base = typeof body[`${field}Base`] === "string" ? String(body[`${field}Base`]) : draft;
-        const { value, merged } = mergeOnConflict(current?.[field] ?? "", base, draft);
+        const previousValue = current?.[field] ?? "";
+        const { value, merged } = mergeOnConflict(previousValue, base, draft);
         data[field] = value;
         data[`${field}AuthorId`] = authorId;
         saved[field] = value;
         if (merged) conflicts.push(field);
+        historyEntries.push({ field, previousValue, newValue: value });
       }
     }
 
@@ -87,5 +93,19 @@ export async function PATCH(req: Request, { params }: Params) {
   }
 
   await prisma.player.update({ where: { id }, data }).catch(() => null);
+
+  if (formationId) {
+    for (const entry of historyEntries) {
+      await logTextEdit({
+        formationId,
+        entityType: entry.field,
+        entityKey: id,
+        previousValue: entry.previousValue,
+        newValue: entry.newValue,
+        authorId,
+      });
+    }
+  }
+
   return NextResponse.json({ ok: true, saved, conflicts });
 }

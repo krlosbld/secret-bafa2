@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import DailyRemarkBox from "./DailyRemarkBox";
 import AutoGrowTextarea from "./AutoGrowTextarea";
+import TextHistoryButton from "@/components/TextHistoryButton";
 
 export type Notes = {
   personalNote: string;
@@ -190,6 +191,8 @@ export default function PlayerNotesPanel({
         onSave={() => persist("ems", drafts.ems)}
         authorName={notes.emsAuthor}
         hasConflict={conflictFlash === "ems"}
+        entityType="ems"
+        playerId={playerId}
         visibleToggle={
           canEditStaffNotes
             ? { checked: notes.emsVisible, onChange: (v) => toggleVisible("emsVisible", v) }
@@ -209,6 +212,8 @@ export default function PlayerNotesPanel({
         onSave={() => persist("retourEms", drafts.retourEms)}
         authorName={notes.retourEmsAuthor}
         hasConflict={conflictFlash === "retourEms"}
+        entityType="retourEms"
+        playerId={playerId}
         visibleToggle={
           canEditStaffNotes
             ? { checked: notes.retourEmsVisible, onChange: (v) => toggleVisible("retourEmsVisible", v) }
@@ -228,6 +233,8 @@ export default function PlayerNotesPanel({
         onSave={() => persist("complementaryNote", drafts.complementaryNote)}
         authorName={notes.complementaryNoteAuthor}
         hasConflict={conflictFlash === "complementaryNote"}
+        entityType="complementaryNote"
+        playerId={playerId}
         visibleToggle={
           canEditStaffNotes
             ? { checked: notes.complementaryVisible, onChange: (v) => toggleVisible("complementaryVisible", v) }
@@ -279,6 +286,8 @@ export default function PlayerNotesPanel({
         showCharCount
         authorName={notes.finalAppraisalAuthor}
         hasConflict={conflictFlash === "finalAppraisal"}
+        entityType="finalAppraisal"
+        playerId={playerId}
         visibleToggle={
           canEditStaffNotes
             ? { checked: notes.finalAppraisalVisible, onChange: (v) => toggleVisible("finalAppraisalVisible", v) }
@@ -304,6 +313,8 @@ function NoteBox({
   showCharCount,
   authorName,
   hasConflict,
+  entityType,
+  playerId,
 }: {
   title: string;
   help?: string;
@@ -319,12 +330,17 @@ function NoteBox({
   showCharCount?: boolean;
   authorName?: string | null;
   hasConflict?: boolean;
+  entityType?: string;
+  playerId?: string;
 }) {
   return (
     <div className="card">
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, gap: 8, flexWrap: "wrap" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ fontWeight: 800 }}>{title}</div>
+          {editable && entityType && playerId && (
+            <TextHistoryButton entityType={entityType} entityKey={playerId} onRestore={onChange} />
+          )}
           {showCharCount && editable && (
             <span
               style={{

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { dateForDayIndex, formatDayHeader } from "@/lib/planningConfig";
 import AutoGrowTextarea from "./AutoGrowTextarea";
+import TextHistoryButton from "@/components/TextHistoryButton";
 
 export default function DailyRemarkBox({
   playerId,
@@ -86,9 +87,12 @@ export default function DailyRemarkBox({
     <div className="card postit-pink">
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8, gap: 8, flexWrap: "wrap" }}>
         <div style={{ fontWeight: 800, color: "#831843" }}>📌 Remarque</div>
-        <span style={{ fontSize: 12, fontWeight: 700, color: "#9d174d" }}>
-          {formatDayHeader(dateForDayIndex(startDate, day))}
-        </span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 12, fontWeight: 700, color: "#9d174d" }}>
+            {formatDayHeader(dateForDayIndex(startDate, day))}
+          </span>
+          {canEdit && <TextHistoryButton entityType="dailyRemark" entityKey={`${playerId}:${day}`} onRestore={setDraft} />}
+        </div>
       </div>
 
       <p style={{ fontSize: 12, color: "#9d174d", marginTop: 0, marginBottom: 8 }}>

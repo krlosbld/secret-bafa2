@@ -21,6 +21,24 @@ model Formation {
   planningBlocks    PlanningBlock[]
   configs           Config[]
   planningSnapshots PlanningSnapshot[]
+  textEditHistory   TextEditHistory[]
+}
+
+// Historique des cases texte (évaluations, remarques, EMS, appréciation finale...) : une ligne par
+// modification effective, pour pouvoir retrouver/restaurer une version précédente en cas d'écrasement
+// ou de perte (comme le bug du pop-up de rappel qui remettait une case à vide).
+model TextEditHistory {
+  id            String    @id @default(cuid())
+  formationId   String
+  entityType    String // evaluation | dailyRemark | ems | retourEms | complementaryNote | finalAppraisal
+  entityKey     String // clé composite selon le type (voir lib/textHistory.ts)
+  previousValue String
+  newValue      String
+  authorId      String?
+  createdAt     DateTime  @default(now())
+  formation     Formation @relation(fields: [formationId], references: [id], onDelete: Cascade)
+
+  @@index([formationId, entityType, entityKey, createdAt])
 }
 
 // Photo de l'ensemble des créneaux d'une formation à un instant donné, prise avant toute

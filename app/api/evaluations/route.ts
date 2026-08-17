@@ -4,6 +4,7 @@ import { getPlanningAuth } from "@/lib/planningAuth";
 import { getPlayerSession } from "@/lib/playerAuth";
 import { resolveAuthorNames } from "@/lib/authorNames";
 import { mergeOnConflict } from "@/lib/conflictMerge";
+import { logTextEdit } from "@/lib/textHistory";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -75,6 +76,15 @@ export async function POST(req: Request) {
     where: { playerId_blockId: { playerId, blockId } },
     update: { note, authorId },
     create: { playerId, blockId, note, authorId },
+  });
+
+  await logTextEdit({
+    formationId: auth.formationId,
+    entityType: "evaluation",
+    entityKey: `${playerId}:${blockId}`,
+    previousValue: existing?.note ?? "",
+    newValue: note,
+    authorId,
   });
 
   return NextResponse.json({ ok: true, evaluation, merged });
