@@ -3,7 +3,7 @@ import React from "react";
 import { renderToBuffer } from "@react-pdf/renderer";
 import { getPlanningAuth } from "@/lib/planningAuth";
 import { prisma } from "@/lib/prisma";
-import { buildDayListing } from "@/lib/planningExport";
+import { buildGridModel } from "@/lib/planningExport";
 import PlanningDocument from "@/lib/pdf/PlanningDocument";
 
 export const runtime = "nodejs";
@@ -14,9 +14,9 @@ export async function GET() {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 
-  const [formation, days] = await Promise.all([
+  const [formation, { days }] = await Promise.all([
     prisma.formation.findUnique({ where: { id: auth.formationId }, select: { name: true } }),
-    buildDayListing(auth.formationId),
+    buildGridModel(auth.formationId),
   ]);
 
   // @react-pdf/renderer types renderToBuffer's argument as a <Document> element specifically;

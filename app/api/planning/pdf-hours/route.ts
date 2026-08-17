@@ -17,7 +17,7 @@ export async function GET(req: Request) {
   const categoriesParam = new URL(req.url).searchParams.get("categories");
   const selectedKeys = categoriesParam ? categoriesParam.split(",").filter(Boolean) : null;
 
-  const [formation, { groups, totalMinutes }] = await Promise.all([
+  const [formation, { groups }] = await Promise.all([
     prisma.formation.findUnique({ where: { id: auth.formationId }, select: { name: true } }),
     buildCategoryGroups(auth.formationId, selectedKeys),
   ]);
@@ -27,7 +27,6 @@ export async function GET(req: Request) {
   const element = React.createElement(TrainingHoursDocument, {
     formationName: formation?.name ?? "",
     groups,
-    totalMinutes,
   }) as unknown as Parameters<typeof renderToBuffer>[0];
   const buffer = await renderToBuffer(element);
 

@@ -72,25 +72,99 @@ export async function buildCategoryGroups(
   return { groups, totalMinutes };
 }
 
-export async function buildDayListing(formationId: string): Promise<{ dayLabel: string; blocks: ExportBlock[] }[]> {
+// Même plage horaire que la grille affichée à l'écran (PlanningTab.tsx).
+export const GRID_DAY_START = 9 * 60;
+export const GRID_DAY_END = 18 * 60 + 30;
+
+export type GridBlock = {
+  id: string;
+  startMin: number;
+  endMin: number;
+  label: string;
+  posteLabel: string;
+  color: string;
+  col: number;
+  cols: number;
+};
+
+export type GridDay = { dayLabel: string; blocks: GridBlock[] };
+
+// Reprend exactement l'algorithme de PlanningTab.tsx (computeLayout) pour placer côte à côte les
+// créneaux qui se chevauchent — nécessaire côté serveur pour que le PDF ressemble à l'écran.
+function computeLayout(blocks: { id: string; startMin: number; endMin: number }[]): Map<string, { col: number; cols: number }> {
+  const sorted = [...blocks].sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
+  const layout = new Map<string, { col: number; cols: number }>();
+
+  let cluster: typeof sorted = [];
+  let clusterEnd = -Infinity;
+  let columnsEnd: number[] = [];
+
+  function flush() {
+    if (cluster.length === 0) return;
+    const cols = columnsEnd.length;
+    for (const b of cluster) {
+      const entry = layout.get(b.id);
+      if (entry) entry.cols = cols;
+    }
+    cluster = [];
+    columnsEnd = [];
+  }
+
+  for (const b of sorted) {
+    if (b.startMin >= clusterEnd) {
+      flush();
+      clusterEnd = -Infinity;
+    }
+    let placed = false;
+    for (let c = 0; c < columnsEnd.length; c++) {
+      if (columnsEnd[c] <= b.startMin) {
+        columnsEnd[c] = b.endMin;
+        layout.set(b.id, { col: c, cols: 1 });
+        placed = true;
+        break;
+      }
+    }
+    if (!placed) {
+      columnsEnd.push(b.endMin);
+      layout.set(b.id, { col: columnsEnd.length - 1, cols: 1 });
+    }
+    cluster.push(b);
+    clusterEnd = Math.max(clusterEnd, b.endMin);
+  }
+  flush();
+
+  return layout;
+}
+
+export async function buildGridModel(formationId: string): Promise<{ days: GridDay[]; dayCount: number }> {
   const { blocks, postes, startDate, dayCount } = await loadPlanningContext(formationId);
   const posteById = new Map(postes.map((p) => [p.id, p]));
-  const days: { dayLabel: string; blocks: ExportBlock[] }[] = Array.from({ length: dayCount }, (_, day) => ({
-    dayLabel: formatDayHeader(dateForDayIndex(startDate, day)),
-    blocks: [],
-  }));
+
+  const byDay: { id: string; startMin: number; endMin: number; label: string; posteLabel: string; color: string }[][] = Array.from(
+    { length: dayCount },
+    () => []
+  );
   for (const b of blocks) {
     if (b.day >= dayCount) continue;
     const poste = posteById.get(b.type);
-    days[b.day].blocks.push({
-      day: b.day,
-      dayLabel: days[b.day].dayLabel,
+    byDay[b.day].push({
+      id: b.id,
       startMin: b.startMin,
       endMin: b.endMin,
       label: b.label,
       posteLabel: poste?.label ?? b.type,
+      color: poste?.color ?? "#94a3b8",
     });
   }
-  for (const d of days) d.blocks.sort((a, b) => a.startMin - b.startMin);
-  return days;
+
+  const days: GridDay[] = byDay.map((dayBlocks, day) => {
+    const layout = computeLayout(dayBlocks);
+    const gridBlocks: GridBlock[] = dayBlocks.map((b) => {
+      const pos = layout.get(b.id) ?? { col: 0, cols: 1 };
+      return { ...b, col: pos.col, cols: pos.cols };
+    });
+    return { dayLabel: formatDayHeader(dateForDayIndex(startDate, day)), blocks: gridBlocks };
+  });
+
+  return { days, dayCount };
 }
