@@ -38,9 +38,7 @@ export default function TrainingHoursDocument({
                   <Text style={styles.time}>
                     {b.dayLabel} · {minToTime(b.startMin)}–{minToTime(b.endMin)}
                   </Text>
-                  <Text style={styles.label}>
-                    {b.label} ({b.posteLabel})
-                  </Text>
+                  <Text style={styles.label}>{b.label === b.posteLabel ? b.label : `${b.label} (${b.posteLabel})`}</Text>
                 </View>
               ))
             )}
