@@ -99,7 +99,7 @@ export default function DailyRemarkBox({
           ⚠️ Un autre formateur venait de modifier cette case — ton texte a été ajouté à la suite plutôt que de remplacer le sien.
         </p>
       )}
-      {canEdit && authorName && (
+      {canEdit && authorName && savedValue.trim() && (
         <p style={{ fontSize: 12, color: "#9d174d", fontStyle: "italic", marginTop: 0, marginBottom: 8, opacity: 0.8 }}>
           Écrit par {authorName}
         </p>

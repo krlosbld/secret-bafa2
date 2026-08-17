@@ -351,7 +351,7 @@ function NoteBox({
         </p>
       )}
       {help && <p style={{ fontSize: 12, color: "#64748b", marginTop: 0, marginBottom: 8 }}>{help}</p>}
-      {editable && authorName && (
+      {editable && authorName && savedValue.trim() && (
         <p style={{ fontSize: 12, color: "#94a3b8", fontStyle: "italic", marginTop: 0, marginBottom: 8 }}>
           Écrit par {authorName}
         </p>

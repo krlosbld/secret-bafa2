@@ -139,7 +139,7 @@ export default function EvaluationBoard({
                     ⚠️ Un autre formateur venait de modifier cette case — ton texte a été ajouté à la suite plutôt que de remplacer le sien.
                   </p>
                 )}
-                {authors[b.id] && (
+                {authors[b.id] && (notes[b.id] ?? "").trim() && (
                   <p style={{ fontSize: 12, color: "#94a3b8", fontStyle: "italic", marginTop: 0, marginBottom: 6 }}>
                     Écrit par {authors[b.id]}
                   </p>
