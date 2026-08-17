@@ -17,6 +17,7 @@ export default function SubmitSecretModal({
   const [content, setContent] = useState("");
   const [bonus, setBonus] = useState(1);
   const [code, setCode] = useState("");
+  const [attached, setAttached] = useState(false);
   const [error, setError] = useState("");
 
   if (!open) return null;
@@ -27,6 +28,7 @@ export default function SubmitSecretModal({
       setContent("");
       setBonus(1);
       setCode("");
+      setAttached(false);
       setState("form");
     }
     setError("");
@@ -48,7 +50,11 @@ export default function SubmitSecretModal({
         setState("form");
         return;
       }
-      setCode(data.code);
+      if (data.attached) {
+        setAttached(true);
+      } else {
+        setCode(data.code);
+      }
       setState("success");
     } catch {
       setError("Erreur réseau.");
@@ -68,35 +74,49 @@ export default function SubmitSecretModal({
 
         {state === "success" ? (
           <div style={{ textAlign: "center", padding: "24px 0" }}>
-            <p style={{ color: "#555", marginBottom: 8 }}>
-              Ton secret est en attente de validation. Voici ton code personnel :
-            </p>
-            <div
-              style={{
-                fontSize: 64,
-                fontWeight: 900,
-                color: "#0f766e",
-                letterSpacing: 8,
-                margin: "16px 0",
-              }}
-            >
-              #{code}
-            </div>
-            <p style={{ color: "#e11d48", fontWeight: 700, fontSize: 14 }}>
-              Note ce code ! Tu en auras besoin pour buzzer les secrets des autres.
-            </p>
+            {attached ? (
+              <>
+                <p style={{ color: "#555", marginBottom: 8 }}>
+                  Ton secret est en attente de validation. Un compte existait déjà pour ce prénom — le
+                  secret y a été rattaché.
+                </p>
+                <p style={{ color: "#0f766e", fontWeight: 700, fontSize: 14 }}>
+                  Utilise ton code personnel habituel pour te connecter.
+                </p>
+              </>
+            ) : (
+              <>
+                <p style={{ color: "#555", marginBottom: 8 }}>
+                  Ton secret est en attente de validation. Voici ton code personnel :
+                </p>
+                <div
+                  style={{
+                    fontSize: 64,
+                    fontWeight: 900,
+                    color: "#0f766e",
+                    letterSpacing: 8,
+                    margin: "16px 0",
+                  }}
+                >
+                  #{code}
+                </div>
+                <p style={{ color: "#e11d48", fontWeight: 700, fontSize: 14 }}>
+                  Note ce code ! Tu en auras besoin pour buzzer les secrets des autres.
+                </p>
+              </>
+            )}
             <button
               className="sb-btn sb-btn--main"
               onClick={handleClose}
               style={{ marginTop: 20 }}
             >
-              OK, je l'ai noté !
+              OK, je l&apos;ai noté !
             </button>
           </div>
         ) : (
           <>
             <p className="sb-help">
-              Ton prénom est visible par l'admin uniquement. La page publique reste anonyme.
+              Ton prénom est visible par l&apos;admin uniquement. La page publique reste anonyme.
             </p>
             <div className="sb-form">
               <label className="sb-field">
@@ -131,7 +151,7 @@ export default function SubmitSecretModal({
                   fontSize: 13,
                   fontWeight: 600,
                 }}>
-                  ⚠️ Ton secret semble contenir du contenu potentiellement illégal. Tu peux quand même l'envoyer, mais il sera examiné attentivement par l'animateur avant validation.
+                  ⚠️ Ton secret semble contenir du contenu potentiellement illégal. Tu peux quand même l&apos;envoyer, mais il sera examiné attentivement par l&apos;animateur avant validation.
                 </div>
               )}
 

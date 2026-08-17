@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { isFlagged } from "@/lib/contentFilter";
 import { getFormationFromCookie, hasNotStartedYet } from "@/lib/formationSession";
 import { generateUniquePlayerCode } from "@/lib/playerCode";
-import { findNameCollision } from "@/lib/nameCollision";
+import { findMatchingPlayer } from "@/lib/nameCollision";
 
 export const runtime = "nodejs";
 
@@ -55,18 +55,29 @@ export async function POST(req: Request) {
     }
     const formationId = formation.id;
 
-    // Un seul secret par prénom (fuzzy match strict, y compris sur le premier mot d'un nom composé),
-    // au sein de la formation
-    const duplicate = await findNameCollision(formationId, firstName);
-    if (duplicate) {
-      return NextResponse.json(
-        { ok: false, message: "Un secret existe déjà pour ce prénom." },
-        { status: 409 }
-      );
+    const flagged = isFlagged(content);
+
+    // Un prénom qui correspond à un joueur déjà enregistré (fuzzy match, y compris diminutifs et
+    // noms composés) — plutôt que de bloquer, on rattache le secret à ce compte existant s'il n'en a
+    // pas déjà un (ex. un formateur/directeur créé sans secret). On ne renvoie jamais le code de ce
+    // compte existant : n'importe qui pourrait sinon récupérer le code de quelqu'un d'autre en tapant
+    // simplement son prénom.
+    const match = await findMatchingPlayer(formationId, firstName);
+    if (match) {
+      const existingSecret = await prisma.secret.findUnique({ where: { playerId: match.id } });
+      if (existingSecret) {
+        return NextResponse.json(
+          { ok: false, message: "Un secret existe déjà pour ce prénom." },
+          { status: 409 }
+        );
+      }
+      await prisma.secret.create({
+        data: { playerId: match.id, formationId, content, bonus, status: "PENDING", flagged },
+      });
+      return NextResponse.json({ ok: true, attached: true });
     }
 
     const code = await generateUniquePlayerCode(formationId);
-    const flagged = isFlagged(content);
 
     await prisma.player.create({
       data: {
