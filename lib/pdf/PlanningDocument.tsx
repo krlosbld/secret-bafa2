@@ -6,7 +6,7 @@ import { GRID_DAY_START, GRID_DAY_END } from "@/lib/planningExport";
 const PAGE_HEIGHT = 595.28;
 const MARGIN = 24;
 const HOUR_AXIS_WIDTH = 30;
-const HEADER_HEIGHT = 46;
+const HEADER_HEIGHT = 60;
 
 const GRID_HEIGHT = PAGE_HEIGHT - 2 * MARGIN - HEADER_HEIGHT;
 const PX_PER_MIN = GRID_HEIGHT / (GRID_DAY_END - GRID_DAY_START);
