@@ -59,7 +59,11 @@ export default function PendingEvaluationsReminder({ initialBlocks }: { initialB
           await fetch("/api/evaluations", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ blockId: entry.blockId, playerId: entry.playerId, note: entry.note }),
+            // base: "" — ce pop-up ne liste que des retours pas encore remplis, donc la valeur de
+            // départ est toujours vide. Sans ce champ, /api/evaluations retombe sur base = note, ce
+            // qui fait croire à la détection de conflit qu'il n'y a "rien de nouveau" à ajouter et
+            // efface le texte tout juste tapé (en laissant quand même l'auteur enregistré).
+            body: JSON.stringify({ blockId: entry.blockId, playerId: entry.playerId, note: entry.note, base: "" }),
           });
         }
         const doneKeys = new Set(due.map((e) => e.key));
@@ -103,7 +107,7 @@ export default function PendingEvaluationsReminder({ initialBlocks }: { initialB
         await fetch("/api/evaluations", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(entry),
+          body: JSON.stringify({ ...entry, base: "" }),
         });
       }
 
