@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import PlanningExportButtons from "./PlanningExportButtons";
 import {
   SESSION_TYPES,
   daysForType,
@@ -518,6 +519,7 @@ export default function PlanningTab({
             >
               🧽 Gomme
             </button>
+            <PlanningExportButtons categories={posteCategories} />
             <button
               onClick={() => setShowHistory(true)}
               style={{
