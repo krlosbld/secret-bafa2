@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { fuzzyMatch } from "@/lib/fuzzy";
 import { isFlagged } from "@/lib/contentFilter";
 import { getFormationFromCookie, hasNotStartedYet } from "@/lib/formationSession";
 import { generateUniquePlayerCode } from "@/lib/playerCode";
+import { findNameCollision } from "@/lib/nameCollision";
 
 export const runtime = "nodejs";
 
@@ -55,12 +55,9 @@ export async function POST(req: Request) {
     }
     const formationId = formation.id;
 
-    // Un seul secret par prénom (fuzzy match strict), au sein de la formation
-    const allPlayers = await prisma.player.findMany({
-      where: { formationId },
-      select: { firstName: true },
-    });
-    const duplicate = allPlayers.some((p) => fuzzyMatch(p.firstName, firstName, 1));
+    // Un seul secret par prénom (fuzzy match strict, y compris sur le premier mot d'un nom composé),
+    // au sein de la formation
+    const duplicate = await findNameCollision(formationId, firstName);
     if (duplicate) {
       return NextResponse.json(
         { ok: false, message: "Un secret existe déjà pour ce prénom." },
