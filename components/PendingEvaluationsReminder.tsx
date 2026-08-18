@@ -141,9 +141,33 @@ export default function PendingEvaluationsReminder({ initialBlocks }: { initialB
 
         <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
           {blocks.map((b) => (
-            <div key={b.id} style={{ border: "1px solid #e5e7eb", borderRadius: 10, padding: 12 }}>
-              <div style={{ fontWeight: 800, marginBottom: 10 }}>
-                {b.label} · Jour {b.day + 1} · {fmt(b.startMin)}–{fmt(b.endMin)}
+            <div
+              key={b.id}
+              style={{
+                border: b.priority ? "1px solid #93c5fd" : "1px solid #e5e7eb",
+                borderRadius: 10,
+                padding: 12,
+                background: b.priority ? "#eff6ff" : undefined,
+              }}
+            >
+              <div style={{ fontWeight: 800, marginBottom: 10, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                <span>
+                  {b.label} · Jour {b.day + 1} · {fmt(b.startMin)}–{fmt(b.endMin)}
+                </span>
+                {b.priority && b.groupName && (
+                  <span
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 800,
+                      color: "#1d4ed8",
+                      background: "#dbeafe",
+                      padding: "2px 8px",
+                      borderRadius: 999,
+                    }}
+                  >
+                    🔵 Groupe : {b.groupName}
+                  </span>
+                )}
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                 {b.stagiaires.map((s) => (

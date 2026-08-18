@@ -3,57 +3,47 @@
 import { useEffect, useRef, useState } from "react";
 
 type Member = { id: string; firstName: string };
-type Group = { name: string; members: Member[] };
-type Stagiaire = { id: string; firstName: string };
-
-// Compatible avec l'ancien format stocké ({ groupCount, groups: {id,firstName}[][] })
-function normalizeGroups(raw: unknown): Group[] {
-  if (!raw || typeof raw !== "object" || !Array.isArray((raw as { groups?: unknown }).groups)) return [];
-  const rawGroups = (raw as { groups: unknown[] }).groups;
-  return rawGroups.map((g, idx) => {
-    if (Array.isArray(g)) {
-      return { name: `Groupe ${idx + 1}`, members: g as Member[] };
-    }
-    const group = g as { name?: string; members?: Member[] };
-    return { name: group.name ?? `Groupe ${idx + 1}`, members: group.members ?? [] };
-  });
-}
+type Group = { id: string; name: string; members: Member[]; staff: Member[] };
 
 const POSTIT_COLORS = ["#fde68a", "#fecdd3", "#bbf7d0", "#bfdbfe", "#e9d5ff", "#fed7aa"];
 const POSTIT_TILT = [-2, 1.5, -1, 2, -1.5, 1];
 
 export default function GroupGenerator({
-  initialAssignment,
+  initialGroups,
   stagiaires,
+  staffList,
 }: {
-  initialAssignment: unknown;
-  stagiaires: Stagiaire[];
+  initialGroups: Group[];
+  stagiaires: Member[];
+  staffList: Member[];
 }) {
-  const [groups, setGroups] = useState<Group[]>(() => normalizeGroups(initialAssignment));
-  const [generatedAt, setGeneratedAt] = useState<string | null>(
-    (initialAssignment as { generatedAt?: string } | null)?.generatedAt ?? null
-  );
-  const [dirty, setDirty] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [groups, setGroups] = useState<Group[]>(initialGroups);
   const [error, setError] = useState("");
+  const [showRandomPicker, setShowRandomPicker] = useState(false);
+  const [randomCount, setRandomCount] = useState(3);
+  const [creatingRandom, setCreatingRandom] = useState(false);
 
-  const dirtyRef = useRef(dirty);
-  useEffect(() => {
-    dirtyRef.current = dirty;
-  }, [dirty]);
+  const editingNameRef = useRef<string | null>(null);
+  const [nameDrafts, setNameDrafts] = useState<Record<string, string>>(() =>
+    Object.fromEntries(initialGroups.map((g) => [g.id, g.name]))
+  );
 
-  // Poll en continu (même pendant l'édition) pour garder la session active — le glisser-déposer
-  // et le renommage ne font aucune requête serveur, donc sans ça la session (10 min) expirait
-  // pendant qu'on travaille et "Enregistrer" échouait avec "Non autorisé".
+  // Poll en continu pour la synchro entre formateurs — ne touche jamais au nom d'un groupe en cours
+  // de renommage localement (évite d'écraser une frappe en cours).
   useEffect(() => {
     const id = setInterval(async () => {
       try {
         const res = await fetch("/api/groups", { cache: "no-store" });
         const data = await res.json().catch(() => null);
-        if (dirtyRef.current) return; // garde la session active sans écraser les modifications en cours
-        if (data?.ok && data.assignment) {
-          setGroups(normalizeGroups(data.assignment));
-          setGeneratedAt(data.assignment.generatedAt);
+        if (data?.ok && Array.isArray(data.groups)) {
+          setGroups(data.groups);
+          setNameDrafts((d) => {
+            const next = { ...d };
+            for (const g of data.groups as Group[]) {
+              if (g.id !== editingNameRef.current) next[g.id] = g.name;
+            }
+            return next;
+          });
         }
       } catch {
         // ignore transient network errors, will retry on next tick
@@ -62,87 +52,112 @@ export default function GroupGenerator({
     return () => clearInterval(id);
   }, []);
 
-  const assignedIds = new Set(groups.flatMap((g) => g.members.map((m) => m.id)));
-  const unassigned = stagiaires.filter((s) => !assignedIds.has(s.id));
-
-  function addGroup() {
-    setGroups((g) => [...g, { name: `Groupe ${g.length + 1}`, members: [] }]);
-    setDirty(true);
-  }
-
-  function removeGroup(idx: number) {
-    setGroups((g) => g.filter((_, i) => i !== idx));
-    setDirty(true);
-  }
-
-  function renameGroup(idx: number, name: string) {
-    setGroups((g) => g.map((grp, i) => (i === idx ? { ...grp, name } : grp)));
-    setDirty(true);
-  }
-
-  function moveMember(playerId: string, targetIdx: number | null) {
-    const stagiaire = stagiaires.find((s) => s.id === playerId);
-    if (!stagiaire) return;
-    setGroups((g) =>
-      g.map((grp, i) => {
-        const without = grp.members.filter((m) => m.id !== playerId);
-        if (i === targetIdx) return { ...grp, members: [...without, stagiaire] };
-        return { ...grp, members: without };
-      })
-    );
-    setDirty(true);
-  }
-
-  function shuffle() {
-    if (groups.length === 0) {
-      setError("Ajoute au moins un groupe avant de mélanger.");
-      return;
-    }
+  async function createGroup() {
     setError("");
-    const shuffled = [...stagiaires];
-    for (let i = shuffled.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
-    }
-    setGroups((g) => {
-      const buckets: Member[][] = g.map(() => []);
-      shuffled.forEach((s, idx) => buckets[idx % g.length].push(s));
-      return g.map((grp, idx) => ({ ...grp, members: buckets[idx] }));
+    const res = await fetch("/api/groups", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: "Nouveau groupe" }),
     });
-    setDirty(true);
+    const data = await res.json().catch(() => null);
+    if (data?.ok) {
+      setGroups((g) => [...g, data.group]);
+      setNameDrafts((d) => ({ ...d, [data.group.id]: data.group.name }));
+    } else {
+      setError(data?.error || "Erreur.");
+    }
   }
 
-  async function save() {
-    setSaving(true);
+  async function createRandomGroups() {
+    setCreatingRandom(true);
     setError("");
     try {
-      const res = await fetch("/api/groups", {
+      const res = await fetch("/api/groups/random", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          groups: groups.map((g) => ({ name: g.name, ids: g.members.map((m) => m.id) })),
-          baseGeneratedAt: generatedAt,
-        }),
+        body: JSON.stringify({ count: randomCount }),
       });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        if (data?.conflict) {
-          setError(
-            "Quelqu'un d'autre a enregistré des groupes entre-temps — tes modifications n'ont pas été écrasées mais pas non plus enregistrées. Recharge la page pour voir la version la plus récente, puis réapplique tes changements."
-          );
-        } else {
-          setError(data?.error || "Erreur.");
-        }
-        return;
+      const data = await res.json().catch(() => null);
+      if (data?.ok) {
+        setGroups((g) => [...g, ...data.groups]);
+        setNameDrafts((d) => {
+          const next = { ...d };
+          for (const g of data.groups as Group[]) next[g.id] = g.name;
+          return next;
+        });
+        setShowRandomPicker(false);
+      } else {
+        setError(data?.error || "Erreur.");
       }
-      setGroups(normalizeGroups(data.assignment));
-      setGeneratedAt(data.assignment.generatedAt);
-      setDirty(false);
     } catch {
       setError("Erreur réseau.");
     } finally {
-      setSaving(false);
+      setCreatingRandom(false);
     }
+  }
+
+  async function renameGroup(groupId: string, name: string) {
+    setGroups((g) => g.map((grp) => (grp.id === groupId ? { ...grp, name } : grp)));
+    await fetch(`/api/groups/${groupId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name }),
+    });
+  }
+
+  async function deleteGroup(groupId: string) {
+    if (!confirm("Supprimer ce groupe ? Cette action est irréversible.")) return;
+    setGroups((g) => g.filter((grp) => grp.id !== groupId));
+    await fetch(`/api/groups/${groupId}`, { method: "DELETE" });
+  }
+
+  async function addMember(groupId: string, playerId: string) {
+    const stagiaire = stagiaires.find((s) => s.id === playerId);
+    if (!stagiaire) return;
+    setGroups((g) =>
+      g.map((grp) =>
+        grp.id === groupId && !grp.members.some((m) => m.id === playerId)
+          ? { ...grp, members: [...grp.members, stagiaire] }
+          : grp
+      )
+    );
+    await fetch(`/api/groups/${groupId}/members`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playerId }),
+    });
+  }
+
+  async function removeMember(groupId: string, playerId: string) {
+    setGroups((g) =>
+      g.map((grp) => (grp.id === groupId ? { ...grp, members: grp.members.filter((m) => m.id !== playerId) } : grp))
+    );
+    await fetch(`/api/groups/${groupId}/members/${playerId}`, { method: "DELETE" });
+  }
+
+  async function addStaff(groupId: string, playerId: string) {
+    if (!playerId) return;
+    const person = staffList.find((s) => s.id === playerId);
+    if (!person) return;
+    setGroups((g) =>
+      g.map((grp) =>
+        grp.id === groupId && !grp.staff.some((s) => s.id === playerId)
+          ? { ...grp, staff: [...grp.staff, person] }
+          : grp
+      )
+    );
+    await fetch(`/api/groups/${groupId}/staff`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ playerId }),
+    });
+  }
+
+  async function removeStaff(groupId: string, playerId: string) {
+    setGroups((g) =>
+      g.map((grp) => (grp.id === groupId ? { ...grp, staff: grp.staff.filter((s) => s.id !== playerId) } : grp))
+    );
+    await fetch(`/api/groups/${groupId}/staff/${playerId}`, { method: "DELETE" });
   }
 
   function onDragStart(e: React.DragEvent, playerId: string) {
@@ -153,35 +168,27 @@ export default function GroupGenerator({
     e.preventDefault();
   }
 
-  function onDrop(e: React.DragEvent, targetIdx: number | null) {
+  function onDrop(e: React.DragEvent, groupId: string) {
     e.preventDefault();
     const playerId = e.dataTransfer.getData("text/plain");
-    if (playerId) moveMember(playerId, targetIdx);
+    if (playerId) void addMember(groupId, playerId);
   }
 
   return (
     <div>
       <div className="card" style={{ marginBottom: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-          <button className="btn btn-ghost" onClick={addGroup}>
+          <button className="btn btn-ghost" onClick={createGroup}>
             ➕ Ajouter un groupe
           </button>
-          <button className="btn btn-ghost" onClick={shuffle}>
-            🎲 Mélanger
+          <button className="btn btn-ghost" onClick={() => setShowRandomPicker(true)}>
+            🎲 Créer des groupes aléatoires
           </button>
-          <button className="btn btn-main" onClick={save} disabled={saving || !dirty}>
-            {saving ? "Enregistrement…" : "✅ Enregistrer"}
-          </button>
-          <span style={{ fontSize: 12, color: dirty ? "#dc2626" : "#64748b" }}>
-            {dirty
-              ? "Modifications non enregistrées"
-              : generatedAt
-              ? `Enregistré : ${new Date(generatedAt).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}`
-              : "Rien d'enregistré pour l'instant"}
-          </span>
         </div>
         <p style={{ fontSize: 12, color: "#94a3b8", margin: "8px 0 0" }}>
-          Visible uniquement par les formateurs et directeurs — les stagiaires ne voient jamais leur groupe.
+          Visible uniquement par les formateurs et directeurs — les stagiaires ne voient jamais leurs groupes. Un
+          stagiaire peut appartenir à plusieurs groupes en même temps ; les groupes ne sont jamais supprimés
+          automatiquement, seulement à la main.
         </p>
         {error && (
           <div
@@ -201,28 +208,36 @@ export default function GroupGenerator({
         )}
       </div>
 
-      <div
-        onDragOver={allowDrop}
-        onDrop={(e) => onDrop(e, null)}
-        className="card"
-        style={{ marginBottom: 20, minHeight: 60 }}
-      >
+      <div className="card" style={{ marginBottom: 20 }}>
         <div style={{ fontWeight: 800, fontSize: 13, color: "#64748b", marginBottom: 8, textTransform: "uppercase", letterSpacing: 0.5 }}>
-          Non assignés ({unassigned.length})
+          Tous les stagiaires — glisse vers un groupe pour l&apos;y ajouter
         </div>
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-          {unassigned.length === 0 ? (
-            <span style={{ fontSize: 13, color: "#94a3b8" }}>Tout le monde est assigné.</span>
-          ) : (
-            unassigned.map((s) => (
-              <Chip key={s.id} member={s} onDragStart={(e) => onDragStart(e, s.id)} />
-            ))
-          )}
+          {stagiaires.map((s) => (
+            <div
+              key={s.id}
+              draggable
+              onDragStart={(e) => onDragStart(e, s.id)}
+              style={{
+                background: "#fff",
+                border: "1px solid #cbd5e1",
+                borderRadius: 8,
+                padding: "4px 10px",
+                fontSize: 13,
+                fontWeight: 600,
+                color: "#1f2937",
+                cursor: "grab",
+                userSelect: "none",
+              }}
+            >
+              {s.firstName}
+            </div>
+          ))}
         </div>
       </div>
 
       {groups.length === 0 ? (
-        <p style={{ color: "#64748b" }}>Aucun groupe pour l&apos;instant — clique "Ajouter un groupe" pour commencer.</p>
+        <p style={{ color: "#64748b" }}>Aucun groupe pour l&apos;instant.</p>
       ) : (
         <div
           style={{
@@ -233,9 +248,9 @@ export default function GroupGenerator({
         >
           {groups.map((group, i) => (
             <div
-              key={i}
+              key={group.id}
               onDragOver={allowDrop}
-              onDrop={(e) => onDrop(e, i)}
+              onDrop={(e) => onDrop(e, group.id)}
               style={{
                 background: POSTIT_COLORS[i % POSTIT_COLORS.length],
                 borderRadius: 4,
@@ -244,13 +259,21 @@ export default function GroupGenerator({
                 transform: `rotate(${POSTIT_TILT[i % POSTIT_TILT.length]}deg)`,
                 display: "flex",
                 flexDirection: "column",
-                minHeight: 140,
+                minHeight: 180,
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10 }}>
                 <input
-                  value={group.name}
-                  onChange={(e) => renameGroup(i, e.target.value)}
+                  value={nameDrafts[group.id] ?? group.name}
+                  onChange={(e) => setNameDrafts((d) => ({ ...d, [group.id]: e.target.value }))}
+                  onFocus={() => {
+                    editingNameRef.current = group.id;
+                  }}
+                  onBlur={(e) => {
+                    editingNameRef.current = null;
+                    const value = e.target.value.trim() || "Groupe";
+                    void renameGroup(group.id, value);
+                  }}
                   style={{
                     flex: 1,
                     background: "rgba(255,255,255,0.6)",
@@ -264,44 +287,132 @@ export default function GroupGenerator({
                   }}
                 />
                 <button
-                  onClick={() => removeGroup(i)}
+                  onClick={() => deleteGroup(group.id)}
                   title="Supprimer ce groupe"
                   style={{ background: "none", border: "none", cursor: "pointer", fontSize: 16, color: "#7c2d12", flexShrink: 0 }}
                 >
                   ×
                 </button>
               </div>
-              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, flex: 1, alignContent: "flex-start" }}>
-                {group.members.map((m) => (
-                  <Chip key={m.id} member={m} onDragStart={(e) => onDragStart(e, m.id)} />
-                ))}
+
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 10 }}>
+                {group.members.length === 0 ? (
+                  <span style={{ fontSize: 12, color: "#78716c", fontStyle: "italic" }}>Aucun stagiaire.</span>
+                ) : (
+                  group.members.map((m) => (
+                    <span
+                      key={m.id}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
+                        background: "#fff",
+                        border: "1px solid #cbd5e1",
+                        borderRadius: 8,
+                        padding: "3px 6px 3px 10px",
+                        fontSize: 13,
+                        fontWeight: 600,
+                        color: "#1f2937",
+                      }}
+                    >
+                      {m.firstName}
+                      <button
+                        onClick={() => removeMember(group.id, m.id)}
+                        title="Retirer de ce groupe"
+                        style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", fontSize: 13, padding: 0 }}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))
+                )}
+              </div>
+
+              <div style={{ marginTop: "auto", borderTop: "1px dashed rgba(0,0,0,0.2)", paddingTop: 8 }}>
+                <div style={{ fontSize: 11, fontWeight: 800, color: "#57534e", textTransform: "uppercase", letterSpacing: 0.5, marginBottom: 6 }}>
+                  Formateurs
+                </div>
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: 6 }}>
+                  {group.staff.map((s) => (
+                    <span
+                      key={s.id}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
+                        background: "#0f172a",
+                        borderRadius: 8,
+                        padding: "3px 6px 3px 10px",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: "#fff",
+                      }}
+                    >
+                      {s.firstName}
+                      <button
+                        onClick={() => removeStaff(group.id, s.id)}
+                        title="Retirer de ce groupe"
+                        style={{ background: "none", border: "none", cursor: "pointer", color: "#cbd5e1", fontSize: 13, padding: 0 }}
+                      >
+                        ×
+                      </button>
+                    </span>
+                  ))}
+                </div>
+                <select
+                  value=""
+                  onChange={(e) => addStaff(group.id, e.target.value)}
+                  style={{ width: "100%", fontSize: 12, padding: "4px 6px", borderRadius: 6, border: "1px solid rgba(0,0,0,0.15)" }}
+                >
+                  <option value="">+ Ajouter un formateur…</option>
+                  {staffList
+                    .filter((s) => !group.staff.some((gs) => gs.id === s.id))
+                    .map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.firstName}
+                      </option>
+                    ))}
+                </select>
               </div>
             </div>
           ))}
         </div>
       )}
-    </div>
-  );
-}
 
-function Chip({ member, onDragStart }: { member: Member; onDragStart: (e: React.DragEvent) => void }) {
-  return (
-    <div
-      draggable
-      onDragStart={onDragStart}
-      style={{
-        background: "#fff",
-        border: "1px solid #cbd5e1",
-        borderRadius: 8,
-        padding: "4px 10px",
-        fontSize: 13,
-        fontWeight: 600,
-        color: "#1f2937",
-        cursor: "grab",
-        userSelect: "none",
-      }}
-    >
-      {member.firstName}
+      {showRandomPicker && (
+        <div className="sb-backdrop" onMouseDown={() => setShowRandomPicker(false)}>
+          <div className="sb-modal" onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: 360 }}>
+            <div className="sb-modal__header">
+              <h2>🎲 Groupes aléatoires</h2>
+              <button className="sb-x" onClick={() => setShowRandomPicker(false)}>
+                ✕
+              </button>
+            </div>
+            <p className="sb-help">
+              Crée ce nombre de nouveaux groupes et répartit tous les stagiaires actifs entre eux au hasard. Les
+              groupes déjà existants ne sont pas touchés.
+            </p>
+            <label className="sb-field">
+              <span>Nombre de groupes</span>
+              <input
+                type="number"
+                min={1}
+                max={30}
+                value={randomCount}
+                onChange={(e) => setRandomCount(Math.max(1, Math.min(30, Number(e.target.value) || 1)))}
+              />
+            </label>
+            <div className="sb-actions">
+              <button className="sb-btn sb-btn--ghost" onClick={() => setShowRandomPicker(false)} disabled={creatingRandom}>
+                Annuler
+              </button>
+              <button className="sb-btn sb-btn--main" onClick={createRandomGroups} disabled={creatingRandom}>
+                {creatingRandom ? "Création…" : "Créer aléatoirement"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

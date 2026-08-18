@@ -22,6 +22,47 @@ model Formation {
   configs           Config[]
   planningSnapshots PlanningSnapshot[]
   textEditHistory   TextEditHistory[]
+  groups            Group[]
+}
+
+// Un groupe persistant de stagiaires (+ formateurs rattachés). Plusieurs groupes coexistent en
+// permanence pour des travaux différents au sein d'une même formation — un stagiaire peut appartenir
+// à plusieurs groupes en même temps, aucun n'est jamais écrasé par la création d'un autre.
+model Group {
+  id          String          @id @default(cuid())
+  formationId String
+  name        String
+  createdAt   DateTime        @default(now())
+  formation   Formation       @relation(fields: [formationId], references: [id], onDelete: Cascade)
+  members     GroupMember[]
+  staff       GroupStaff[]
+  blocks      PlanningBlock[]
+
+  @@index([formationId])
+}
+
+model GroupMember {
+  id       String @id @default(cuid())
+  groupId  String
+  playerId String
+  group    Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, playerId])
+  @@index([playerId])
+}
+
+// Formateurs/directeurs rattachés à un groupe — utilisé pour faire remonter en priorité, dans leur
+// pop-up de rappel, les créneaux du planning liés à ce groupe.
+model GroupStaff {
+  id       String @id @default(cuid())
+  groupId  String
+  playerId String
+  group    Group  @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  player   Player @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, playerId])
+  @@index([playerId])
 }
 
 // Historique des cases texte (évaluations, remarques, EMS, appréciation finale...) : une ligne par
@@ -75,6 +116,8 @@ model Player {
   blockAssignments BlockAssignment[]
   responsibleBlocks PlanningBlock[] @relation("BlockResponsible")
   dailyRemarks     DailyRemark[]
+  groupMemberships GroupMember[]
+  groupStaffRoles  GroupStaff[]
 
   // Panneau latéral de la page stagiaire
   personalNote               String  @default("") // écrit par le stagiaire lui-même
@@ -165,10 +208,12 @@ model PlanningBlock {
   label              String
   type               String // id du PosteType
   responsibleStaffId String? // formateur/directeur à relancer pour saisir les retours une fois le créneau passé
+  groupId            String? // groupe rattaché — ses formateurs voient ce créneau en priorité dans le pop-up
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
   formation          Formation         @relation(fields: [formationId], references: [id], onDelete: Cascade)
   responsibleStaff   Player?           @relation("BlockResponsible", fields: [responsibleStaffId], references: [id], onDelete: SetNull)
+  group              Group?            @relation(fields: [groupId], references: [id], onDelete: SetNull)
   evaluations        Evaluation[]
   assignments        BlockAssignment[]
 

@@ -199,22 +199,16 @@ async function getStagiaireIndicators(dayCount: number, formationId: string, pla
   return { dailyFillRatio, dailyTrend };
 }
 
-async function getGroupAssignment(formationId: string): Promise<{ groupByPlayerId: Record<string, string> }> {
-  const config = await prisma.config.findUnique({ where: { formationId_key: { formationId, key: "stagiaireGroups" } } });
-  const groupByPlayerId: Record<string, string> = {};
-  if (config) {
-    try {
-      const parsed = JSON.parse(config.value);
-      (parsed.groups ?? []).forEach((g: unknown, idx: number) => {
-        const name = Array.isArray(g) ? `Groupe ${idx + 1}` : (g as { name?: string }).name || `Groupe ${idx + 1}`;
-        const members = Array.isArray(g) ? g : (g as { members?: { id: string }[] }).members ?? [];
-        for (const m of members as { id: string }[]) groupByPlayerId[m.id] = name;
-      });
-    } catch {
-      // ignore malformed config
-    }
+async function getGroupAssignment(formationId: string): Promise<{ groupsByPlayerId: Record<string, string[]> }> {
+  const memberships = await prisma.groupMember.findMany({
+    where: { group: { formationId } },
+    select: { playerId: true, group: { select: { name: true } } },
+  });
+  const groupsByPlayerId: Record<string, string[]> = {};
+  for (const m of memberships) {
+    (groupsByPlayerId[m.playerId] ??= []).push(m.group.name);
   }
-  return { groupByPlayerId };
+  return { groupsByPlayerId };
 }
 
 function lerpColor(a: string, b: string, t: number): string {
@@ -232,19 +226,20 @@ function NameGauge({
   firstName,
   code,
   dayRatios,
-  groupName,
+  groupNames,
 }: {
   firstName: string;
   code: string;
   dayRatios: number[];
-  groupName?: string;
+  groupNames?: string[];
 }) {
   return (
     <div>
       <div>
         {firstName} · #{code}
-        {groupName && (
+        {groupNames?.map((name) => (
           <span
+            key={name}
             style={{
               marginLeft: 8,
               fontSize: 11,
@@ -255,9 +250,9 @@ function NameGauge({
               borderRadius: 999,
             }}
           >
-            {groupName}
+            {name}
           </span>
-        )}
+        ))}
       </div>
       <div style={{ marginTop: 6, display: "flex", gap: 3 }}>
         {dayRatios.map((ratio, d) => (
@@ -392,8 +387,8 @@ async function PersonalSpace({
   }
 
   const groupAssignment = await getGroupAssignment(formationId);
-  // Le groupe n'est visible que pour le staff (formateur/directeur), jamais pour le stagiaire lui-même.
-  const groupName = canEditEvaluations ? groupAssignment.groupByPlayerId[playerId] : undefined;
+  // Les groupes ne sont visibles que pour le staff (formateur/directeur), jamais pour le stagiaire lui-même.
+  const groupNames = canEditEvaluations ? groupAssignment.groupsByPlayerId[playerId] : undefined;
 
   const initialDay =
     requestedDay !== undefined && Number.isInteger(requestedDay) && requestedDay >= 0 && requestedDay < dayCount
@@ -443,8 +438,9 @@ async function PersonalSpace({
       </div>
       <p className="sub" style={{ marginBottom: 12 }}>
         {subLabel ? `${subLabel} · ` : ""}#{code}
-        {groupName && (
+        {groupNames?.map((name) => (
           <span
+            key={name}
             style={{
               marginLeft: 8,
               fontSize: 12,
@@ -455,9 +451,9 @@ async function PersonalSpace({
               borderRadius: 999,
             }}
           >
-            {groupName}
+            {name}
           </span>
-        )}
+        ))}
       </p>
 
       <PersonalSpaceBody
@@ -491,7 +487,7 @@ function StagiaireList({
   dailyFillRatio,
   dailyTrend,
   abandonedCount,
-  groupByPlayerId,
+  groupsByPlayerId,
 }: {
   players: { id: string; firstName: string; code: string; ems: string; retourEms: string; finalAppraisal: string; complementaryNote: string }[];
   showLogout: boolean;
@@ -499,7 +495,7 @@ function StagiaireList({
   dailyFillRatio: (playerId: string, day: number) => number;
   dailyTrend: (playerId: string, day: number) => number | null;
   abandonedCount: number;
-  groupByPlayerId: Record<string, string>;
+  groupsByPlayerId: Record<string, string[]>;
 }) {
   return (
     <>
@@ -551,7 +547,7 @@ function StagiaireList({
                   firstName={p.firstName}
                   code={p.code}
                   dayRatios={Array.from({ length: dayCount }, (_, d) => dailyFillRatio(p.id, d))}
-                  groupName={groupByPlayerId[p.id]}
+                  groupNames={groupsByPlayerId[p.id]}
                 />
               </Link>
               <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
@@ -633,22 +629,32 @@ export default async function BafaPage({
   const isDirector = !!player && player.role === "DIRECTEUR";
 
   if (showGroups && isStaff) {
-    const [config, stagiaires] = await Promise.all([
-      prisma.config.findUnique({ where: { formationId_key: { formationId, key: "stagiaireGroups" } } }),
+    const [groupRows, stagiaires, staffList] = await Promise.all([
+      prisma.group.findMany({
+        where: { formationId },
+        orderBy: { createdAt: "asc" },
+        include: {
+          members: { include: { player: { select: { id: true, firstName: true } } } },
+          staff: { include: { player: { select: { id: true, firstName: true } } } },
+        },
+      }),
       prisma.player.findMany({
         where: { formationId, role: "STAGIAIRE", active: true },
         orderBy: { firstName: "asc" },
         select: { id: true, firstName: true },
       }),
+      prisma.player.findMany({
+        where: { formationId, role: { in: ["FORMATEUR", "DIRECTEUR"] } },
+        orderBy: { firstName: "asc" },
+        select: { id: true, firstName: true },
+      }),
     ]);
-    let assignment: unknown = null;
-    if (config) {
-      try {
-        assignment = JSON.parse(config.value);
-      } catch {
-        assignment = null;
-      }
-    }
+    const initialGroups = groupRows.map((g) => ({
+      id: g.id,
+      name: g.name,
+      members: g.members.map((m) => m.player),
+      staff: g.staff.map((s) => s.player),
+    }));
 
     return (
       <main className="page">
@@ -670,7 +676,7 @@ export default async function BafaPage({
             Répartition des stagiaires en groupes, aléatoire ou manuelle.
           </p>
           <TabNav active="groupes" showGroups={isStaff} showAdmin={isDirector} />
-          <GroupGenerator initialAssignment={assignment} stagiaires={stagiaires} />
+          <GroupGenerator initialGroups={initialGroups} stagiaires={stagiaires} staffList={staffList} />
         </div>
       </main>
     );
@@ -697,7 +703,7 @@ export default async function BafaPage({
   }
 
   if (showPlanning) {
-    const [blocks, configRows, postes, criteria, criterionStates, staff] = await Promise.all([
+    const [blocks, configRows, postes, criteria, criterionStates, staff, groups] = await Promise.all([
       prisma.planningBlock.findMany({ where: { formationId }, orderBy: { startMin: "asc" } }),
       prisma.config.findMany({
         where: { formationId, key: { in: ["planningSessionType", "planningStartDate", "planningHoursTablePos"] } },
@@ -709,6 +715,11 @@ export default async function BafaPage({
         where: { formationId, role: { in: ["FORMATEUR", "DIRECTEUR"] } },
         orderBy: { firstName: "asc" },
         select: { id: true, firstName: true },
+      }),
+      prisma.group.findMany({
+        where: { formationId },
+        orderBy: { createdAt: "asc" },
+        select: { id: true, name: true },
       }),
     ]);
     const sessionType = configRows.find((r) => r.key === "planningSessionType")?.value ?? DEFAULT_SESSION_TYPE;
@@ -760,6 +771,7 @@ export default async function BafaPage({
             sessionType={sessionType}
             startDate={startDate}
             staff={staff}
+            groups={groups}
           />
         </div>
       </main>
@@ -865,7 +877,7 @@ export default async function BafaPage({
     const dayCount = daysForType(sessionType);
     const { dailyFillRatio, dailyTrend } = await getStagiaireIndicators(dayCount, formationId);
 
-    const { groupByPlayerId } = groupAssignment;
+    const { groupsByPlayerId } = groupAssignment;
 
     return (
       <main className="page">
@@ -875,7 +887,7 @@ export default async function BafaPage({
             players={players}
             showLogout={!!player}
             dayCount={dayCount}
-            groupByPlayerId={groupByPlayerId}
+            groupsByPlayerId={groupsByPlayerId}
             dailyFillRatio={dailyFillRatio}
             dailyTrend={dailyTrend}
             abandonedCount={abandonedCount}

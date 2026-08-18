@@ -22,9 +22,11 @@ export type Block = {
   label: string;
   type: string;
   responsibleStaffId: string | null;
+  groupId: string | null;
 };
 
 export type StaffOption = { id: string; firstName: string };
+export type GroupOption = { id: string; name: string };
 
 export type Poste = {
   id: string;
@@ -146,6 +148,7 @@ export default function PlanningTab({
   sessionType,
   startDate,
   staff,
+  groups,
 }: {
   initialBlocks: Block[];
   initialPostes: Poste[];
@@ -155,6 +158,7 @@ export default function PlanningTab({
   sessionType: string;
   startDate: string;
   staff: StaffOption[];
+  groups: GroupOption[];
 }) {
   const router = useRouter();
   const [blocks, setBlocks] = useState<Block[]>(initialBlocks);
@@ -246,7 +250,7 @@ export default function PlanningTab({
       const tmpId = `tmp-${Date.now()}`;
       setBlocks((bs) => [
         ...bs,
-        { id: tmpId, day: d.day, startMin: start, endMin: end, label: poste.label, type: poste.id, responsibleStaffId: null },
+        { id: tmpId, day: d.day, startMin: start, endMin: end, label: poste.label, type: poste.id, responsibleStaffId: null, groupId: null },
       ]);
       const res = await fetch("/api/planning", {
         method: "POST",
@@ -827,6 +831,7 @@ export default function PlanningTab({
               block={editing}
               postes={postes}
               staff={staff}
+              groups={groups}
               onCancel={() => setEditing(null)}
               onSave={async (patch) => {
                 const id = editing.id;
@@ -1040,6 +1045,7 @@ function EditBlockForm({
   block,
   postes,
   staff,
+  groups,
   onSave,
   onCancel,
   onDelete,
@@ -1047,13 +1053,22 @@ function EditBlockForm({
   block: Block;
   postes: Poste[];
   staff: StaffOption[];
-  onSave: (patch: { label: string; type: string; startMin: number; endMin: number; responsibleStaffId: string | null }) => void;
+  groups: GroupOption[];
+  onSave: (patch: {
+    label: string;
+    type: string;
+    startMin: number;
+    endMin: number;
+    responsibleStaffId: string | null;
+    groupId: string | null;
+  }) => void;
   onCancel: () => void;
   onDelete: () => void;
 }) {
   const [label, setLabel] = useState(block.label);
   const [type, setType] = useState(block.type);
   const [responsibleStaffId, setResponsibleStaffId] = useState(block.responsibleStaffId);
+  const [groupId, setGroupId] = useState(block.groupId);
   const [start, setStart] = useState(fmt(block.startMin));
   const [end, setEnd] = useState(fmt(block.endMin));
   const [error, setError] = useState<string | null>(null);
@@ -1073,7 +1088,7 @@ function EditBlockForm({
       setError(`Le créneau doit rester entre ${fmt(DAY_START)} et ${fmt(DAY_END)}.`);
       return;
     }
-    onSave({ label: label.trim() || "Sans titre", type, startMin: snap(startMin), endMin: snap(endMin), responsibleStaffId });
+    onSave({ label: label.trim() || "Sans titre", type, startMin: snap(startMin), endMin: snap(endMin), responsibleStaffId, groupId });
   }
 
   return (
@@ -1128,6 +1143,27 @@ function EditBlockForm({
         <span style={{ fontSize: 12, color: "#94a3b8" }}>
           Une fois ce créneau terminé, un rappel s&apos;affichera à cette personne tant que les retours ne sont pas
           tous saisis.
+        </span>
+      </label>
+
+      <label className="sb-field">
+        <span>Groupe</span>
+        <select
+          value={groupId ?? ""}
+          onChange={(e) => setGroupId(e.target.value || null)}
+          style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #ddd" }}
+        >
+          <option value="">Aucun</option>
+          {groups.map((g) => (
+            <option key={g.id} value={g.id}>
+              {g.name}
+            </option>
+          ))}
+        </select>
+        <span style={{ fontSize: 12, color: "#94a3b8" }}>
+          Les formateurs rattachés à ce groupe verront ce créneau en priorité dans leur pop-up de rappel, et ce sont
+          les membres du groupe qui seront concernés par les retours (en plus du formateur responsable et de
+          l&apos;affectation manuelle ci-dessous, s&apos;ils sont aussi définis).
         </span>
       </label>
 
