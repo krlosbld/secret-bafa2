@@ -22,34 +22,55 @@ export function AdminSecretsPending({ secrets }: { secrets: Secret[] }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [showDecoyForm, setShowDecoyForm] = useState(false);
-  const [decoyName, setDecoyName] = useState("");
-  const [decoyContent, setDecoyContent] = useState("");
+  const [decoyProposal, setDecoyProposal] = useState<{ firstName: string; content: string } | null>(null);
   const [decoyPoints, setDecoyPoints] = useState(3);
   const [decoyError, setDecoyError] = useState("");
+  const [generatingDecoy, setGeneratingDecoy] = useState(false);
   const [creatingDecoy, setCreatingDecoy] = useState(false);
 
-  async function createDecoy() {
+  async function generateDecoy() {
     setDecoyError("");
-    if (!decoyName.trim() || !decoyContent.trim()) {
-      setDecoyError("Prénom et contenu obligatoires.");
-      return;
+    setGeneratingDecoy(true);
+    try {
+      const res = await fetch("/api/admin/secrets/decoy/generate", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setDecoyError(data?.error || "Erreur.");
+        return;
+      }
+      setDecoyProposal({ firstName: data.firstName, content: data.content });
+    } catch {
+      setDecoyError("Erreur réseau.");
+    } finally {
+      setGeneratingDecoy(false);
     }
+  }
+
+  function openDecoyForm() {
+    setShowDecoyForm(true);
+    setDecoyProposal(null);
+    setDecoyPoints(3);
+    setDecoyError("");
+    void generateDecoy();
+  }
+
+  async function createDecoy() {
+    if (!decoyProposal) return;
+    setDecoyError("");
     setCreatingDecoy(true);
     try {
       const res = await fetch("/api/admin/secrets/decoy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ firstName: decoyName.trim(), content: decoyContent.trim(), points: decoyPoints }),
+        body: JSON.stringify({ firstName: decoyProposal.firstName, content: decoyProposal.content, points: decoyPoints }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setDecoyError(data?.error || "Erreur.");
         return;
       }
-      setDecoyName("");
-      setDecoyContent("");
-      setDecoyPoints(3);
       setShowDecoyForm(false);
+      setDecoyProposal(null);
       router.refresh();
     } catch {
       setDecoyError("Erreur réseau.");
@@ -98,21 +119,30 @@ export function AdminSecretsPending({ secrets }: { secrets: Secret[] }) {
             {loadingAll ? "Validation…" : `✅ Tout valider (${secrets.length})`}
           </button>
         )}
-        <button className="btn btn-ghost" onClick={() => setShowDecoyForm((v) => !v)}>
-          🎭 Créer un faux secret
+        <button className="btn btn-ghost" onClick={() => (showDecoyForm ? setShowDecoyForm(false) : openDecoyForm())}>
+          🎭 Générer un faux secret
         </button>
       </div>
 
       {showDecoyForm && (
         <div className="card" style={{ marginBottom: 14 }}>
-          <label className="sb-field">
-            <span>Prénom affiché</span>
-            <input value={decoyName} onChange={(e) => setDecoyName(e.target.value)} maxLength={40} disabled={creatingDecoy} placeholder="Ex : Mystère" />
-          </label>
-          <label className="sb-field">
-            <span>Contenu du secret</span>
-            <textarea value={decoyContent} onChange={(e) => setDecoyContent(e.target.value)} rows={3} disabled={creatingDecoy} style={{ resize: "vertical" }} />
-          </label>
+          {generatingDecoy || !decoyProposal ? (
+            <p style={{ color: "#64748b", fontSize: 14 }}>Génération…</p>
+          ) : (
+            <>
+              <div className="row">
+                <div className="label">Prénom proposé</div>
+                <div className="value">{decoyProposal.firstName}</div>
+              </div>
+              <div className="row">
+                <div className="label">Secret proposé</div>
+                <div className="value">{decoyProposal.content}</div>
+              </div>
+              <button className="btn btn-ghost" onClick={generateDecoy} disabled={creatingDecoy} style={{ marginTop: 6, marginBottom: 6 }}>
+                🎲 Regénérer
+              </button>
+            </>
+          )}
           <label className="sb-field">
             <span>Points gagnés si trouvé</span>
             <input
@@ -134,7 +164,7 @@ export function AdminSecretsPending({ secrets }: { secrets: Secret[] }) {
             <button className="btn btn-ghost" onClick={() => setShowDecoyForm(false)} disabled={creatingDecoy}>
               Annuler
             </button>
-            <button className="btn btn-main" onClick={createDecoy} disabled={creatingDecoy}>
+            <button className="btn btn-main" onClick={createDecoy} disabled={creatingDecoy || !decoyProposal}>
               {creatingDecoy ? "Création…" : "Créer"}
             </button>
           </div>
