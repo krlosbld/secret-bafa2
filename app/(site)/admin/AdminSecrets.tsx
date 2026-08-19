@@ -9,6 +9,7 @@ type Secret = {
   bonus: number;
   status: string;
   flagged: boolean;
+  isDecoy: boolean;
   createdAt: string;
   player: { firstName: string; code: string };
   foundBy: { firstName: string } | null;
@@ -20,6 +21,42 @@ export function AdminSecretsPending({ secrets }: { secrets: Secret[] }) {
   const [loadingAll, setLoadingAll] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
+  const [showDecoyForm, setShowDecoyForm] = useState(false);
+  const [decoyName, setDecoyName] = useState("");
+  const [decoyContent, setDecoyContent] = useState("");
+  const [decoyPoints, setDecoyPoints] = useState(3);
+  const [decoyError, setDecoyError] = useState("");
+  const [creatingDecoy, setCreatingDecoy] = useState(false);
+
+  async function createDecoy() {
+    setDecoyError("");
+    if (!decoyName.trim() || !decoyContent.trim()) {
+      setDecoyError("Prénom et contenu obligatoires.");
+      return;
+    }
+    setCreatingDecoy(true);
+    try {
+      const res = await fetch("/api/admin/secrets/decoy", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ firstName: decoyName.trim(), content: decoyContent.trim(), points: decoyPoints }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setDecoyError(data?.error || "Erreur.");
+        return;
+      }
+      setDecoyName("");
+      setDecoyContent("");
+      setDecoyPoints(3);
+      setShowDecoyForm(false);
+      router.refresh();
+    } catch {
+      setDecoyError("Erreur réseau.");
+    } finally {
+      setCreatingDecoy(false);
+    }
+  }
 
   async function patch(id: string, data: object) {
     setLoading(id);
@@ -53,22 +90,68 @@ export function AdminSecretsPending({ secrets }: { secrets: Secret[] }) {
     setLoadingAll(false);
   }
 
-  if (secrets.length === 0)
-    return <p style={{ color: "#64748b", fontSize: 14 }}>Aucun secret en attente.</p>;
-
   return (
     <>
-      <button
-        className="btn btn-main"
-        onClick={publishAll}
-        disabled={loadingAll}
-        style={{ marginBottom: 14 }}
-      >
-        {loadingAll ? "Validation…" : `✅ Tout valider (${secrets.length})`}
-      </button>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
+        {secrets.length > 0 && (
+          <button className="btn btn-main" onClick={publishAll} disabled={loadingAll}>
+            {loadingAll ? "Validation…" : `✅ Tout valider (${secrets.length})`}
+          </button>
+        )}
+        <button className="btn btn-ghost" onClick={() => setShowDecoyForm((v) => !v)}>
+          🎭 Créer un faux secret
+        </button>
+      </div>
+
+      {showDecoyForm && (
+        <div className="card" style={{ marginBottom: 14 }}>
+          <label className="sb-field">
+            <span>Prénom affiché</span>
+            <input value={decoyName} onChange={(e) => setDecoyName(e.target.value)} maxLength={40} disabled={creatingDecoy} placeholder="Ex : Mystère" />
+          </label>
+          <label className="sb-field">
+            <span>Contenu du secret</span>
+            <textarea value={decoyContent} onChange={(e) => setDecoyContent(e.target.value)} rows={3} disabled={creatingDecoy} style={{ resize: "vertical" }} />
+          </label>
+          <label className="sb-field">
+            <span>Points gagnés si trouvé</span>
+            <input
+              type="number"
+              min={1}
+              max={20}
+              value={decoyPoints}
+              onChange={(e) => setDecoyPoints(Math.max(1, Math.min(20, Number(e.target.value) || 1)))}
+              disabled={creatingDecoy}
+              style={{ width: 90 }}
+            />
+          </label>
+          {decoyError && (
+            <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: 10, color: "#dc2626", fontWeight: 600, fontSize: 14, marginBottom: 10 }}>
+              {decoyError}
+            </div>
+          )}
+          <div className="sb-actions">
+            <button className="btn btn-ghost" onClick={() => setShowDecoyForm(false)} disabled={creatingDecoy}>
+              Annuler
+            </button>
+            <button className="btn btn-main" onClick={createDecoy} disabled={creatingDecoy}>
+              {creatingDecoy ? "Création…" : "Créer"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {secrets.length === 0 ? (
+        <p style={{ color: "#64748b", fontSize: 14 }}>Aucun secret en attente.</p>
+      ) : (
     <div className="cards">
       {secrets.map((s) => (
         <div className="card admin-card" key={s.id} style={s.flagged ? { borderLeftColor: "#f59e0b", background: "#fffbeb" } : undefined}>
+          {s.isDecoy && (
+            <div style={{ background: "#6b21a8", color: "#fff", fontWeight: 800, fontSize: 12, borderRadius: 6, padding: "3px 10px", marginBottom: 8, display: "inline-block" }}>
+              🎭 Faux secret
+            </div>
+          )}
           {s.flagged && (
             <div style={{ background: "#f59e0b", color: "#fff", fontWeight: 800, fontSize: 12, borderRadius: 6, padding: "3px 10px", marginBottom: 8, display: "inline-block" }}>
               ⚠️ Contenu à vérifier
@@ -102,8 +185,10 @@ export function AdminSecretsPending({ secrets }: { secrets: Secret[] }) {
             </div>
           </div>
           <div className="row">
-            <div className="label">Bonus</div>
-            <div className="value">+{s.bonus} pt{s.bonus > 1 ? "s" : ""}</div>
+            <div className="label">{s.isDecoy ? "Points" : "Bonus"}</div>
+            <div className="value">
+              {s.isDecoy ? s.bonus : `+${s.bonus}`} pt{s.bonus > 1 ? "s" : ""}
+            </div>
           </div>
           <div className="admin-actions" style={{ marginTop: 10 }}>
             <button
@@ -124,6 +209,7 @@ export function AdminSecretsPending({ secrets }: { secrets: Secret[] }) {
         </div>
       ))}
     </div>
+      )}
     </>
   );
 }
@@ -181,6 +267,11 @@ export function AdminSecretsPublished({ secrets }: { secrets: Secret[] }) {
           key={s.id}
           style={{ borderLeftColor: s.flagged ? "#f59e0b" : s.status === "FOUND" ? "#16a34a" : "#0f766e", background: s.flagged ? "#fffbeb" : undefined }}
         >
+          {s.isDecoy && (
+            <div style={{ background: "#6b21a8", color: "#fff", fontWeight: 800, fontSize: 12, borderRadius: 6, padding: "3px 10px", marginBottom: 8, display: "inline-block" }}>
+              🎭 Faux secret
+            </div>
+          )}
           {s.flagged && (
             <div style={{ background: "#f59e0b", color: "#fff", fontWeight: 800, fontSize: 12, borderRadius: 6, padding: "3px 10px", marginBottom: 8, display: "inline-block" }}>
               ⚠️ Contenu à vérifier
@@ -226,8 +317,10 @@ export function AdminSecretsPublished({ secrets }: { secrets: Secret[] }) {
             </div>
           </div>
           <div className="row">
-            <div className="label">Bonus</div>
-            <div className="value">+{s.bonus} pt{s.bonus > 1 ? "s" : ""}</div>
+            <div className="label">{s.isDecoy ? "Points" : "Bonus"}</div>
+            <div className="value">
+              {s.isDecoy ? s.bonus : `+${s.bonus}`} pt{s.bonus > 1 ? "s" : ""}
+            </div>
           </div>
           <div className="admin-actions" style={{ marginTop: 10 }}>
             <button

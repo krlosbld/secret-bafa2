@@ -45,7 +45,9 @@ export async function PATCH(req: Request, { params }: Params) {
         prisma.buzz.update({ where: { id: winner.id }, data: { status: "VALIDATED" } }),
         prisma.player.update({
           where: { id: winner.fromPlayerId },
-          data: { points: { increment: 2 + buzz.secret.bonus } },
+          // Un faux secret porte directement, dans `bonus`, le nombre total de points choisi par
+          // l'admin à sa création — pas le "+2" de base des vrais secrets.
+          data: { points: { increment: buzz.secret.isDecoy ? buzz.secret.bonus : 2 + buzz.secret.bonus } },
         }),
         prisma.secret.update({
           where: { id: buzz.secretId },

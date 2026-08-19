@@ -7,6 +7,7 @@ export default function BuzzButton({ secretId }: { secretId: string }) {
   const [fromName, setFromName] = useState("");
   const [fromCode, setFromCode] = useState("");
   const [guessedName, setGuessedName] = useState("");
+  const [claimFake, setClaimFake] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -14,12 +15,18 @@ export default function BuzzButton({ secretId }: { secretId: string }) {
   function handleOpen() {
     setError("");
     setSuccess(false);
+    setClaimFake(false);
     setOpen(true);
   }
 
   async function sendBuzz() {
     setError("");
-    if (!fromName.trim() || !fromCode.trim() || !guessedName.trim()) {
+    if (claimFake) {
+      if (!fromCode.trim()) {
+        setError("Ton code personnel est requis.");
+        return;
+      }
+    } else if (!fromName.trim() || !fromCode.trim() || !guessedName.trim()) {
       setError("Tous les champs sont requis.");
       return;
     }
@@ -28,7 +35,9 @@ export default function BuzzButton({ secretId }: { secretId: string }) {
       const res = await fetch("/api/buzz", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ secretId, fromName, fromCode, guessedName }),
+        body: JSON.stringify(
+          claimFake ? { secretId, fromCode, claimFake: true } : { secretId, fromName, fromCode, guessedName }
+        ),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -106,16 +115,18 @@ export default function BuzzButton({ secretId }: { secretId: string }) {
                   Utilise le code reçu quand tu as soumis ton secret.
                 </p>
 
-                <label className="sb-field">
-                  <span>Ton prénom</span>
-                  <input
-                    value={fromName}
-                    onChange={(e) => setFromName(e.target.value)}
-                    placeholder="Ex : Lucas"
-                    maxLength={40}
-                    disabled={loading}
-                  />
-                </label>
+                {!claimFake && (
+                  <label className="sb-field">
+                    <span>Ton prénom</span>
+                    <input
+                      value={fromName}
+                      onChange={(e) => setFromName(e.target.value)}
+                      placeholder="Ex : Lucas"
+                      maxLength={40}
+                      disabled={loading}
+                    />
+                  </label>
+                )}
 
                 <label className="sb-field">
                   <span>Ton code personnel</span>
@@ -130,16 +141,39 @@ export default function BuzzButton({ secretId }: { secretId: string }) {
                   />
                 </label>
 
-                <label className="sb-field">
-                  <span>À qui appartient ce secret ?</span>
-                  <input
-                    value={guessedName}
-                    onChange={(e) => setGuessedName(e.target.value)}
-                    placeholder="Prénom de la personne"
-                    maxLength={40}
-                    disabled={loading}
-                  />
-                </label>
+                {!claimFake && (
+                  <label className="sb-field">
+                    <span>À qui appartient ce secret ?</span>
+                    <input
+                      value={guessedName}
+                      onChange={(e) => setGuessedName(e.target.value)}
+                      placeholder="Prénom de la personne"
+                      maxLength={40}
+                      disabled={loading}
+                    />
+                  </label>
+                )}
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError("");
+                    setClaimFake((v) => !v);
+                  }}
+                  disabled={loading}
+                  style={{
+                    background: "none",
+                    border: "none",
+                    color: "#6b21a8",
+                    fontWeight: 700,
+                    fontSize: 13,
+                    cursor: "pointer",
+                    textAlign: "left",
+                    padding: 0,
+                  }}
+                >
+                  {claimFake ? "← Revenir au buzz classique" : "🎭 Je pense que c'est un faux secret"}
+                </button>
 
                 {error && (
                   <div
@@ -179,7 +213,7 @@ export default function BuzzButton({ secretId }: { secretId: string }) {
                       opacity: loading ? 0.7 : 1,
                     }}
                   >
-                    {loading ? "Envoi..." : "Envoyer le buzz"}
+                    {loading ? "Envoi..." : claimFake ? "Confirmer" : "Envoyer le buzz"}
                   </button>
                 </div>
               </div>

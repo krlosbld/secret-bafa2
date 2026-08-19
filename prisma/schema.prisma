@@ -156,6 +156,7 @@ model Secret {
   bonus           Int        @default(1)
   status          String     @default("PENDING") // PENDING | PUBLISHED | FOUND
   flagged         Boolean    @default(false)
+  isDecoy         Boolean    @default(false) // faux secret créé par l'admin, sans vrai joueur derrière
   foundByPlayerId String?
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt

@@ -31,11 +31,13 @@ export async function POST(req: Request) {
 
     const body = await req.json();
     const secretId = String(body.secretId ?? "").trim();
+    const claimFake = body.claimFake === true;
     const fromName = String(body.fromName ?? "").trim();
     const fromCode = String(body.fromCode ?? "").trim();
-    const guessedName = String(body.guessedName ?? "").trim();
+    const guessedName = claimFake ? "🎭 Pense que c'est un faux secret" : String(body.guessedName ?? "").trim();
 
-    if (!secretId || !fromName || !fromCode || !guessedName) {
+    const missingFields = claimFake ? !secretId || !fromCode : !secretId || !fromName || !fromCode || !guessedName;
+    if (missingFields) {
       return NextResponse.json({ error: "Champs manquants." }, { status: 400 });
     }
 
@@ -71,8 +73,9 @@ export async function POST(req: Request) {
       );
     }
 
-    // Vérifier que le prénom correspond au code (fuzzy)
-    if (!fuzzyMatch(fromName, player.firstName)) {
+    // Vérifier que le prénom correspond au code (fuzzy) — inutile en mode "faux secret", le code
+    // suffit déjà à identifier le joueur sans lui redemander son prénom.
+    if (!claimFake && !fuzzyMatch(fromName, player.firstName)) {
       return NextResponse.json(
         { error: "Le code ne correspond pas à ce prénom." },
         { status: 400 }
@@ -114,20 +117,23 @@ export async function POST(req: Request) {
 
     // Chaque personne n'a qu'un seul secret : si celui de la personne devinée a déjà été trouvé
     // (sur n'importe quel autre secret), cette réponse ne peut plus être correcte nulle part.
-    const foundSecrets = await prisma.secret.findMany({
-      where: { formationId, status: "FOUND" },
-      include: { player: { select: { firstName: true } } },
-    });
-    const alreadyFound = foundSecrets.find((s) => fuzzyMatch(guessedName, s.player.firstName));
-    if (alreadyFound) {
-      return NextResponse.json(
-        { error: `Le secret de ${alreadyFound.player.firstName} a déjà été trouvé — ce n'est plus une réponse possible.` },
-        { status: 400 }
-      );
+    // Non pertinent en mode "faux secret", qui ne devine aucun nom.
+    if (!claimFake) {
+      const foundSecrets = await prisma.secret.findMany({
+        where: { formationId, status: "FOUND" },
+        include: { player: { select: { firstName: true } } },
+      });
+      const alreadyFound = foundSecrets.find((s) => fuzzyMatch(guessedName, s.player.firstName));
+      if (alreadyFound) {
+        return NextResponse.json(
+          { error: `Le secret de ${alreadyFound.player.firstName} a déjà été trouvé — ce n'est plus une réponse possible.` },
+          { status: 400 }
+        );
+      }
     }
 
     // Calculer si la réponse est correcte
-    const isCorrect = fuzzyMatch(guessedName, secret.player.firstName);
+    const isCorrect = claimFake ? secret.isDecoy : fuzzyMatch(guessedName, secret.player.firstName);
 
     // Créer le buzz et incrémenter le compteur
     await prisma.$transaction([
@@ -150,7 +156,9 @@ export async function POST(req: Request) {
     const token = process.env.TELEGRAM_BOT_TOKEN;
     const chatId = process.env.TELEGRAM_CHAT_ID;
     if (token && chatId) {
-      const msg = `🔔 Nouveau buzz !\n👤 ${player.firstName} devine : "${guessedName}"`;
+      const msg = claimFake
+        ? `🔔 Nouveau buzz !\n👤 ${player.firstName} pense que c'est un faux secret 🎭`
+        : `🔔 Nouveau buzz !\n👤 ${player.firstName} devine : "${guessedName}"`;
       await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
