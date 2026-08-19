@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getFormationFromCookie, hasNotStartedYet } from "@/lib/formationSession";
 import SessionCodeGate from "@/components/SessionCodeGate";
+import FakeSecretAnnouncement from "@/components/FakeSecretAnnouncement";
 import SecretsClient from "./SecretsClient";
 
 export const dynamic = "force-dynamic";
@@ -27,6 +28,7 @@ export default async function HomePage() {
 
   return (
     <main className="page">
+      <FakeSecretAnnouncement />
       <div className="container">
         <h1 className="h1">KiCéKi 🤫</h1>
         <p className="sub">
