@@ -59,7 +59,11 @@ export default function EvaluationBoard({
     const data = await res.json().catch(() => null);
     const finalNote = typeof data?.evaluation?.note === "string" ? data.evaluation.note : note;
     setNotes((n) => ({ ...n, [blockId]: finalNote }));
-    setDrafts((d) => ({ ...d, [blockId]: finalNote }));
+    // On ne touche au brouillon affiché que si le serveur a dû fusionner (conflit réel) — sinon on
+    // écraserait ce que l'utilisateur a tapé depuis l'envoi de cette requête (course avec l'auto-save).
+    if (data?.merged) {
+      setDrafts((d) => ({ ...d, [blockId]: finalNote }));
+    }
     setSaving(null);
     setSavedFlash(blockId);
     setTimeout(() => setSavedFlash((v) => (v === blockId ? null : v)), 1500);

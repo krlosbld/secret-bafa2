@@ -70,7 +70,11 @@ export default function DailyRemarkBox({
     const data = await res.json().catch(() => null);
     const finalNote = typeof data?.remark?.note === "string" ? data.remark.note : draft;
     setNotes((n) => ({ ...n, [day]: finalNote }));
-    setDraft(finalNote);
+    // On ne touche au brouillon affiché que si le serveur a dû fusionner (conflit réel) — sinon on
+    // écraserait ce que l'utilisateur a tapé depuis l'envoi de cette requête (course avec l'auto-save).
+    if (data?.merged) {
+      setDraft(finalNote);
+    }
     setSaving(false);
     setSavedFlash(true);
     setTimeout(() => setSavedFlash(false), 1500);

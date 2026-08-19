@@ -83,11 +83,16 @@ export default function PlayerNotesPanel({
     const data = await res.json().catch(() => null);
     const finalValue = typeof data?.saved?.[field] === "string" ? data.saved[field] : value;
     setNotes((n) => ({ ...n, [field]: finalValue }));
-    setDrafts((d) => ({ ...d, [field]: finalValue }));
+    const merged = !!data?.conflicts?.includes(field);
+    // On ne touche au brouillon affiché que si le serveur a dû fusionner (conflit réel) — sinon on
+    // écraserait ce que l'utilisateur a tapé depuis l'envoi de cette requête (course avec l'auto-save).
+    if (merged) {
+      setDrafts((d) => ({ ...d, [field]: finalValue }));
+    }
     setSaving(null);
     setSavedFlash(field);
     setTimeout(() => setSavedFlash((v) => (v === field ? null : v)), 1500);
-    if (data?.conflicts?.includes(field)) {
+    if (merged) {
       setConflictFlash(field);
       setTimeout(() => setConflictFlash((v) => (v === field ? null : v)), 5000);
     }
