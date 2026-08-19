@@ -164,8 +164,9 @@ export default function GroupGenerator({
   }
 
   function openBulkAdd(groupId: string) {
+    const group = groups.find((g) => g.id === groupId);
     setBulkAddGroupId(groupId);
-    setBulkAddSelected(new Set());
+    setBulkAddSelected(new Set(group?.members.map((m) => m.id) ?? []));
   }
 
   function toggleBulkSelected(playerId: string) {
@@ -178,15 +179,20 @@ export default function GroupGenerator({
   }
 
   async function confirmBulkAdd() {
-    if (!bulkAddGroupId || bulkAddSelected.size === 0) {
+    if (!bulkAddGroupId) return;
+    const groupId = bulkAddGroupId;
+    const group = groups.find((g) => g.id === groupId);
+    const originalIds = new Set(group?.members.map((m) => m.id) ?? []);
+    const toAdd = [...bulkAddSelected].filter((id) => !originalIds.has(id));
+    const toRemove = [...originalIds].filter((id) => !bulkAddSelected.has(id));
+    if (toAdd.length === 0 && toRemove.length === 0) {
       setBulkAddGroupId(null);
       return;
     }
     setAddingBulk(true);
     try {
-      for (const playerId of bulkAddSelected) {
-        await addMember(bulkAddGroupId, playerId);
-      }
+      for (const playerId of toAdd) await addMember(groupId, playerId);
+      for (const playerId of toRemove) await removeMember(groupId, playerId);
     } finally {
       setAddingBulk(false);
       setBulkAddGroupId(null);
@@ -456,38 +462,35 @@ export default function GroupGenerator({
 
       {bulkAddGroupId && (() => {
         const group = groups.find((g) => g.id === bulkAddGroupId);
-        const available = stagiaires.filter((s) => !group?.members.some((m) => m.id === s.id));
         return (
           <div className="sb-backdrop" onMouseDown={() => setBulkAddGroupId(null)}>
             <div className="sb-modal" onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: 420, maxHeight: "80vh", overflowY: "auto" }}>
               <div className="sb-modal__header">
-                <h2>☑️ Ajouter des stagiaires — {group?.name}</h2>
+                <h2>☑️ Stagiaires — {group?.name}</h2>
                 <button className="sb-x" onClick={() => setBulkAddGroupId(null)}>
                   ✕
                 </button>
               </div>
-              <p className="sb-help">Coche les stagiaires à ajouter à ce groupe, puis valide.</p>
-              {available.length === 0 ? (
-                <p style={{ color: "#64748b", fontSize: 14 }}>Tous les stagiaires sont déjà dans ce groupe.</p>
-              ) : (
-                <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-                  {available.map((s) => (
-                    <label
-                      key={s.id}
-                      style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 4px", cursor: "pointer", fontSize: 14 }}
-                    >
-                      <input type="checkbox" checked={bulkAddSelected.has(s.id)} onChange={() => toggleBulkSelected(s.id)} />
-                      {s.firstName}
-                    </label>
-                  ))}
-                </div>
-              )}
+              <p className="sb-help">
+                Les stagiaires déjà dans le groupe sont cochés. Coche ou décoche pour ajouter/retirer, puis valide.
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                {stagiaires.map((s) => (
+                  <label
+                    key={s.id}
+                    style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 4px", cursor: "pointer", fontSize: 14 }}
+                  >
+                    <input type="checkbox" checked={bulkAddSelected.has(s.id)} onChange={() => toggleBulkSelected(s.id)} />
+                    {s.firstName}
+                  </label>
+                ))}
+              </div>
               <div className="sb-actions">
                 <button className="sb-btn sb-btn--ghost" onClick={() => setBulkAddGroupId(null)} disabled={addingBulk}>
                   Annuler
                 </button>
-                <button className="sb-btn sb-btn--main" onClick={confirmBulkAdd} disabled={addingBulk || bulkAddSelected.size === 0}>
-                  {addingBulk ? "Ajout…" : `Ajouter (${bulkAddSelected.size})`}
+                <button className="sb-btn sb-btn--main" onClick={confirmBulkAdd} disabled={addingBulk}>
+                  {addingBulk ? "Enregistrement…" : "Valider"}
                 </button>
               </div>
             </div>
