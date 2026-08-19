@@ -704,7 +704,11 @@ export default async function BafaPage({
 
   if (showPlanning) {
     const [blocks, configRows, postes, criteria, criterionStates, staff, groups] = await Promise.all([
-      prisma.planningBlock.findMany({ where: { formationId }, orderBy: { startMin: "asc" } }),
+      prisma.planningBlock.findMany({
+        where: { formationId },
+        orderBy: { startMin: "asc" },
+        include: { responsibleStaff: { select: { playerId: true } } },
+      }),
       prisma.config.findMany({
         where: { formationId, key: { in: ["planningSessionType", "planningStartDate", "planningHoursTablePos"] } },
       }),
@@ -722,6 +726,10 @@ export default async function BafaPage({
         select: { id: true, name: true },
       }),
     ]);
+    const blocksWithStaffIds = blocks.map((b) => ({
+      ...b,
+      responsibleStaffIds: b.responsibleStaff.map((r) => r.playerId),
+    }));
     const sessionType = configRows.find((r) => r.key === "planningSessionType")?.value ?? DEFAULT_SESSION_TYPE;
     const startDate = configRows.find((r) => r.key === "planningStartDate")?.value ?? todayISO();
     const hoursTablePosRaw = configRows.find((r) => r.key === "planningHoursTablePos")?.value;
@@ -752,7 +760,7 @@ export default async function BafaPage({
           </div>
           {isStaff && (
             <PlanningHoursTable
-              initialBlocks={blocks}
+              initialBlocks={blocksWithStaffIds}
               initialPostes={postes}
               dayCount={daysForType(sessionType)}
               canEdit={isStaff}
@@ -763,7 +771,7 @@ export default async function BafaPage({
           )}
           <TabNav active="planning" showGroups={isStaff} showAdmin={isDirector} />
           <PlanningTab
-            initialBlocks={blocks}
+            initialBlocks={blocksWithStaffIds}
             initialPostes={postes}
             initialCriteria={criteria}
             initialCriterionStates={criterionStates}

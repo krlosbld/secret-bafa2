@@ -21,7 +21,7 @@ export type Block = {
   endMin: number;
   label: string;
   type: string;
-  responsibleStaffId: string | null;
+  responsibleStaffIds: string[];
   groupId: string | null;
 };
 
@@ -234,7 +234,7 @@ export default function PlanningTab({
     });
     const data = await res.json().catch(() => ({}));
     if (res.ok && data.block) {
-      setBlocks((bs) => bs.map((x) => (x.id === tmpId ? data.block : x)));
+      setBlocks((bs) => bs.map((x) => (x.id === tmpId ? { ...data.block, responsibleStaffIds: [] } : x)));
     } else {
       setBlocks((bs) => bs.filter((x) => x.id !== tmpId));
     }
@@ -250,7 +250,7 @@ export default function PlanningTab({
       const tmpId = `tmp-${Date.now()}`;
       setBlocks((bs) => [
         ...bs,
-        { id: tmpId, day: d.day, startMin: start, endMin: end, label: poste.label, type: poste.id, responsibleStaffId: null, groupId: null },
+        { id: tmpId, day: d.day, startMin: start, endMin: end, label: poste.label, type: poste.id, responsibleStaffIds: [], groupId: null },
       ]);
       const res = await fetch("/api/planning", {
         method: "POST",
@@ -259,7 +259,7 @@ export default function PlanningTab({
       });
       const data = await res.json().catch(() => ({}));
       if (res.ok && data.block) {
-        setBlocks((bs) => bs.map((b) => (b.id === tmpId ? data.block : b)));
+        setBlocks((bs) => bs.map((b) => (b.id === tmpId ? { ...data.block, responsibleStaffIds: [] } : b)));
       } else {
         setBlocks((bs) => bs.filter((b) => b.id !== tmpId));
       }
@@ -1059,7 +1059,7 @@ function EditBlockForm({
     type: string;
     startMin: number;
     endMin: number;
-    responsibleStaffId: string | null;
+    responsibleStaffIds: string[];
     groupId: string | null;
   }) => void;
   onCancel: () => void;
@@ -1067,7 +1067,7 @@ function EditBlockForm({
 }) {
   const [label, setLabel] = useState(block.label);
   const [type, setType] = useState(block.type);
-  const [responsibleStaffId, setResponsibleStaffId] = useState(block.responsibleStaffId);
+  const [responsibleStaffIds, setResponsibleStaffIds] = useState(block.responsibleStaffIds);
   const [groupId, setGroupId] = useState(block.groupId);
   const [start, setStart] = useState(fmt(block.startMin));
   const [end, setEnd] = useState(fmt(block.endMin));
@@ -1088,7 +1088,7 @@ function EditBlockForm({
       setError(`Le créneau doit rester entre ${fmt(DAY_START)} et ${fmt(DAY_END)}.`);
       return;
     }
-    onSave({ label: label.trim() || "Sans titre", type, startMin: snap(startMin), endMin: snap(endMin), responsibleStaffId, groupId });
+    onSave({ label: label.trim() || "Sans titre", type, startMin: snap(startMin), endMin: snap(endMin), responsibleStaffIds, groupId });
   }
 
   return (
@@ -1127,22 +1127,60 @@ function EditBlockForm({
       )}
 
       <label className="sb-field">
-        <span>Formateur responsable</span>
+        <span>Formateurs responsables</span>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 6, marginBottom: responsibleStaffIds.length > 0 ? 6 : 0 }}>
+          {responsibleStaffIds.map((id) => {
+            const person = staff.find((s) => s.id === id);
+            if (!person) return null;
+            return (
+              <span
+                key={id}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 4,
+                  background: "#f1f5f9",
+                  border: "1px solid #cbd5e1",
+                  borderRadius: 8,
+                  padding: "3px 6px 3px 10px",
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "#1f2937",
+                }}
+              >
+                {person.firstName}
+                <button
+                  type="button"
+                  onClick={() => setResponsibleStaffIds((ids) => ids.filter((i) => i !== id))}
+                  title="Retirer"
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "#94a3b8", fontSize: 13, padding: 0 }}
+                >
+                  ×
+                </button>
+              </span>
+            );
+          })}
+        </div>
         <select
-          value={responsibleStaffId ?? ""}
-          onChange={(e) => setResponsibleStaffId(e.target.value || null)}
+          value=""
+          onChange={(e) => {
+            const id = e.target.value;
+            if (id) setResponsibleStaffIds((ids) => (ids.includes(id) ? ids : [...ids, id]));
+          }}
           style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #ddd" }}
         >
-          <option value="">Aucun</option>
-          {staff.map((s) => (
-            <option key={s.id} value={s.id}>
-              {s.firstName}
-            </option>
-          ))}
+          <option value="">+ Ajouter un formateur…</option>
+          {staff
+            .filter((s) => !responsibleStaffIds.includes(s.id))
+            .map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.firstName}
+              </option>
+            ))}
         </select>
         <span style={{ fontSize: 12, color: "#94a3b8" }}>
-          Une fois ce créneau terminé, un rappel s&apos;affichera à cette personne tant que les retours ne sont pas
-          tous saisis.
+          Une fois ce créneau terminé, un rappel s&apos;affichera à chacune de ces personnes tant que les retours ne
+          sont pas tous saisis.
         </span>
       </label>
 
@@ -1162,7 +1200,7 @@ function EditBlockForm({
         </select>
         <span style={{ fontSize: 12, color: "#94a3b8" }}>
           Les formateurs rattachés à ce groupe verront ce créneau en priorité dans leur pop-up de rappel, et ce sont
-          les membres du groupe qui seront concernés par les retours (en plus du formateur responsable et de
+          les membres du groupe qui seront concernés par les retours (en plus des formateurs responsables et de
           l&apos;affectation manuelle ci-dessous, s&apos;ils sont aussi définis).
         </span>
       </label>

@@ -48,8 +48,8 @@ export async function getPendingEvaluations(playerId: string): Promise<PendingBl
       where: {
         formationId,
         OR: [
-          { responsibleStaffId: playerId },
-          { responsibleStaffId: null, groupId: null },
+          { responsibleStaff: { some: { playerId } } },
+          { responsibleStaff: { none: {} }, groupId: null },
           { groupId: { in: staffGroupIds } },
         ],
       },

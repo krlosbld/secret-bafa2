@@ -41,16 +41,17 @@ export async function PATCH(req: Request, { params }: Params) {
   if (typeof body.type === "string" && body.type.length > 0) {
     data.type = body.type;
   }
-  if (body.responsibleStaffId === null) {
-    data.responsibleStaffId = null;
-  } else if (typeof body.responsibleStaffId === "string" && body.responsibleStaffId.length > 0) {
-    const staff = await prisma.player.findUnique({
-      where: { id: body.responsibleStaffId },
-      select: { formationId: true, role: true },
-    });
-    if (staff && staff.formationId === auth.formationId && (staff.role === "FORMATEUR" || staff.role === "DIRECTEUR")) {
-      data.responsibleStaffId = body.responsibleStaffId;
-    }
+  let nextResponsibleStaffIds: string[] | null = null;
+  if (Array.isArray(body.responsibleStaffIds)) {
+    const rawIds = body.responsibleStaffIds as unknown[];
+    const ids: string[] = [...new Set(rawIds.filter((x): x is string => typeof x === "string"))];
+    const validStaff = ids.length
+      ? await prisma.player.findMany({
+          where: { id: { in: ids }, formationId: auth.formationId, role: { in: ["FORMATEUR", "DIRECTEUR"] } },
+          select: { id: true },
+        })
+      : [];
+    nextResponsibleStaffIds = validStaff.map((s) => s.id);
   }
   if (body.groupId === null) {
     data.groupId = null;
@@ -61,7 +62,7 @@ export async function PATCH(req: Request, { params }: Params) {
     }
   }
 
-  if (Object.keys(data).length === 0) {
+  if (Object.keys(data).length === 0 && nextResponsibleStaffIds === null) {
     return NextResponse.json({ error: "Aucun champ valide." }, { status: 400 });
   }
 
@@ -72,8 +73,20 @@ export async function PATCH(req: Request, { params }: Params) {
   }
 
   await snapshotPlanning(auth.formationId);
-  const updated = await prisma.planningBlock.update({ where: { id }, data });
-  return NextResponse.json({ ok: true, block: updated });
+  const [updated] = await prisma.$transaction([
+    prisma.planningBlock.update({ where: { id }, data }),
+    ...(nextResponsibleStaffIds !== null
+      ? [
+          prisma.blockStaff.deleteMany({ where: { blockId: id } }),
+          prisma.blockStaff.createMany({ data: nextResponsibleStaffIds.map((playerId) => ({ blockId: id, playerId })) }),
+        ]
+      : []),
+  ]);
+  return NextResponse.json({
+    ok: true,
+    block: updated,
+    responsibleStaffIds: nextResponsibleStaffIds,
+  });
 }
 
 export async function DELETE(_req: Request, { params }: Params) {

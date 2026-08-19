@@ -114,7 +114,7 @@ model Player {
   evaluations      Evaluation[]
   criterionRatings CriterionRating[]
   blockAssignments BlockAssignment[]
-  responsibleBlocks PlanningBlock[] @relation("BlockResponsible")
+  responsibleBlockStaff BlockStaff[]
   dailyRemarks     DailyRemark[]
   groupMemberships GroupMember[]
   groupStaffRoles  GroupStaff[]
@@ -207,18 +207,30 @@ model PlanningBlock {
   endMin             Int
   label              String
   type               String // id du PosteType
-  responsibleStaffId String? // formateur/directeur à relancer pour saisir les retours une fois le créneau passé
   groupId            String? // groupe rattaché — ses formateurs voient ce créneau en priorité dans le pop-up
   createdAt          DateTime          @default(now())
   updatedAt          DateTime          @updatedAt
   formation          Formation         @relation(fields: [formationId], references: [id], onDelete: Cascade)
-  responsibleStaff   Player?           @relation("BlockResponsible", fields: [responsibleStaffId], references: [id], onDelete: SetNull)
+  responsibleStaff   BlockStaff[] // formateurs/directeurs à relancer pour saisir les retours une fois le créneau passé
   group              Group?            @relation(fields: [groupId], references: [id], onDelete: SetNull)
   evaluations        Evaluation[]
   assignments        BlockAssignment[]
 
   @@index([day])
   @@index([formationId])
+}
+
+// Formateurs/directeurs responsables d'un créneau — plusieurs possibles par créneau, chacun voit ce
+// créneau dans son pop-up de rappel une fois passé.
+model BlockStaff {
+  id       String        @id @default(cuid())
+  blockId  String
+  playerId String
+  block    PlanningBlock @relation(fields: [blockId], references: [id], onDelete: Cascade)
+  player   Player        @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([blockId, playerId])
+  @@index([playerId])
 }
 
 model BlockAssignment {
