@@ -7,22 +7,23 @@ const DECOY_FIRST_NAMES = [
   "Josselin", "Ondine", "Youna", "Briac",
 ];
 
+// À la première personne, comme les vrais secrets — sinon le ton trahit tout de suite le faux.
 const DECOY_CONTENTS = [
-  "A déjà passé une nuit entière dehors à observer les étoiles sans prévenir personne.",
-  "Sait siffler avec les doigts assez fort pour faire sursauter tout un réfectoire.",
-  "A gagné un concours de grimaces dans son village quand il/elle était enfant.",
-  "N'a jamais réussi à faire un salto arrière malgré des années d'essais.",
-  "A un jour confondu du sel et du sucre dans un gâteau d'anniversaire — personne ne l'a remarqué.",
-  "Sait résoudre un Rubik's Cube les yeux bandés.",
-  "A dormi debout pendant une réunion sans que personne ne s'en aperçoive.",
-  "Collectionne en secret les tickets de caisse depuis des années.",
-  "A déjà gagné à un jeu concours et n'a jamais réclamé le lot.",
-  "Peut réciter l'alphabet à l'envers en moins de dix secondes.",
-  "A un jour pris le mauvais bus et fini à trente kilomètres de sa destination.",
-  "Sait imiter parfaitement le cri de plusieurs animaux de la ferme.",
-  "A déjà porté deux chaussures différentes toute une journée sans s'en rendre compte.",
-  "Rêve depuis toujours d'apprendre le trapèze volant.",
-  "A un jour dansé sous la pluie en pleine rue, juste pour le plaisir.",
+  "J'ai déjà passé une nuit entière dehors à observer les étoiles sans prévenir personne.",
+  "Je sais siffler avec les doigts assez fort pour faire sursauter tout un réfectoire.",
+  "J'ai gagné un concours de grimaces dans mon village quand j'étais enfant.",
+  "Je n'ai jamais réussi à faire un salto arrière malgré des années d'essais.",
+  "J'ai un jour confondu du sel et du sucre dans un gâteau d'anniversaire — personne ne l'a remarqué.",
+  "Je sais résoudre un Rubik's Cube les yeux bandés.",
+  "J'ai réussi à dormir debout pendant une réunion sans que personne ne s'en aperçoive.",
+  "Je collectionne en secret les tickets de caisse depuis des années.",
+  "J'ai déjà gagné à un jeu concours et je n'ai jamais réclamé le lot.",
+  "Je peux réciter l'alphabet à l'envers en moins de dix secondes.",
+  "J'ai un jour pris le mauvais bus et j'ai fini à trente kilomètres de ma destination.",
+  "Je sais imiter parfaitement le cri de plusieurs animaux de la ferme.",
+  "J'ai déjà porté deux chaussures différentes toute une journée sans m'en rendre compte.",
+  "Je rêve depuis toujours d'apprendre le trapèze volant.",
+  "J'ai un jour dansé sous la pluie en pleine rue, juste pour le plaisir.",
 ];
 
 function pick<T>(arr: T[]): T {
