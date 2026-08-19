@@ -23,7 +23,7 @@ function levenshtein(a: string, b: string): number {
   return dp[m][n];
 }
 
-export function fuzzyMatch(input: string, target: string, maxDistance = 2): boolean {
+export function fuzzyMatch(input: string, target: string, maxDistance = 1): boolean {
   const a = normalize(input);
   const b = normalize(target);
   return levenshtein(a, b) <= maxDistance;
