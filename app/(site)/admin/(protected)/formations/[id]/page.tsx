@@ -87,10 +87,11 @@ export default async function FormationDetailPage({ params }: { params: Promise<
       })
     : [];
 
-  // "Équipe" : comptes formateur/directeur purement administratifs, sans secret (ne jouent pas).
+  // "Équipe" : tous les comptes formateur/directeur, qu'ils jouent aussi au jeu ou non — un formateur
+  // avec un secret reste un formateur, il apparaît alors dans les deux listes.
   const staffRows = superAdmin
     ? await prisma.player.findMany({
-        where: { formationId, role: { in: ["FORMATEUR", "DIRECTEUR"] }, secret: null },
+        where: { formationId, role: { in: ["FORMATEUR", "DIRECTEUR"] } },
         orderBy: { firstName: "asc" },
         select: { id: true, firstName: true, role: true, directorAccount: { select: { username: true } } },
       })

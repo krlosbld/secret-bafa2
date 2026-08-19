@@ -54,7 +54,7 @@ export default async function AdminTab({ formationId }: { formationId: string })
       },
     }),
     prisma.player.findMany({
-      where: { formationId, role: { in: ["FORMATEUR", "DIRECTEUR"] }, secret: null },
+      where: { formationId, role: { in: ["FORMATEUR", "DIRECTEUR"] } },
       orderBy: { firstName: "asc" },
       select: { id: true, firstName: true, role: true, directorAccount: { select: { username: true } } },
     }),
