@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { fuzzyMatch } from "@/lib/fuzzy";
+import { matchesName } from "@/lib/nameCollision";
 import { getFormationFromCookie, hasNotStartedYet } from "@/lib/formationSession";
 
 export const runtime = "nodejs";
@@ -75,7 +75,7 @@ export async function POST(req: Request) {
 
     // Vérifier que le prénom correspond au code (fuzzy) — inutile en mode "faux secret", le code
     // suffit déjà à identifier le joueur sans lui redemander son prénom.
-    if (!claimFake && !fuzzyMatch(fromName, player.firstName)) {
+    if (!claimFake && !matchesName(player.firstName, fromName)) {
       return NextResponse.json(
         { error: "Le code ne correspond pas à ce prénom." },
         { status: 400 }
@@ -123,7 +123,7 @@ export async function POST(req: Request) {
         where: { formationId, status: "FOUND" },
         include: { player: { select: { firstName: true } } },
       });
-      const alreadyFound = foundSecrets.find((s) => fuzzyMatch(guessedName, s.player.firstName));
+      const alreadyFound = foundSecrets.find((s) => matchesName(s.player.firstName, guessedName));
       if (alreadyFound) {
         return NextResponse.json(
           { error: `Le secret de ${alreadyFound.player.firstName} a déjà été trouvé — ce n'est plus une réponse possible.` },
@@ -133,7 +133,7 @@ export async function POST(req: Request) {
     }
 
     // Calculer si la réponse est correcte
-    const isCorrect = claimFake ? secret.isDecoy : fuzzyMatch(guessedName, secret.player.firstName);
+    const isCorrect = claimFake ? secret.isDecoy : matchesName(secret.player.firstName, guessedName);
 
     // Créer le buzz et incrémenter le compteur
     await prisma.$transaction([

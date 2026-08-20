@@ -15,7 +15,7 @@ function isShortenedPrefix(a: string, b: string): boolean {
   return shorter.length >= 3 && longer.startsWith(shorter);
 }
 
-function matchesName(existing: string, target: string): boolean {
+export function matchesName(existing: string, target: string): boolean {
   const existingFirstToken = firstToken(existing);
   return (
     fuzzyMatch(existing, target, 1) ||

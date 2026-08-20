@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getGameAdminAuth } from "@/lib/gameAdminAuth";
+import { matchesName } from "@/lib/nameCollision";
 
 export const runtime = "nodejs";
 
@@ -16,7 +17,7 @@ export async function PATCH(req: Request, { params }: Params) {
 
   const buzz = await prisma.buzz.findUnique({
     where: { id },
-    include: { secret: true },
+    include: { secret: { include: { player: { select: { firstName: true } } } } },
   });
   if (!buzz) return NextResponse.json({ error: "Buzz introuvable." }, { status: 404 });
   if (auth.formationId && buzz.secret.formationId !== auth.formationId) {
@@ -61,6 +62,20 @@ export async function PATCH(req: Request, { params }: Params) {
           data: { status: "REJECTED" },
         }),
       ]);
+
+      // Chaque personne n'a qu'un seul secret : une fois le sien trouvé, tout autre buzz en attente
+      // (sur n'importe quel autre secret de la formation) qui devinait son prénom ne peut plus être
+      // correct nulle part — on ne laisse pas ces buzz traîner dans la file à valider.
+      const otherPending = await prisma.buzz.findMany({
+        where: { status: "PENDING", secretId: { not: buzz.secretId }, secret: { formationId: buzz.secret.formationId } },
+        select: { id: true, guessedName: true },
+      });
+      const staleIds = otherPending
+        .filter((b) => matchesName(buzz.secret.player.firstName, b.guessedName))
+        .map((b) => b.id);
+      if (staleIds.length > 0) {
+        await prisma.buzz.updateMany({ where: { id: { in: staleIds } }, data: { status: "REJECTED" } });
+      }
     } else {
       await prisma.buzz.update({ where: { id }, data: { status: "VALIDATED" } });
     }
