@@ -74,7 +74,7 @@ function TabNav({
 }
 
 async function getEvaluationData(playerId: string, formationId: string, staff: boolean) {
-  const [blocks, configRows, postes, criteria, criterionStates, evaluations, ratings, assignments] = await Promise.all([
+  const [blocks, configRows, postes, criteria, criterionStates, evaluations, ratings, assignments, groupMemberships] = await Promise.all([
     prisma.planningBlock.findMany({ where: { formationId }, orderBy: [{ day: "asc" }, { startMin: "asc" }] }),
     prisma.config.findMany({ where: { formationId, key: { in: ["planningSessionType", "planningStartDate"] } } }),
     prisma.posteType.findMany({ orderBy: { order: "asc" } }),
@@ -83,6 +83,7 @@ async function getEvaluationData(playerId: string, formationId: string, staff: b
     prisma.evaluation.findMany({ where: { playerId } }),
     prisma.criterionRating.findMany({ where: { playerId } }),
     prisma.blockAssignment.findMany({ select: { blockId: true, playerId: true } }),
+    prisma.groupMember.findMany({ where: { playerId }, select: { groupId: true } }),
   ]);
 
   const sessionType = configRows.find((r) => r.key === "planningSessionType")?.value ?? DEFAULT_SESSION_TYPE;
@@ -94,10 +95,14 @@ async function getEvaluationData(playerId: string, formationId: string, staff: b
     if (!assignedByBlock.has(a.blockId)) assignedByBlock.set(a.blockId, new Set());
     assignedByBlock.get(a.blockId)!.add(a.playerId);
   }
+  const memberGroupIds = new Set(groupMemberships.map((m) => m.groupId));
 
   const evaluableIds = new Set(postes.filter((p) => p.evaluable).map((p) => p.id));
   const evalBlocks = blocks.filter((b) => {
     if (!evaluableIds.has(b.type) || b.day >= dayCount) return false;
+    // Un créneau lié à un groupe n'est concerné que par les membres de ce groupe — même logique de
+    // priorité que le pop-up de rappel des formateurs (lib/pendingEvaluations.ts).
+    if (b.groupId) return memberGroupIds.has(b.groupId);
     const assigned = assignedByBlock.get(b.id);
     return !assigned || assigned.has(playerId);
   });
@@ -119,9 +124,9 @@ async function getEvaluationData(playerId: string, formationId: string, staff: b
 async function getStagiaireIndicators(dayCount: number, formationId: string, playerIds?: string[]) {
   const playerFilter = playerIds ? { in: playerIds } : undefined;
 
-  const [postes, blocks, evaluations, ratings, criterionStates, assignmentRows] = await Promise.all([
+  const [postes, blocks, evaluations, ratings, criterionStates, assignmentRows, groupMemberRows] = await Promise.all([
     prisma.posteType.findMany({ where: { evaluable: true }, select: { id: true } }),
-    prisma.planningBlock.findMany({ where: { formationId }, select: { id: true, day: true, type: true } }),
+    prisma.planningBlock.findMany({ where: { formationId }, select: { id: true, day: true, type: true, groupId: true } }),
     prisma.evaluation.findMany({
       where: {
         note: { not: "" },
@@ -135,6 +140,10 @@ async function getStagiaireIndicators(dayCount: number, formationId: string, pla
     }),
     prisma.criterionState.findMany({ select: { id: true, score: true } }),
     prisma.blockAssignment.findMany({ where: { block: { formationId } }, select: { blockId: true, playerId: true } }),
+    prisma.groupMember.findMany({
+      where: { group: { formationId }, ...(playerFilter ? { playerId: playerFilter } : {}) },
+      select: { groupId: true, playerId: true },
+    }),
   ]);
 
   const scoreByStateId = new Map(criterionStates.map((s) => [s.id, s.score]));
@@ -144,13 +153,20 @@ async function getStagiaireIndicators(dayCount: number, formationId: string, pla
     if (!assignedByBlock.has(a.blockId)) assignedByBlock.set(a.blockId, new Set());
     assignedByBlock.get(a.blockId)!.add(a.playerId);
   }
+  const groupIdsByPlayer = new Map<string, Set<string>>();
+  for (const m of groupMemberRows) {
+    if (!groupIdsByPlayer.has(m.playerId)) groupIdsByPlayer.set(m.playerId, new Set());
+    groupIdsByPlayer.get(m.playerId)!.add(m.groupId);
+  }
 
   const evaluableIds = new Set(postes.map((p) => p.id));
   const evalBlocksByDay = new Map<number, Set<string>>();
   const blockToDay = new Map<string, number>();
+  const blockGroupId = new Map<string, string | null>();
   for (const b of blocks) {
     if (!evaluableIds.has(b.type) || b.day >= dayCount) continue;
     blockToDay.set(b.id, b.day);
+    blockGroupId.set(b.id, b.groupId);
     if (!evalBlocksByDay.has(b.day)) evalBlocksByDay.set(b.day, new Set());
     evalBlocksByDay.get(b.day)!.add(b.id);
   }
@@ -174,6 +190,8 @@ async function getStagiaireIndicators(dayCount: number, formationId: string, pla
   function dailyFillRatio(playerId: string, day: number): number {
     const dayBlocks = evalBlocksByDay.get(day) ?? new Set<string>();
     const applicable = [...dayBlocks].filter((blockId) => {
+      const groupId = blockGroupId.get(blockId);
+      if (groupId) return groupIdsByPlayer.get(playerId)?.has(groupId) ?? false;
       const assigned = assignedByBlock.get(blockId);
       return !assigned || assigned.has(playerId);
     });
