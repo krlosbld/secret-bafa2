@@ -22,7 +22,7 @@ export function AdminSecretsPending({ secrets }: { secrets: Secret[] }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [showDecoyForm, setShowDecoyForm] = useState(false);
-  const [decoyProposal, setDecoyProposal] = useState<{ firstName: string; content: string } | null>(null);
+  const [decoyProposal, setDecoyProposal] = useState<{ firstName: string; content: string; source?: string } | null>(null);
   const [decoyPoints, setDecoyPoints] = useState(3);
   const [decoyError, setDecoyError] = useState("");
   const [generatingDecoy, setGeneratingDecoy] = useState(false);
@@ -38,7 +38,7 @@ export function AdminSecretsPending({ secrets }: { secrets: Secret[] }) {
         setDecoyError(data?.error || "Erreur.");
         return;
       }
-      setDecoyProposal({ firstName: data.firstName, content: data.content });
+      setDecoyProposal({ firstName: data.firstName, content: data.content, source: data.source });
     } catch {
       setDecoyError("Erreur réseau.");
     } finally {
@@ -130,14 +130,30 @@ export function AdminSecretsPending({ secrets }: { secrets: Secret[] }) {
             <p style={{ color: "#64748b", fontSize: 14 }}>Génération…</p>
           ) : (
             <>
-              <div className="row">
-                <div className="label">Prénom proposé</div>
-                <div className="value">{decoyProposal.firstName}</div>
-              </div>
-              <div className="row">
-                <div className="label">Secret proposé</div>
-                <div className="value">{decoyProposal.content}</div>
-              </div>
+              {decoyProposal.source === "fallback" && (
+                <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, padding: 10, color: "#92400e", fontWeight: 600, fontSize: 13, marginBottom: 10 }}>
+                  ⚠️ Génération IA indisponible — secret de secours proposé, modifie-le si besoin.
+                </div>
+              )}
+              <label className="sb-field">
+                <span>Prénom proposé</span>
+                <input
+                  value={decoyProposal.firstName}
+                  onChange={(e) => setDecoyProposal((p) => (p ? { ...p, firstName: e.target.value } : p))}
+                  maxLength={40}
+                  disabled={creatingDecoy}
+                />
+              </label>
+              <label className="sb-field">
+                <span>Secret proposé</span>
+                <textarea
+                  value={decoyProposal.content}
+                  onChange={(e) => setDecoyProposal((p) => (p ? { ...p, content: e.target.value } : p))}
+                  rows={3}
+                  disabled={creatingDecoy}
+                  style={{ resize: "vertical" }}
+                />
+              </label>
               <button className="btn btn-ghost" onClick={generateDecoy} disabled={creatingDecoy} style={{ marginTop: 6, marginBottom: 6 }}>
                 🎲 Regénérer
               </button>

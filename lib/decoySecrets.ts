@@ -1,5 +1,5 @@
-// Prénoms et contenus utilisés pour proposer un faux secret complet en un clic — l'admin ne rédige
-// rien, il choisit juste le nombre de points avant de valider.
+// Repli utilisé quand la génération IA échoue (clé manquante, quota, erreur réseau...) — pour ne
+// jamais bloquer l'admin qui veut créer un faux secret.
 
 const DECOY_FIRST_NAMES = [
   "Marius", "Iris", "Noé", "Léna", "Yanis", "Louna", "Timéo", "Suzon",

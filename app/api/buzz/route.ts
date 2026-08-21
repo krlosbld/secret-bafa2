@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { matchesName } from "@/lib/nameCollision";
+import { resolveWinningBuzz } from "@/lib/buzzResolution";
 import { getFormationFromCookie, hasNotStartedYet } from "@/lib/formationSession";
 
 export const runtime = "nodejs";
@@ -135,29 +136,49 @@ export async function POST(req: Request) {
     // Calculer si la réponse est correcte
     const isCorrect = claimFake ? secret.isDecoy : matchesName(secret.player.firstName, guessedName);
 
-    // Créer le buzz et incrémenter le compteur
-    await prisma.$transaction([
-      prisma.buzz.create({
-        data: {
+    // Une réclamation "faux secret" a une réponse binaire déjà connue du logiciel (secret.isDecoy) —
+    // contrairement à une devinette de prénom (correspondance floue, pas fiable à 100%), elle se
+    // résout immédiatement dans les deux sens, sans passer par la file de validation manuelle.
+    let claimFakeResult: { correct: boolean; points?: number } | undefined;
+
+    if (claimFake) {
+      const buzz = await prisma.buzz.create({
+        data: { secretId, fromPlayerId: player.id, guessedName, status: isCorrect ? "PENDING" : "REJECTED", isCorrect },
+      });
+      await prisma.player.update({ where: { id: player.id }, data: { buzzCount: { increment: 1 } } });
+
+      if (isCorrect) {
+        const points = await resolveWinningBuzz({
+          buzzId: buzz.id,
           secretId,
           fromPlayerId: player.id,
-          guessedName,
-          status: "PENDING",
-          isCorrect,
-        },
-      }),
-      prisma.player.update({
-        where: { id: player.id },
-        data: { buzzCount: { increment: 1 } },
-      }),
-    ]);
+          secretBonus: secret.bonus,
+          secretIsDecoy: secret.isDecoy,
+          secretPlayerFirstName: secret.player.firstName,
+          formationId,
+        });
+        claimFakeResult = { correct: true, points };
+      } else {
+        claimFakeResult = { correct: false };
+      }
+    } else {
+      await prisma.$transaction([
+        prisma.buzz.create({
+          data: { secretId, fromPlayerId: player.id, guessedName, status: "PENDING", isCorrect },
+        }),
+        prisma.player.update({
+          where: { id: player.id },
+          data: { buzzCount: { increment: 1 } },
+        }),
+      ]);
+    }
 
     // Notification Telegram
     const token = process.env.TELEGRAM_BOT_TOKEN;
     const chatId = process.env.TELEGRAM_CHAT_ID;
     if (token && chatId) {
       const msg = claimFake
-        ? `🔔 Nouveau buzz !\n👤 ${player.firstName} pense que c'est un faux secret 🎭`
+        ? `🔔 Nouveau buzz !\n👤 ${player.firstName} pense que c'est un faux secret 🎭 (${isCorrect ? "correct" : "incorrect"})`
         : `🔔 Nouveau buzz !\n👤 ${player.firstName} devine : "${guessedName}"`;
       await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
         method: "POST",
@@ -166,7 +187,7 @@ export async function POST(req: Request) {
       }).catch(() => {});
     }
 
-    return NextResponse.json({ ok: true });
+    return NextResponse.json({ ok: true, claimFakeResult });
   } catch (e) {
     console.error("API BUZZ ERROR:", e);
     return NextResponse.json({ error: "Erreur serveur." }, { status: 500 });

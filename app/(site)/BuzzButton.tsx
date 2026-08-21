@@ -11,11 +11,13 @@ export default function BuzzButton({ secretId }: { secretId: string }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
+  const [claimFakeResult, setClaimFakeResult] = useState<{ correct: boolean; points?: number } | null>(null);
 
   function handleOpen() {
     setError("");
     setSuccess(false);
     setClaimFake(false);
+    setClaimFakeResult(null);
     setOpen(true);
   }
 
@@ -44,6 +46,7 @@ export default function BuzzButton({ secretId }: { secretId: string }) {
         setError(data?.error || "Erreur.");
         return;
       }
+      setClaimFakeResult(data?.claimFakeResult ?? null);
       setSuccess(true);
       setFromName("");
       setFromCode("");
@@ -99,8 +102,14 @@ export default function BuzzButton({ secretId }: { secretId: string }) {
 
             {success ? (
               <div style={{ textAlign: "center", padding: "20px 0" }}>
-                <div style={{ fontSize: 40, marginBottom: 8 }}>🎉</div>
-                <p style={{ fontWeight: 700 }}>Buzz envoyé ! En attente de validation.</p>
+                <div style={{ fontSize: 40, marginBottom: 8 }}>{claimFakeResult && !claimFakeResult.correct ? "🤔" : "🎉"}</div>
+                <p style={{ fontWeight: 700 }}>
+                  {claimFakeResult
+                    ? claimFakeResult.correct
+                      ? `Bien vu, c'était un faux secret ! +${claimFakeResult.points} points.`
+                      : "Ce n'était pas un faux secret — buzz comptabilisé dans ton quota."
+                    : "Buzz envoyé ! En attente de validation."}
+                </p>
                 <button
                   className="sb-btn sb-btn--main"
                   onClick={() => setOpen(false)}
