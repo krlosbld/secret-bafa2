@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { matchesName } from "@/lib/nameCollision";
 import { resolveWinningBuzz } from "@/lib/buzzResolution";
+import { isSecretCurrentlyVisible } from "@/lib/secretVisibility";
 import { getFormationFromCookie, hasNotStartedYet } from "@/lib/formationSession";
 
 export const runtime = "nodejs";
@@ -104,6 +105,12 @@ export async function POST(req: Request) {
     if (secret.status === "FOUND") {
       return NextResponse.json(
         { error: "Ce secret a déjà été trouvé." },
+        { status: 400 }
+      );
+    }
+    if (!isSecretCurrentlyVisible(secret)) {
+      return NextResponse.json(
+        { error: "Ce secret n'est pas visible en ce moment." },
         { status: 400 }
       );
     }

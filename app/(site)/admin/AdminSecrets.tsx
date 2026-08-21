@@ -1,7 +1,8 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { isSecretCurrentlyVisible } from "@/lib/secretVisibility";
 
 type Secret = {
   id: string;
@@ -10,6 +11,9 @@ type Secret = {
   status: string;
   flagged: boolean;
   isDecoy: boolean;
+  limitedVisibility: boolean;
+  limitedVisibilitySince: string | null;
+  limitedVisibilityMinutes: number;
   createdAt: string;
   player: { firstName: string; code: string };
   foundBy: { firstName: string } | null;
@@ -266,7 +270,29 @@ export function AdminSecretsPublished({ secrets }: { secrets: Secret[] }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [showAll, setShowAll] = useState(false);
+  const [minutesDrafts, setMinutesDrafts] = useState<Record<string, number>>({});
+  const [, setTick] = useState(0);
   const visible = showAll ? secrets : secrets.slice(0, 5);
+
+  // Recalcule "visible actuellement / caché" toutes les 10s sans recharger la page.
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 10000);
+    return () => clearInterval(id);
+  }, []);
+
+  async function toggleLimitedVisibility(s: Secret) {
+    setLoading(s.id);
+    const body = s.limitedVisibility
+      ? { limitedVisibility: false }
+      : { limitedVisibility: true, limitedVisibilityMinutes: minutesDrafts[s.id] ?? s.limitedVisibilityMinutes ?? 5 };
+    await fetch(`/api/admin/secrets/${s.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    router.refresh();
+    setLoading(null);
+  }
 
   async function saveContent(id: string) {
     if (!editValue.trim()) return;
@@ -368,6 +394,46 @@ export function AdminSecretsPublished({ secrets }: { secrets: Secret[] }) {
               {s.isDecoy ? s.bonus : `+${s.bonus}`} pt{s.bonus > 1 ? "s" : ""}
             </div>
           </div>
+          {!s.isDecoy && (
+            <div className="row">
+              <div className="label">Visibilité</div>
+              <div className="value" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                {s.limitedVisibility ? (
+                  <>
+                    <span style={{ fontWeight: 700 }}>
+                      {isSecretCurrentlyVisible({
+                        id: s.id,
+                        limitedVisibility: s.limitedVisibility,
+                        limitedVisibilitySince: s.limitedVisibilitySince ? new Date(s.limitedVisibilitySince) : null,
+                        limitedVisibilityMinutes: s.limitedVisibilityMinutes,
+                      })
+                        ? "👁️ Visible actuellement"
+                        : `🙈 Caché en ce moment (${s.limitedVisibilityMinutes} min/h, position aléatoire)`}
+                    </span>
+                    <button className="btn btn-ghost" style={{ padding: "1px 8px", fontSize: 12 }} disabled={loading === s.id} onClick={() => toggleLimitedVisibility(s)}>
+                      🕐 Désactiver
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <input
+                      type="number"
+                      min={1}
+                      max={59}
+                      value={minutesDrafts[s.id] ?? 5}
+                      onChange={(e) => setMinutesDrafts((d) => ({ ...d, [s.id]: Math.max(1, Math.min(59, Number(e.target.value) || 1)) }))}
+                      disabled={loading === s.id}
+                      style={{ width: 60 }}
+                    />
+                    <span style={{ fontSize: 12, color: "#64748b" }}>min/h</span>
+                    <button className="btn btn-ghost" style={{ padding: "1px 8px", fontSize: 12 }} disabled={loading === s.id} onClick={() => toggleLimitedVisibility(s)}>
+                      🕐 Activer visibilité limitée
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+          )}
           <div className="admin-actions" style={{ marginTop: 10 }}>
             <button
               className="btn btn-ghost"

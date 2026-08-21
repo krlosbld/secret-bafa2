@@ -157,6 +157,9 @@ model Secret {
   status          String     @default("PENDING") // PENDING | PUBLISHED | FOUND
   flagged         Boolean    @default(false)
   isDecoy         Boolean    @default(false) // faux secret créé par l'admin, sans vrai joueur derrière
+  limitedVisibility        Boolean   @default(false)
+  limitedVisibilitySince   DateTime? // instant d'activation — ancre le cycle horaire
+  limitedVisibilityMinutes Int       @default(5) // durée visible par heure, choisie par l'admin
   foundByPlayerId String?
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt

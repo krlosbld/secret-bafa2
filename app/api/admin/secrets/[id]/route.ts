@@ -30,6 +30,18 @@ export async function PATCH(req: Request, { params }: Params) {
   if (typeof body.content === "string" && body.content.trim().length > 0) {
     data.content = body.content.trim();
   }
+  if (typeof body.limitedVisibility === "boolean") {
+    data.limitedVisibility = body.limitedVisibility;
+    data.limitedVisibilitySince = body.limitedVisibility ? new Date() : null; // ré-ancre à chaque activation
+  }
+  if (
+    typeof body.limitedVisibilityMinutes === "number" &&
+    Number.isInteger(body.limitedVisibilityMinutes) &&
+    body.limitedVisibilityMinutes >= 1 &&
+    body.limitedVisibilityMinutes <= 59
+  ) {
+    data.limitedVisibilityMinutes = body.limitedVisibilityMinutes;
+  }
 
   if (Object.keys(data).length === 0) {
     return NextResponse.json({ error: "Aucun champ valide." }, { status: 400 });

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getFormationFromCookie, hasNotStartedYet } from "@/lib/formationSession";
+import { isSecretCurrentlyVisible } from "@/lib/secretVisibility";
 import SessionCodeGate from "@/components/SessionCodeGate";
 import FakeSecretAnnouncement from "@/components/FakeSecretAnnouncement";
 import SecretsClient from "./SecretsClient";
@@ -13,18 +14,22 @@ export default async function HomePage() {
     return <SessionCodeGate />;
   }
 
-  const secrets = await prisma.secret.findMany({
+  const allSecrets = await prisma.secret.findMany({
     where: { status: { in: ["PUBLISHED", "FOUND"] }, formationId: formation.id },
     select: {
       id: true,
       content: true,
       status: true,
       bonus: true,
+      limitedVisibility: true,
+      limitedVisibilitySince: true,
+      limitedVisibilityMinutes: true,
       player: { select: { firstName: true } },
       foundBy: { select: { firstName: true } },
     },
     orderBy: { createdAt: "asc" },
   });
+  const secrets = allSecrets.filter(isSecretCurrentlyVisible);
 
   return (
     <main className="page">
