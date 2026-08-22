@@ -52,7 +52,7 @@ function TabNav({
   });
 
   return (
-    <div style={{ display: "flex", gap: 8, marginBottom: 20, flexWrap: "wrap" }}>
+    <div className="tab-nav">
       <Link href="/bafa" style={tabStyle(active === "espace")}>
         Espace
       </Link>

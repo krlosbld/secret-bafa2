@@ -72,6 +72,28 @@ a {
   border-bottom: 1px solid #eaeaea;
   display: flex;
   align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+/* Barre d'onglets (Espace / Planning / Groupes / Administration) — collée juste sous la navbar. */
+.tab-nav {
+  position: sticky;
+  top: 56px;
+  z-index: 9;
+  background: #f5f7f6;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 10px 0;
+  margin-bottom: 10px;
+}
+
+@media (max-width: 768px) {
+  .tab-nav {
+    top: 52px;
+  }
 }
 
 .nav-container {
