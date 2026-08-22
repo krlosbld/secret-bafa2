@@ -59,12 +59,14 @@ export async function POST(req: Request) {
     }
     const formationId = formation.id;
 
-    const gameEndedConfig = await prisma.config.findUnique({
-      where: { formationId_key: { formationId, key: "gameEnded" } },
-    });
+    const [gameEndedConfig, lockPendingCorrectConfig] = await Promise.all([
+      prisma.config.findUnique({ where: { formationId_key: { formationId, key: "gameEnded" } } }),
+      prisma.config.findUnique({ where: { formationId_key: { formationId, key: "rule_lockPendingCorrect" } } }),
+    ]);
     if (gameEndedConfig?.value === "true") {
       return NextResponse.json({ error: "Le jeu est terminé, il n'est plus possible de buzzer." }, { status: 403 });
     }
+    const lockPendingCorrect = lockPendingCorrectConfig?.value === "true";
 
     // Trouver le joueur par son code
     const player = await prisma.player.findUnique({ where: { formationId_code: { formationId, code: fromCode } } });
@@ -114,6 +116,17 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+    if (lockPendingCorrect) {
+      const pendingCorrectOnThisSecret = await prisma.buzz.findFirst({
+        where: { secretId, status: "PENDING", isCorrect: true },
+      });
+      if (pendingCorrectOnThisSecret) {
+        return NextResponse.json(
+          { error: "Une bonne réponse est déjà en attente de validation pour ce secret." },
+          { status: 400 }
+        );
+      }
+    }
 
     // Impossible de buzzer son propre secret
     if (secret.playerId === player.id) {
@@ -124,17 +137,29 @@ export async function POST(req: Request) {
     }
 
     // Chaque personne n'a qu'un seul secret : si celui de la personne devinée a déjà été trouvé
-    // (sur n'importe quel autre secret), cette réponse ne peut plus être correcte nulle part.
-    // Non pertinent en mode "faux secret", qui ne devine aucun nom.
+    // (sur n'importe quel autre secret), cette réponse ne peut plus être correcte nulle part. Avec
+    // la règle "verrouiller dès qu'une bonne réponse est en attente", ça s'étend aussi aux buzz
+    // corrects pas encore validés — leur secret n'est pas encore FOUND, mais leur prénom est déjà
+    // provisoirement pris. Non pertinent en mode "faux secret", qui ne devine aucun nom.
     if (!claimFake) {
       const foundSecrets = await prisma.secret.findMany({
         where: { formationId, status: "FOUND" },
         include: { player: { select: { firstName: true } } },
       });
-      const alreadyFound = foundSecrets.find((s) => matchesName(s.player.firstName, guessedName));
-      if (alreadyFound) {
+      let takenNames = foundSecrets.map((s) => s.player.firstName);
+
+      if (lockPendingCorrect) {
+        const pendingCorrectElsewhere = await prisma.buzz.findMany({
+          where: { status: "PENDING", isCorrect: true, secret: { formationId } },
+          select: { secret: { select: { player: { select: { firstName: true } } } } },
+        });
+        takenNames = takenNames.concat(pendingCorrectElsewhere.map((b) => b.secret.player.firstName));
+      }
+
+      const alreadyTaken = takenNames.find((name) => matchesName(name, guessedName));
+      if (alreadyTaken) {
         return NextResponse.json(
-          { error: `Le secret de ${alreadyFound.player.firstName} a déjà été trouvé — ce n'est plus une réponse possible.` },
+          { error: `Le secret de ${alreadyTaken} a déjà été trouvé (ou est en attente de validation) — ce n'est plus une réponse possible.` },
           { status: 400 }
         );
       }

@@ -6,9 +6,11 @@ import AdminStaffList from "../admin/AdminStaffList";
 import AdminCronControls from "../admin/AdminCronControls";
 import AdminCreateCode from "../admin/AdminCreateCode";
 import AdminEndGame from "../admin/AdminEndGame";
+import AdminGameRules from "../admin/AdminGameRules";
+import { GAME_RULES } from "@/lib/gameRules";
 
 export default async function AdminTab({ formationId }: { formationId: string }) {
-  const [pendingSecrets, publishedSecrets, pendingBuzzes, players, staffRows, quotaConfig, lastNightlyRunConfig, gameEndedConfig] = await Promise.all([
+  const [pendingSecrets, publishedSecrets, pendingBuzzes, players, staffRows, quotaConfig, lastNightlyRunConfig, gameEndedConfig, ruleRows] = await Promise.all([
     prisma.secret.findMany({
       where: { status: "PENDING", formationId },
       orderBy: { createdAt: "asc" },
@@ -61,12 +63,15 @@ export default async function AdminTab({ formationId }: { formationId: string })
     prisma.config.findUnique({ where: { formationId_key: { formationId, key: "buzzQuota" } } }),
     prisma.config.findUnique({ where: { formationId_key: { formationId, key: "lastNightlyRun" } } }),
     prisma.config.findUnique({ where: { formationId_key: { formationId, key: "gameEnded" } } }),
+    prisma.config.findMany({ where: { formationId, key: { in: GAME_RULES.map((r) => r.key) } } }),
   ]);
 
   const staff = staffRows.map((s) => ({ id: s.id, firstName: s.firstName, role: s.role, username: s.directorAccount?.username ?? null }));
 
   const quota = Number(quotaConfig?.value ?? 3);
   const gameEnded = gameEndedConfig?.value === "true";
+  const ruleValues = new Map(ruleRows.map((r) => [r.key, r.value]));
+  const initialRules = Object.fromEntries(GAME_RULES.map((r) => [r.key, ruleValues.get(r.key) === "true"]));
 
   let lastNightlyRun: { at: string; updated: number } | null = null;
   if (lastNightlyRunConfig) {
@@ -90,6 +95,9 @@ export default async function AdminTab({ formationId }: { formationId: string })
     <div>
       <Section title="Fin du jeu">
         <AdminEndGame formationId={formationId} gameEnded={gameEnded} />
+        <div style={{ marginTop: 12 }}>
+          <AdminGameRules initialRules={initialRules} />
+        </div>
       </Section>
 
       <Section title={`Buzz à valider (${pendingBuzzes.length})`}>
