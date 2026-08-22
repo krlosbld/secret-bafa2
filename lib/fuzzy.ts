@@ -3,6 +3,10 @@ export function normalize(s: string): string {
     .toLowerCase()
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
+    // "k" et "c" se prononcent pareil dans un pr\u00e9nom (Carlos/Krlos, Karim/Carim...) \u2014 les traiter
+    // comme \u00e9quivalents avant de comparer, plut\u00f4t que d'\u00e9largir la tol\u00e9rance aux fautes de frappe
+    // (qui recr\u00e9erait les faux positifs d\u00e9j\u00e0 corrig\u00e9s, ex. Aur\u00e9lie/Am\u00e9lie).
+    .replace(/k/g, "c")
     .trim();
 }
 
