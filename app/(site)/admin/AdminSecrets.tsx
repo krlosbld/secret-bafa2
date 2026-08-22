@@ -237,8 +237,21 @@ export function AdminSecretsPending({ secrets }: { secrets: Secret[] }) {
           </div>
           <div className="row">
             <div className="label">{s.isDecoy ? "Points" : "Bonus"}</div>
-            <div className="value">
-              {s.isDecoy ? s.bonus : `+${s.bonus}`} pt{s.bonus > 1 ? "s" : ""}
+            <div className="value" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              {!s.isDecoy && <span>+</span>}
+              <input
+                type="number"
+                min={1}
+                max={30}
+                defaultValue={s.bonus}
+                onBlur={(e) => {
+                  const val = Math.max(1, Math.min(30, Number(e.target.value) || 1));
+                  if (val !== s.bonus) patch(s.id, { bonus: val });
+                }}
+                disabled={loading === s.id}
+                style={{ width: 60 }}
+              />
+              <span>pt{s.bonus > 1 ? "s" : ""}</span>
             </div>
           </div>
           <div className="admin-actions" style={{ marginTop: 10 }}>
@@ -281,6 +294,17 @@ export function AdminSecretsPublished({ secrets }: { secrets: Secret[] }) {
     const id = setInterval(() => setTick((t) => t + 1), 10000);
     return () => clearInterval(id);
   }, []);
+
+  async function patchBonus(id: string, bonus: number) {
+    setLoading(id);
+    await fetch(`/api/admin/secrets/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ bonus }),
+    });
+    router.refresh();
+    setLoading(null);
+  }
 
   async function toggleLimitedVisibility(s: Secret) {
     setLoading(s.id);
@@ -392,8 +416,21 @@ export function AdminSecretsPublished({ secrets }: { secrets: Secret[] }) {
           </div>
           <div className="row">
             <div className="label">{s.isDecoy ? "Points" : "Bonus"}</div>
-            <div className="value">
-              {s.isDecoy ? s.bonus : `+${s.bonus}`} pt{s.bonus > 1 ? "s" : ""}
+            <div className="value" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+              {!s.isDecoy && <span>+</span>}
+              <input
+                type="number"
+                min={1}
+                max={30}
+                defaultValue={s.bonus}
+                onBlur={(e) => {
+                  const val = Math.max(1, Math.min(30, Number(e.target.value) || 1));
+                  if (val !== s.bonus) patchBonus(s.id, val);
+                }}
+                disabled={loading === s.id}
+                style={{ width: 60 }}
+              />
+              <span>pt{s.bonus > 1 ? "s" : ""}</span>
             </div>
           </div>
           {!s.isDecoy && (

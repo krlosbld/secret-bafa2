@@ -24,7 +24,9 @@ export async function PATCH(req: Request, { params }: Params) {
   if (body.status === "PENDING" || body.status === "PUBLISHED" || body.status === "FOUND") {
     data.status = body.status;
   }
-  if (typeof body.bonus === "number" && Number.isInteger(body.bonus) && body.bonus >= 1 && body.bonus <= 5) {
+  // Les joueurs se limitent à 1-5 en soumettant leur secret (app/api/submit/route.ts) — l'admin peut
+  // dépasser ce plafond pour ajuster un bonus après coup si besoin.
+  if (typeof body.bonus === "number" && Number.isInteger(body.bonus) && body.bonus >= 1 && body.bonus <= 30) {
     data.bonus = body.bonus;
   }
   if (typeof body.content === "string" && body.content.trim().length > 0) {
