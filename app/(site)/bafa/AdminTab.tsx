@@ -9,7 +9,7 @@ import AdminEndGame from "../admin/AdminEndGame";
 import AdminGameRules from "../admin/AdminGameRules";
 import { GAME_RULES } from "@/lib/gameRules";
 
-export default async function AdminTab({ formationId }: { formationId: string }) {
+export default async function AdminTab({ formationId, secretsOnly = false }: { formationId: string; secretsOnly?: boolean }) {
   const [pendingSecrets, publishedSecrets, pendingBuzzes, players, staffRows, quotaConfig, lastNightlyRunConfig, gameEndedConfig, ruleRows] = await Promise.all([
     prisma.secret.findMany({
       where: { status: "PENDING", formationId },
@@ -58,7 +58,7 @@ export default async function AdminTab({ formationId }: { formationId: string })
     prisma.player.findMany({
       where: { formationId, role: { in: ["FORMATEUR", "DIRECTEUR"] } },
       orderBy: { firstName: "asc" },
-      select: { id: true, firstName: true, role: true, directorAccount: { select: { username: true } } },
+      select: { id: true, firstName: true, role: true, isGameMaster: true, directorAccount: { select: { username: true } } },
     }),
     prisma.config.findUnique({ where: { formationId_key: { formationId, key: "buzzQuota" } } }),
     prisma.config.findUnique({ where: { formationId_key: { formationId, key: "lastNightlyRun" } } }),
@@ -66,7 +66,13 @@ export default async function AdminTab({ formationId }: { formationId: string })
     prisma.config.findMany({ where: { formationId, key: { in: GAME_RULES.map((r) => r.key) } } }),
   ]);
 
-  const staff = staffRows.map((s) => ({ id: s.id, firstName: s.firstName, role: s.role, username: s.directorAccount?.username ?? null }));
+  const staff = staffRows.map((s) => ({
+    id: s.id,
+    firstName: s.firstName,
+    role: s.role,
+    username: s.directorAccount?.username ?? null,
+    isGameMaster: s.isGameMaster,
+  }));
 
   const quota = Number(quotaConfig?.value ?? 3);
   const gameEnded = gameEndedConfig?.value === "true";
@@ -93,11 +99,14 @@ export default async function AdminTab({ formationId }: { formationId: string })
 
   return (
     <div>
-      <Section title="Fin du jeu">
-        <AdminEndGame formationId={formationId} gameEnded={gameEnded} />
-        <div style={{ marginTop: 12 }}>
-          <AdminGameRules initialRules={initialRules} />
-        </div>
+      {!secretsOnly && (
+        <Section title="Fin du jeu">
+          <AdminEndGame formationId={formationId} gameEnded={gameEnded} />
+        </Section>
+      )}
+
+      <Section title="⚙️ Règles du jeu">
+        <AdminGameRules initialRules={initialRules} />
       </Section>
 
       <Section title={`Buzz à valider (${pendingBuzzes.length})`}>
@@ -115,40 +124,44 @@ export default async function AdminTab({ formationId }: { formationId: string })
         <AdminSecretsPublished secrets={publishedSecrets as any} />
       </Section>
 
-      <Section title="Codes">
-        <AdminCreateCode formationId={formationId} directorAccounts={[]} allowDirector={false} />
-      </Section>
+      {!secretsOnly && (
+        <>
+          <Section title="Codes">
+            <AdminCreateCode formationId={formationId} directorAccounts={[]} allowDirector={false} />
+          </Section>
 
-      <Section title={`Équipe (${staff.length})`}>
-        <AdminStaffList staff={staff} />
-      </Section>
+          <Section title={`Équipe (${staff.length})`}>
+            <AdminStaffList staff={staff} />
+          </Section>
 
-      <Section title={`Joueurs (${players.length})`}>
-        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-        <AdminPlayers players={players as any} quota={quota} />
-      </Section>
+          <Section title={`Joueurs (${players.length})`}>
+            {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+            <AdminPlayers players={players as any} quota={quota} />
+          </Section>
 
-      <Section title="Cron nocturne (reset buzz + points)">
-        <div className="card">
-          {lastNightlyRun ? (
-            <>
-              <div className="row">
-                <div className="label">Dernière exécution</div>
-                <div className="value">
-                  {new Date(lastNightlyRun.at).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}
-                </div>
-              </div>
-              <div className="row">
-                <div className="label">Joueurs mis à jour</div>
-                <div className="value">+1 pt pour {lastNightlyRun.updated} joueur(s)</div>
-              </div>
-            </>
-          ) : (
-            <p style={{ color: "#dc2626", fontWeight: 700 }}>Jamais exécuté depuis la mise en place de ce suivi.</p>
-          )}
-          <AdminCronControls formationId={formationId} />
-        </div>
-      </Section>
+          <Section title="Cron nocturne (reset buzz + points)">
+            <div className="card">
+              {lastNightlyRun ? (
+                <>
+                  <div className="row">
+                    <div className="label">Dernière exécution</div>
+                    <div className="value">
+                      {new Date(lastNightlyRun.at).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}
+                    </div>
+                  </div>
+                  <div className="row">
+                    <div className="label">Joueurs mis à jour</div>
+                    <div className="value">+1 pt pour {lastNightlyRun.updated} joueur(s)</div>
+                  </div>
+                </>
+              ) : (
+                <p style={{ color: "#dc2626", fontWeight: 700 }}>Jamais exécuté depuis la mise en place de ce suivi.</p>
+              )}
+              <AdminCronControls formationId={formationId} />
+            </div>
+          </Section>
+        </>
+      )}
     </div>
   );
 }

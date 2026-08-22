@@ -8,6 +8,7 @@ type StaffMember = {
   firstName: string;
   role: string;
   username: string | null;
+  isGameMaster: boolean;
 };
 
 const ROLE_LABELS: Record<string, string> = {
@@ -23,6 +24,17 @@ export default function AdminStaffList({ staff }: { staff: StaffMember[] }) {
     if (!confirm(`Supprimer le compte de ${name} ?`)) return;
     setLoading(id);
     await fetch(`/api/admin/players/${id}`, { method: "DELETE" });
+    router.refresh();
+    setLoading(null);
+  }
+
+  async function toggleGameMaster(id: string, current: boolean) {
+    setLoading(id);
+    await fetch(`/api/admin/players/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ isGameMaster: !current }),
+    });
     router.refresh();
     setLoading(null);
   }
@@ -50,13 +62,39 @@ export default function AdminStaffList({ staff }: { staff: StaffMember[] }) {
             >
               {ROLE_LABELS[s.role] ?? s.role}
             </span>
+            {s.isGameMaster && (
+              <span
+                style={{
+                  marginLeft: 6,
+                  fontSize: 12,
+                  fontWeight: 800,
+                  color: "#6b21a8",
+                  background: "#f3e8ff",
+                  padding: "2px 8px",
+                  borderRadius: 999,
+                }}
+              >
+                🎭 Maître du jeu
+              </span>
+            )}
             <span style={{ color: "#64748b", fontSize: 13, marginLeft: 10 }}>
               {s.username ? `identifiant : ${s.username}` : "connexion par code"}
             </span>
           </div>
-          <button className="btn btn-danger" disabled={loading === s.id} onClick={() => del(s.id, s.firstName)}>
-            Supprimer
-          </button>
+          <div style={{ display: "flex", gap: 8 }}>
+            {s.role === "FORMATEUR" && (
+              <button
+                className="btn btn-ghost"
+                disabled={loading === s.id}
+                onClick={() => toggleGameMaster(s.id, s.isGameMaster)}
+              >
+                {s.isGameMaster ? "🎭 Retirer" : "🎭 Nommer maître de jeu"}
+              </button>
+            )}
+            <button className="btn btn-danger" disabled={loading === s.id} onClick={() => del(s.id, s.firstName)}>
+              Supprimer
+            </button>
+          </div>
         </div>
       ))}
     </div>

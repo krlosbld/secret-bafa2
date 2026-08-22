@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getGameAdminAuth } from "@/lib/gameAdminAuth";
+import { getSecretsAdminAuth } from "@/lib/gameAdminAuth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic";
 type Params = { params: Promise<{ id: string }> };
 
 export async function PATCH(req: Request, { params }: Params) {
-  const auth = await getGameAdminAuth();
+  const auth = await getSecretsAdminAuth();
   if (!auth.ok) return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
 
   const { id } = await params;
@@ -59,7 +59,7 @@ export async function PATCH(req: Request, { params }: Params) {
 }
 
 export async function DELETE(_req: Request, { params }: Params) {
-  const auth = await getGameAdminAuth();
+  const auth = await getSecretsAdminAuth();
   if (!auth.ok) return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
 
   const { id } = await params;

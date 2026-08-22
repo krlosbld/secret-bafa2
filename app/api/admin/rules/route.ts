@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getGameAdminAuth } from "@/lib/gameAdminAuth";
+import { getSecretsAdminAuth } from "@/lib/gameAdminAuth";
 import { resolveAdminFormationId } from "@/lib/formation";
 import { GAME_RULES } from "@/lib/gameRules";
 
 export const runtime = "nodejs";
 
 export async function GET() {
-  const auth = await getGameAdminAuth();
+  const auth = await getSecretsAdminAuth();
   if (!auth.ok) return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
 
   let formationId = auth.formationId;
@@ -27,7 +27,7 @@ export async function GET() {
 }
 
 export async function PATCH(req: Request) {
-  const auth = await getGameAdminAuth();
+  const auth = await getSecretsAdminAuth();
   if (!auth.ok) return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
 
   const body = await req.json().catch(() => ({}));

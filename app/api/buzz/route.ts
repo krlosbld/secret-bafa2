@@ -77,6 +77,15 @@ export async function POST(req: Request) {
       );
     }
 
+    // Le maître du jeu (directeur, ou formateur délégué) a accès à l'administration des secrets —
+    // il ne peut pas buzzer, même s'il a lui-même un secret, pour ne pas profiter de sa vision d'admin.
+    if (player.role === "DIRECTEUR" || player.isGameMaster) {
+      return NextResponse.json(
+        { error: "En tant que maître du jeu, tu ne peux pas buzzer." },
+        { status: 403 }
+      );
+    }
+
     // Vérifier que le prénom correspond au code (fuzzy) — inutile en mode "faux secret", le code
     // suffit déjà à identifier le joueur sans lui redemander son prénom.
     if (!claimFake && !matchesName(player.firstName, fromName)) {

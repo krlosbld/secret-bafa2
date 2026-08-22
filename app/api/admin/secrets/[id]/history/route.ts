@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getGameAdminAuth } from "@/lib/gameAdminAuth";
+import { getSecretsAdminAuth } from "@/lib/gameAdminAuth";
 
 export const runtime = "nodejs";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function GET(_req: Request, { params }: Params) {
-  const auth = await getGameAdminAuth();
+  const auth = await getSecretsAdminAuth();
   if (!auth.ok) return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
 
   const { id } = await params;

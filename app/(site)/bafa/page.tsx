@@ -602,7 +602,7 @@ export default async function BafaPage({
   const player = playerSession
     ? await prisma.player.findUnique({
         where: { id: playerSession.playerId },
-        select: { firstName: true, code: true, role: true, formationId: true },
+        select: { firstName: true, code: true, role: true, formationId: true, isGameMaster: true },
       })
     : null;
 
@@ -645,6 +645,8 @@ export default async function BafaPage({
   // soit l'état de la formation.
   const isStaff = (!!player && STAFF_ROLES.includes(player.role)) || !!adminSession;
   const isDirector = !!player && player.role === "DIRECTEUR";
+  const isGameMasterFormateur = !!player && player.role === "FORMATEUR" && player.isGameMaster;
+  const canSeeAdminTab = isDirector || isGameMasterFormateur;
 
   if (showGroups && isStaff) {
     const [groupRows, stagiaires, staffList] = await Promise.all([
@@ -693,14 +695,14 @@ export default async function BafaPage({
           <p className="sub" style={{ marginBottom: 20 }}>
             Répartition des stagiaires en groupes, aléatoire ou manuelle.
           </p>
-          <TabNav active="groupes" showGroups={isStaff} showAdmin={isDirector} />
+          <TabNav active="groupes" showGroups={isStaff} showAdmin={canSeeAdminTab} />
           <GroupGenerator initialGroups={initialGroups} stagiaires={stagiaires} staffList={staffList} />
         </div>
       </main>
     );
   }
 
-  if (showAdminTab && isDirector) {
+  if (showAdminTab && canSeeAdminTab) {
     return (
       <main className="page">
         <div className="container">
@@ -713,8 +715,8 @@ export default async function BafaPage({
           <p className="sub" style={{ marginBottom: 20 }}>
             Modération des secrets et des buzz pour ta formation.
           </p>
-          <TabNav active="admin" showGroups={isStaff} showAdmin={isDirector} />
-          <AdminTab formationId={formationId} />
+          <TabNav active="admin" showGroups={isStaff} showAdmin={canSeeAdminTab} />
+          <AdminTab formationId={formationId} secretsOnly={!isDirector} />
         </div>
       </main>
     );
@@ -787,7 +789,7 @@ export default async function BafaPage({
               startDate={startDate}
             />
           )}
-          <TabNav active="planning" showGroups={isStaff} showAdmin={isDirector} />
+          <TabNav active="planning" showGroups={isStaff} showAdmin={canSeeAdminTab} />
           <PlanningTab
             initialBlocks={blocksWithStaffIds}
             initialPostes={postes}
@@ -815,7 +817,7 @@ export default async function BafaPage({
       return (
         <main className="page">
           <div className="container">
-            <TabNav active="espace" showGroups={isStaff} showAdmin={isDirector} />
+            <TabNav active="espace" showGroups={isStaff} showAdmin={canSeeAdminTab} />
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
               <h1 className="h1" style={{ margin: 0 }}>
                 Abandons
@@ -869,7 +871,7 @@ export default async function BafaPage({
         return (
           <main className="page">
             <div className="container">
-              <TabNav active="espace" showGroups={isStaff} showAdmin={isDirector} />
+              <TabNav active="espace" showGroups={isStaff} showAdmin={canSeeAdminTab} />
               <PersonalSpace
                 playerId={as}
                 formationId={formationId}
@@ -908,7 +910,7 @@ export default async function BafaPage({
     return (
       <main className="page">
         <div className="container">
-          <TabNav active="espace" showGroups={isStaff} showAdmin={isDirector} />
+          <TabNav active="espace" showGroups={isStaff} showAdmin={canSeeAdminTab} />
           <StagiaireList
             players={players}
             showLogout={!!player}
@@ -926,7 +928,7 @@ export default async function BafaPage({
   return (
     <main className="page">
       <div className="container">
-        <TabNav active="espace" showGroups={isStaff} showAdmin={isDirector} />
+        <TabNav active="espace" showGroups={isStaff} showAdmin={canSeeAdminTab} />
         <PersonalSpace
           playerId={playerSession!.playerId}
           formationId={formationId}

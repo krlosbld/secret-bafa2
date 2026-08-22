@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getGameAdminAuth } from "@/lib/gameAdminAuth";
+import { getSecretsAdminAuth } from "@/lib/gameAdminAuth";
 import { resolveAdminFormationId } from "@/lib/formation";
 import { findNameCollision } from "@/lib/nameCollision";
 import { generateAiDecoy } from "@/lib/aiDecoy";
@@ -9,7 +9,7 @@ import { randomDecoy } from "@/lib/decoySecrets";
 export const runtime = "nodejs";
 
 export async function POST() {
-  const auth = await getGameAdminAuth();
+  const auth = await getSecretsAdminAuth();
   if (!auth.ok) return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
 
   let formationId = auth.formationId;

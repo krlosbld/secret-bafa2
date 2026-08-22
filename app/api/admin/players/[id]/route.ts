@@ -55,6 +55,9 @@ export async function PATCH(req: Request, { params }: Params) {
   if (body.role === "STAGIAIRE" || body.role === "FORMATEUR" || body.role === "DIRECTEUR") {
     data.role = body.role;
   }
+  if (typeof body.isGameMaster === "boolean") {
+    data.isGameMaster = body.isGameMaster;
+  }
 
   if (Object.keys(data).length === 0) {
     return NextResponse.json({ error: "Aucun champ valide." }, { status: 400 });

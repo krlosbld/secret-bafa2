@@ -105,6 +105,7 @@ model Player {
   points            Int               @default(0)
   buzzCount         Int               @default(0)
   buzzQuotaOverride Int? // null = utilise le quota de la formation
+  isGameMaster      Boolean           @default(false) // formateur délégué par le directeur : accès admin aux secrets, ne peut pas buzzer
   createdAt         DateTime          @default(now())
   formation         Formation         @relation(fields: [formationId], references: [id], onDelete: Cascade)
   directorAccount   DirectorAccount?  @relation(fields: [directorAccountId], references: [id])

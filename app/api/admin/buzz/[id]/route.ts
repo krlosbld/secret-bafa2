@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { getGameAdminAuth } from "@/lib/gameAdminAuth";
+import { getSecretsAdminAuth } from "@/lib/gameAdminAuth";
 import { resolveWinningBuzz } from "@/lib/buzzResolution";
 
 export const runtime = "nodejs";
@@ -9,7 +9,7 @@ type Params = { params: Promise<{ id: string }> };
 
 // PATCH : valider ou rejeter un buzz
 export async function PATCH(req: Request, { params }: Params) {
-  const auth = await getGameAdminAuth();
+  const auth = await getSecretsAdminAuth();
   if (!auth.ok) return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
 
   const { id } = await params;
@@ -63,7 +63,7 @@ export async function PATCH(req: Request, { params }: Params) {
 
 // DELETE : supprimer un buzz
 export async function DELETE(_req: Request, { params }: Params) {
-  const auth = await getGameAdminAuth();
+  const auth = await getSecretsAdminAuth();
   if (!auth.ok) return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
 
   const { id } = await params;

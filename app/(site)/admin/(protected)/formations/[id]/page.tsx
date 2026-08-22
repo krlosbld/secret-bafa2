@@ -93,10 +93,10 @@ export default async function FormationDetailPage({ params }: { params: Promise<
     ? await prisma.player.findMany({
         where: { formationId, role: { in: ["FORMATEUR", "DIRECTEUR"] } },
         orderBy: { firstName: "asc" },
-        select: { id: true, firstName: true, role: true, directorAccount: { select: { username: true } } },
+        select: { id: true, firstName: true, role: true, isGameMaster: true, directorAccount: { select: { username: true } } },
       })
     : [];
-  const staff = staffRows.map((s) => ({ id: s.id, firstName: s.firstName, role: s.role, username: s.directorAccount?.username ?? null }));
+  const staff = staffRows.map((s) => ({ id: s.id, firstName: s.firstName, role: s.role, isGameMaster: s.isGameMaster, username: s.directorAccount?.username ?? null }));
 
   const directorAccounts = superAdmin
     ? await prisma.directorAccount.findMany({
