@@ -14,22 +14,26 @@ export default async function HomePage() {
     return <SessionCodeGate />;
   }
 
-  const allSecrets = await prisma.secret.findMany({
-    where: { status: { in: ["PUBLISHED", "FOUND"] }, formationId: formation.id },
-    select: {
-      id: true,
-      content: true,
-      status: true,
-      bonus: true,
-      limitedVisibility: true,
-      limitedVisibilitySince: true,
-      limitedVisibilityMinutes: true,
-      player: { select: { firstName: true } },
-      foundBy: { select: { firstName: true } },
-    },
-    orderBy: { createdAt: "asc" },
-  });
+  const [allSecrets, historyRevealConfig] = await Promise.all([
+    prisma.secret.findMany({
+      where: { status: { in: ["PUBLISHED", "FOUND"] }, formationId: formation.id },
+      select: {
+        id: true,
+        content: true,
+        status: true,
+        bonus: true,
+        limitedVisibility: true,
+        limitedVisibilitySince: true,
+        limitedVisibilityMinutes: true,
+        player: { select: { firstName: true } },
+        foundBy: { select: { firstName: true } },
+      },
+      orderBy: { createdAt: "asc" },
+    }),
+    prisma.config.findUnique({ where: { formationId_key: { formationId: formation.id, key: "rule_paidSecretHistory" } } }),
+  ]);
   const secrets = allSecrets.filter(isSecretCurrentlyVisible);
+  const historyRevealEnabled = historyRevealConfig?.value === "true";
 
   return (
     <main className="page">
@@ -57,7 +61,7 @@ export default async function HomePage() {
               : "Cette formation est terminée — lecture seule, plus de nouveaux secrets ni de buzz possibles."}
           </div>
         )}
-        <SecretsClient initial={secrets} />
+        <SecretsClient initial={secrets} historyRevealEnabled={historyRevealEnabled} />
       </div>
     </main>
   );

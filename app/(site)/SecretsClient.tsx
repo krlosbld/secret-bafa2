@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback } from "react";
 import BuzzButton from "./BuzzButton";
+import HistoryRevealButton from "./HistoryRevealButton";
 
 type SecretItem = {
   id: string;
@@ -21,7 +22,7 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-export default function SecretsClient({ initial }: { initial: SecretItem[] }) {
+export default function SecretsClient({ initial, historyRevealEnabled }: { initial: SecretItem[]; historyRevealEnabled: boolean }) {
   const [secrets, setSecrets] = useState<SecretItem[]>(() => shuffle(initial));
   const [toast, setToast] = useState(() => initial.some((s) => s.status === "FOUND"));
 
@@ -92,8 +93,9 @@ export default function SecretsClient({ initial }: { initial: SecretItem[] }) {
               +{s.bonus} pt{s.bonus > 1 ? "s" : ""}
             </div>
           </div>
-          <div style={{ marginTop: 12 }}>
+          <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
             <BuzzButton secretId={s.id} />
+            {historyRevealEnabled && <HistoryRevealButton secretId={s.id} />}
           </div>
         </div>
       ))}

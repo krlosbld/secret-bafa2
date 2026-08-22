@@ -8,6 +8,12 @@ export const GAME_RULES = [
     description:
       "Dès qu'un buzz correct arrive pour un secret (même pas encore validé), plus personne ne peut buzzer ce secret avec un autre prénom, ni buzzer ce prénom pour un autre secret. Le buzz reste à valider — les points ne sont attribués qu'après ta validation.",
   },
+  {
+    key: "rule_paidSecretHistory",
+    label: "Les joueurs peuvent débloquer l'historique d'un secret contre 5 points",
+    description:
+      "Sur un secret pas encore trouvé, un joueur peut payer 5 points pour voir les prénoms déjà devinés à tort dessus (pas qui a buzzé).",
+  },
 ] as const;
 
 export type GameRuleKey = (typeof GAME_RULES)[number]["key"];

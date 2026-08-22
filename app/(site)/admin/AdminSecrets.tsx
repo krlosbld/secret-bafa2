@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { isSecretCurrentlyVisible } from "@/lib/secretVisibility";
+import SecretHistoryButton from "./SecretHistoryButton";
 
 type Secret = {
   id: string;
@@ -255,6 +256,7 @@ export function AdminSecretsPending({ secrets }: { secrets: Secret[] }) {
             >
               🗑️ Rejeter
             </button>
+            <SecretHistoryButton secretId={s.id} />
           </div>
         </div>
       ))}
@@ -449,6 +451,7 @@ export function AdminSecretsPublished({ secrets }: { secrets: Secret[] }) {
             >
               Supprimer
             </button>
+            <SecretHistoryButton secretId={s.id} />
           </div>
         </div>
       ))}

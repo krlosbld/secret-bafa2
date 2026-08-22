@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { matchesName } from "@/lib/nameCollision";
-import { resolveWinningBuzz } from "@/lib/buzzResolution";
+import { resolveWinningBuzz, CLAIM_FAKE_GUESS_LABEL } from "@/lib/buzzResolution";
 import { isSecretCurrentlyVisible } from "@/lib/secretVisibility";
 import { getFormationFromCookie, hasNotStartedYet } from "@/lib/formationSession";
 
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
     const claimFake = body.claimFake === true;
     const fromName = String(body.fromName ?? "").trim();
     const fromCode = String(body.fromCode ?? "").trim();
-    const guessedName = claimFake ? "🎭 Pense que c'est un faux secret" : String(body.guessedName ?? "").trim();
+    const guessedName = claimFake ? CLAIM_FAKE_GUESS_LABEL : String(body.guessedName ?? "").trim();
 
     const missingFields = claimFake ? !secretId || !fromCode : !secretId || !fromName || !fromCode || !guessedName;
     if (missingFields) {

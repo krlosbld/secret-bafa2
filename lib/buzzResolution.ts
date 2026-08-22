@@ -1,6 +1,10 @@
 import { prisma } from "@/lib/prisma";
 import { matchesName } from "@/lib/nameCollision";
 
+// Chaîne fixe utilisée comme `guessedName` pour une réclamation "faux secret" — pas un vrai prénom,
+// à exclure partout où on liste des prénoms devinés (ex. la révélation payante d'historique).
+export const CLAIM_FAKE_GUESS_LABEL = "🎭 Pense que c'est un faux secret";
+
 // Marque un buzz comme le bon, crédite les points, marque le secret trouvé, et nettoie tout ce qui
 // ne peut plus être correct nulle part : les autres buzz en attente sur ce même secret, et les buzz
 // en attente ailleurs dans la formation qui devinaient ce même prénom.
