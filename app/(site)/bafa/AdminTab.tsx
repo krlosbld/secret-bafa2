@@ -10,7 +10,7 @@ import AdminGameRules from "../admin/AdminGameRules";
 import { GAME_RULES } from "@/lib/gameRules";
 
 export default async function AdminTab({ formationId, secretsOnly = false }: { formationId: string; secretsOnly?: boolean }) {
-  const [pendingSecrets, publishedSecrets, pendingBuzzes, players, staffRows, quotaConfig, lastNightlyRunConfig, gameEndedConfig, ruleRows] = await Promise.all([
+  const [pendingSecrets, publishedSecrets, pendingBuzzes, players, staffRows, quotaConfig, lastNightlyRunConfig, gameEndedConfig, ruleRows, buzzPausedConfig] = await Promise.all([
     prisma.secret.findMany({
       where: { status: "PENDING", formationId },
       orderBy: { createdAt: "asc" },
@@ -64,6 +64,7 @@ export default async function AdminTab({ formationId, secretsOnly = false }: { f
     prisma.config.findUnique({ where: { formationId_key: { formationId, key: "lastNightlyRun" } } }),
     prisma.config.findUnique({ where: { formationId_key: { formationId, key: "gameEnded" } } }),
     prisma.config.findMany({ where: { formationId, key: { in: GAME_RULES.map((r) => r.key) } } }),
+    prisma.config.findUnique({ where: { formationId_key: { formationId, key: "buzzPaused" } } }),
   ]);
 
   const staff = staffRows.map((s) => ({
@@ -76,6 +77,7 @@ export default async function AdminTab({ formationId, secretsOnly = false }: { f
 
   const quota = Number(quotaConfig?.value ?? 3);
   const gameEnded = gameEndedConfig?.value === "true";
+  const buzzPaused = buzzPausedConfig?.value === "true";
   const ruleValues = new Map(ruleRows.map((r) => [r.key, r.value]));
   const initialRules = Object.fromEntries(GAME_RULES.map((r) => [r.key, ruleValues.get(r.key) === "true"]));
 
@@ -101,7 +103,7 @@ export default async function AdminTab({ formationId, secretsOnly = false }: { f
     <div>
       {!secretsOnly && (
         <Section title="Fin du jeu">
-          <AdminEndGame formationId={formationId} gameEnded={gameEnded} />
+          <AdminEndGame formationId={formationId} gameEnded={gameEnded} initialBuzzPaused={buzzPaused} />
         </Section>
       )}
 

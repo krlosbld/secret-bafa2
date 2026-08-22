@@ -59,12 +59,16 @@ export async function POST(req: Request) {
     }
     const formationId = formation.id;
 
-    const [gameEndedConfig, lockPendingCorrectConfig] = await Promise.all([
+    const [gameEndedConfig, lockPendingCorrectConfig, buzzPausedConfig] = await Promise.all([
       prisma.config.findUnique({ where: { formationId_key: { formationId, key: "gameEnded" } } }),
       prisma.config.findUnique({ where: { formationId_key: { formationId, key: "rule_lockPendingCorrect" } } }),
+      prisma.config.findUnique({ where: { formationId_key: { formationId, key: "buzzPaused" } } }),
     ]);
     if (gameEndedConfig?.value === "true") {
       return NextResponse.json({ error: "Le jeu est terminé, il n'est plus possible de buzzer." }, { status: 403 });
+    }
+    if (buzzPausedConfig?.value === "true") {
+      return NextResponse.json({ error: "Les buzz sont temporairement suspendus." }, { status: 403 });
     }
     const lockPendingCorrect = lockPendingCorrectConfig?.value === "true";
 
