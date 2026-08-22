@@ -5,6 +5,18 @@ import { matchesName } from "@/lib/nameCollision";
 // à exclure partout où on liste des prénoms devinés (ex. la révélation payante d'historique).
 export const CLAIM_FAKE_GUESS_LABEL = "🎭 Pense que c'est un faux secret";
 
+// Points gagnés en trouvant ce secret — un faux secret porte directement, dans `bonus`, le nombre
+// total de points choisi par l'admin à sa création, pas le "+2" de base des vrais secrets.
+export function secretReward(secret: { bonus: number; isDecoy: boolean }): number {
+  return secret.isDecoy ? secret.bonus : 2 + secret.bonus;
+}
+
+// Coût pour révéler l'historique d'un secret : la récompense qu'il rapporte moins 1 (pour garder un
+// intérêt à le trouver plutôt qu'à juste éliminer des pistes), avec un minimum de 2.
+export function historyRevealCost(secret: { bonus: number; isDecoy: boolean }): number {
+  return Math.max(2, secretReward(secret) - 1);
+}
+
 // Marque un buzz comme le bon, crédite les points, marque le secret trouvé, et nettoie tout ce qui
 // ne peut plus être correct nulle part : les autres buzz en attente sur ce même secret, et les buzz
 // en attente ailleurs dans la formation qui devinaient ce même prénom.
@@ -17,9 +29,7 @@ export async function resolveWinningBuzz(params: {
   secretPlayerFirstName: string;
   formationId: string;
 }): Promise<number> {
-  // Un faux secret porte directement, dans `bonus`, le nombre total de points choisi par l'admin à
-  // sa création — pas le "+2" de base des vrais secrets.
-  const points = params.secretIsDecoy ? params.secretBonus : 2 + params.secretBonus;
+  const points = secretReward({ bonus: params.secretBonus, isDecoy: params.secretIsDecoy });
 
   await prisma.$transaction([
     prisma.buzz.update({ where: { id: params.buzzId }, data: { status: "VALIDATED" } }),

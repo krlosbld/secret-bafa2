@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { getFormationFromCookie, hasNotStartedYet } from "@/lib/formationSession";
 import { isSecretCurrentlyVisible } from "@/lib/secretVisibility";
+import { historyRevealCost } from "@/lib/buzzResolution";
 import SessionCodeGate from "@/components/SessionCodeGate";
 import FakeSecretAnnouncement from "@/components/FakeSecretAnnouncement";
 import SecretsClient from "./SecretsClient";
@@ -22,6 +23,7 @@ export default async function HomePage() {
         content: true,
         status: true,
         bonus: true,
+        isDecoy: true,
         limitedVisibility: true,
         limitedVisibilitySince: true,
         limitedVisibilityMinutes: true,
@@ -32,8 +34,13 @@ export default async function HomePage() {
     }),
     prisma.config.findUnique({ where: { formationId_key: { formationId: formation.id, key: "rule_paidSecretHistory" } } }),
   ]);
-  const secrets = allSecrets.filter(isSecretCurrentlyVisible);
   const historyRevealEnabled = historyRevealConfig?.value === "true";
+  // isDecoy ne doit jamais atteindre le client (ça révélerait quels secrets sont faux) — on ne
+  // garde que le coût déjà calculé pour la révélation payante.
+  const secrets = allSecrets.filter(isSecretCurrentlyVisible).map(({ isDecoy, ...s }) => ({
+    ...s,
+    revealCost: historyRevealCost({ bonus: s.bonus, isDecoy }),
+  }));
 
   return (
     <main className="page">

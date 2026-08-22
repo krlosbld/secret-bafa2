@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-export default function HistoryRevealButton({ secretId }: { secretId: string }) {
+export default function HistoryRevealButton({ secretId, cost }: { secretId: string; cost: number }) {
   const [open, setOpen] = useState(false);
   const [fromCode, setFromCode] = useState("");
   const [loading, setLoading] = useState(false);
@@ -49,7 +49,7 @@ export default function HistoryRevealButton({ secretId }: { secretId: string }) 
         className="btn btn-ghost"
         style={{ fontSize: 12, padding: "4px 10px" }}
       >
-        🔍 Découvrir l&apos;historique (5 pts)
+        🔍 Découvrir l&apos;historique ({cost} pts)
       </button>
 
       {open && (
@@ -97,7 +97,7 @@ export default function HistoryRevealButton({ secretId }: { secretId: string }) 
               </div>
             ) : (
               <div className="sb-form" style={{ marginTop: 12 }}>
-                <p className="sb-help">Ça te coûtera 5 points pour voir les prénoms déjà devinés à tort sur ce secret.</p>
+                <p className="sb-help">Ça te coûtera {cost} points pour voir les prénoms déjà devinés à tort sur ce secret.</p>
                 <label className="sb-field">
                   <span>Ton code personnel</span>
                   <input
@@ -130,7 +130,7 @@ export default function HistoryRevealButton({ secretId }: { secretId: string }) 
                     Annuler
                   </button>
                   <button className="sb-btn sb-btn--main" onClick={reveal} disabled={loading}>
-                    {loading ? "…" : "Débloquer (5 pts)"}
+                    {loading ? "…" : `Débloquer (${cost} pts)`}
                   </button>
                 </div>
               </div>

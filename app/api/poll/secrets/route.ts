@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getFormationFromCookie } from "@/lib/formationSession";
 import { isSecretCurrentlyVisible } from "@/lib/secretVisibility";
+import { historyRevealCost } from "@/lib/buzzResolution";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -17,6 +18,7 @@ export async function GET() {
       content: true,
       status: true,
       bonus: true,
+      isDecoy: true,
       limitedVisibility: true,
       limitedVisibilitySince: true,
       limitedVisibilityMinutes: true,
@@ -25,7 +27,11 @@ export async function GET() {
     },
     orderBy: { player: { firstName: "asc" } },
   });
-  const secrets = allSecrets.filter(isSecretCurrentlyVisible);
+  // isDecoy ne doit jamais atteindre le client — on ne garde que le coût déjà calculé.
+  const secrets = allSecrets.filter(isSecretCurrentlyVisible).map(({ isDecoy, ...s }) => ({
+    ...s,
+    revealCost: historyRevealCost({ bonus: s.bonus, isDecoy }),
+  }));
 
   return NextResponse.json({ secrets });
 }

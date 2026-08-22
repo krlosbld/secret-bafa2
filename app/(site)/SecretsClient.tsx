@@ -9,6 +9,7 @@ type SecretItem = {
   content: string;
   status: string;
   bonus: number;
+  revealCost: number;
   player: { firstName: string };
   foundBy: { firstName: string } | null;
 };
@@ -95,7 +96,7 @@ export default function SecretsClient({ initial, historyRevealEnabled }: { initi
           </div>
           <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
             <BuzzButton secretId={s.id} />
-            {historyRevealEnabled && <HistoryRevealButton secretId={s.id} />}
+            {historyRevealEnabled && <HistoryRevealButton secretId={s.id} cost={s.revealCost} />}
           </div>
         </div>
       ))}

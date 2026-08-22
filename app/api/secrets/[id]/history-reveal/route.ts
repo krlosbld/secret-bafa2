@@ -1,11 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { CLAIM_FAKE_GUESS_LABEL } from "@/lib/buzzResolution";
+import { CLAIM_FAKE_GUESS_LABEL, historyRevealCost } from "@/lib/buzzResolution";
 import { getFormationFromCookie, hasNotStartedYet } from "@/lib/formationSession";
 
 export const runtime = "nodejs";
-
-const REVEAL_COST = 5;
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -53,11 +51,12 @@ export async function POST(req: Request, { params }: Params) {
     return NextResponse.json({ error: "Ce secret a déjà été trouvé." }, { status: 400 });
   }
 
-  if (player.points < REVEAL_COST) {
-    return NextResponse.json({ error: `Il te faut au moins ${REVEAL_COST} points.` }, { status: 400 });
+  const cost = historyRevealCost(secret);
+  if (player.points < cost) {
+    return NextResponse.json({ error: `Il te faut au moins ${cost} points.` }, { status: 400 });
   }
 
-  await prisma.player.update({ where: { id: player.id }, data: { points: { decrement: REVEAL_COST } } });
+  await prisma.player.update({ where: { id: player.id }, data: { points: { decrement: cost } } });
 
   const wrongBuzzes = await prisma.buzz.findMany({
     where: { secretId, isCorrect: false, guessedName: { not: CLAIM_FAKE_GUESS_LABEL } },
