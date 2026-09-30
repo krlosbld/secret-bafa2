@@ -8,14 +8,14 @@ datasource db {
 }
 
 model Formation {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   name      String
-  code      String   @unique
-  active    Boolean  @default(false)
+  code      String    @unique
+  active    Boolean   @default(false)
   startDate DateTime?
   endDate   DateTime?
   location  String? // lieu de la session (facultatif)
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
 
   members           FormationMember[]
   managers          ManagerFormation[]
@@ -88,57 +88,57 @@ model TextEditHistory {
 // Photo de l'ensemble des créneaux d'une formation à un instant donné, prise avant toute
 // création/modification/suppression, pour pouvoir restaurer le planning en cas de perte.
 model PlanningSnapshot {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   formationId String
   blocks      String // JSON : { day, startMin, endMin, label, type }[]
-  createdAt   DateTime @default(now())
+  createdAt   DateTime  @default(now())
   formation   Formation @relation(fields: [formationId], references: [id], onDelete: Cascade)
 
   @@index([formationId, createdAt])
 }
 
 model Player {
-  id                String            @id @default(cuid())
-  formationId       String
-  firstName         String
-  code              String
-  directorAccountId String?
-  role              String            @default("STAGIAIRE") // STAGIAIRE | FORMATEUR | DIRECTEUR
-  active            Boolean           @default(true) // false = abandon
-  points            Int               @default(0)
-  buzzCount         Int               @default(0)
-  buzzQuotaOverride Int? // null = utilise le quota de la formation
-  isGameMaster      Boolean           @default(false) // formateur délégué par le directeur : accès admin aux secrets, ne peut pas buzzer
-  createdAt         DateTime          @default(now())
-  formation         Formation         @relation(fields: [formationId], references: [id], onDelete: Cascade)
-  directorAccount   DirectorAccount?  @relation(fields: [directorAccountId], references: [id])
-  secret           Secret?
-  buzzesSent       Buzz[]            @relation("BuzzFrom")
-  foundSecrets     Secret[]          @relation("FoundBy")
-  evaluations      Evaluation[]
-  criterionRatings CriterionRating[]
-  blockAssignments BlockAssignment[]
+  id                    String            @id @default(cuid())
+  formationId           String
+  firstName             String
+  code                  String
+  directorAccountId     String?
+  role                  String            @default("STAGIAIRE") // STAGIAIRE | FORMATEUR | DIRECTEUR
+  active                Boolean           @default(true) // false = abandon
+  points                Int               @default(0)
+  buzzCount             Int               @default(0)
+  buzzQuotaOverride     Int? // null = utilise le quota de la formation
+  isGameMaster          Boolean           @default(false) // formateur délégué par le directeur : accès admin aux secrets, ne peut pas buzzer
+  createdAt             DateTime          @default(now())
+  formation             Formation         @relation(fields: [formationId], references: [id], onDelete: Cascade)
+  directorAccount       DirectorAccount?  @relation(fields: [directorAccountId], references: [id])
+  secret                Secret?
+  buzzesSent            Buzz[]            @relation("BuzzFrom")
+  foundSecrets          Secret[]          @relation("FoundBy")
+  evaluations           Evaluation[]
+  criterionRatings      CriterionRating[]
+  blockAssignments      BlockAssignment[]
   responsibleBlockStaff BlockStaff[]
-  dailyRemarks     DailyRemark[]
-  groupMemberships GroupMember[]
-  groupStaffRoles  GroupStaff[]
-  member           FormationMember? // compte BafaPilot représenté par cette fiche, s'il y en a un
+  dailyRemarks          DailyRemark[]
+  groupMemberships      GroupMember[]
+  groupStaffRoles       GroupStaff[]
+  member                FormationMember? // compte BafaPilot représenté par cette fiche, s'il y en a un
 
   // Panneau latéral de la page stagiaire
-  personalNote               String  @default("") // écrit par le stagiaire lui-même
-  ems                        String  @default("") // entretien de mi-stage
-  emsVisible                 Boolean @default(false)
-  emsAuthorId                String? // id du formateur/directeur qui a écrit la version actuelle
-  retourEms                  String  @default("") // retour suite à l'EMS
-  retourEmsVisible           Boolean @default(false)
-  retourEmsAuthorId          String?
-  complementaryNote          String  @default("") // entretien complémentaire
-  complementaryVisible       Boolean @default(false)
-  complementaryNoteAuthorId  String?
-  finalOpinion                String  @default("EN_ATTENTE") // avis : EN_ATTENTE | FAVORABLE | DEFAVORABLE
-  finalAppraisal              String  @default("") // appréciation finale
-  finalAppraisalVisible       Boolean @default(false)
-  finalAppraisalAuthorId      String?
+  personalNote              String  @default("") // écrit par le stagiaire lui-même
+  ems                       String  @default("") // entretien de mi-stage
+  emsVisible                Boolean @default(false)
+  emsAuthorId               String? // id du formateur/directeur qui a écrit la version actuelle
+  retourEms                 String  @default("") // retour suite à l'EMS
+  retourEmsVisible          Boolean @default(false)
+  retourEmsAuthorId         String?
+  complementaryNote         String  @default("") // entretien complémentaire
+  complementaryVisible      Boolean @default(false)
+  complementaryNoteAuthorId String?
+  finalOpinion              String  @default("EN_ATTENTE") // avis : EN_ATTENTE | FAVORABLE | DEFAVORABLE
+  finalAppraisal            String  @default("") // appréciation finale
+  finalAppraisalVisible     Boolean @default(false)
+  finalAppraisalAuthorId    String?
 
   @@unique([formationId, code])
   @@index([directorAccountId])
@@ -208,17 +208,38 @@ model ManagerFormation {
 // Session de connexion : le cookie contient un jeton aléatoire opaque, seule son empreinte
 // SHA-256 est stockée ici — une fuite de la base ne permet pas de se connecter.
 model UserSession {
-  id         String   @id @default(cuid())
-  userId     String
-  tokenHash  String   @unique
-  expiresAt  DateTime
-  lastUsedAt DateTime @default(now())
-  createdAt  DateTime @default(now())
-  userAgent  String?
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id             String   @id @default(cuid())
+  userId         String
+  tokenHash      String   @unique
+  expiresAt      DateTime
+  lastUsedAt     DateTime @default(now())
+  createdAt      DateTime @default(now())
+  userAgent      String?
+  // Session ouverte par un super-admin via « Se connecter en tant que » : identifiant du compte
+  // super-admin, ou "LEGACY_SUPERADMIN" pour le super-admin du .env. Null = connexion normale.
+  impersonatorId String?
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+// Journal des actions sensibles de l'administration (prise de contrôle d'un compte, suppression,
+// changement de mot de passe, rattachements…). Les libellés sont figés au moment de l'action pour
+// rester lisibles même si le compte concerné est supprimé ensuite.
+model AdminAuditLog {
+  id           String   @id @default(cuid())
+  actorUserId  String? // null = super-admin du .env
+  actorLabel   String
+  action       String
+  targetUserId String?
+  targetLabel  String?
+  formationId  String?
+  details      String?
+  createdAt    DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([targetUserId])
 }
 
 // Jetons à usage unique envoyés par email (confirmation d'adresse, mot de passe oublié) :
@@ -237,24 +258,24 @@ model AuthToken {
 }
 
 model Secret {
-  id              String     @id @default(cuid())
-  formationId     String
-  playerId        String     @unique
-  content         String
-  bonus           Int        @default(1)
-  status          String     @default("PENDING") // PENDING | PUBLISHED | FOUND
-  flagged         Boolean    @default(false)
-  isDecoy         Boolean    @default(false) // faux secret créé par l'admin, sans vrai joueur derrière
+  id                       String    @id @default(cuid())
+  formationId              String
+  playerId                 String    @unique
+  content                  String
+  bonus                    Int       @default(1)
+  status                   String    @default("PENDING") // PENDING | PUBLISHED | FOUND
+  flagged                  Boolean   @default(false)
+  isDecoy                  Boolean   @default(false) // faux secret créé par l'admin, sans vrai joueur derrière
   limitedVisibility        Boolean   @default(false)
   limitedVisibilitySince   DateTime? // instant d'activation — ancre le cycle horaire
   limitedVisibilityMinutes Int       @default(5) // durée visible par heure, choisie par l'admin
-  foundByPlayerId String?
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
-  formation       Formation  @relation(fields: [formationId], references: [id], onDelete: Cascade)
-  player          Player     @relation(fields: [playerId], references: [id], onDelete: Cascade)
-  foundBy         Player?    @relation("FoundBy", fields: [foundByPlayerId], references: [id])
-  buzzes          Buzz[]
+  foundByPlayerId          String?
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+  formation                Formation @relation(fields: [formationId], references: [id], onDelete: Cascade)
+  player                   Player    @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  foundBy                  Player?   @relation("FoundBy", fields: [foundByPlayerId], references: [id])
+  buzzes                   Buzz[]
 
   @@index([formationId])
 }
@@ -292,21 +313,21 @@ model Config {
 }
 
 model PlanningBlock {
-  id                 String            @id @default(cuid())
-  formationId        String
-  day                Int // 0 = premier jour de la formation, etc.
-  startMin           Int // minutes depuis minuit
-  endMin             Int
-  label              String
-  type               String // id du PosteType
-  groupId            String? // groupe rattaché — ses formateurs voient ce créneau en priorité dans le pop-up
-  createdAt          DateTime          @default(now())
-  updatedAt          DateTime          @updatedAt
-  formation          Formation         @relation(fields: [formationId], references: [id], onDelete: Cascade)
-  responsibleStaff   BlockStaff[] // formateurs/directeurs à relancer pour saisir les retours une fois le créneau passé
-  group              Group?            @relation(fields: [groupId], references: [id], onDelete: SetNull)
-  evaluations        Evaluation[]
-  assignments        BlockAssignment[]
+  id               String            @id @default(cuid())
+  formationId      String
+  day              Int // 0 = premier jour de la formation, etc.
+  startMin         Int // minutes depuis minuit
+  endMin           Int
+  label            String
+  type             String // id du PosteType
+  groupId          String? // groupe rattaché — ses formateurs voient ce créneau en priorité dans le pop-up
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  formation        Formation         @relation(fields: [formationId], references: [id], onDelete: Cascade)
+  responsibleStaff BlockStaff[] // formateurs/directeurs à relancer pour saisir les retours une fois le créneau passé
+  group            Group?            @relation(fields: [groupId], references: [id], onDelete: SetNull)
+  evaluations      Evaluation[]
+  assignments      BlockAssignment[]
 
   @@index([day])
   @@index([formationId])
@@ -338,14 +359,14 @@ model BlockAssignment {
 }
 
 model PosteType {
-  id              String   @id @default(cuid())
-  label           String
-  color           String
-  order           Int      @default(0)
-  evaluable       Boolean  @default(false)
-  category        String   @default("AUTRE") // THEORIE | ANIMATION | AUTRE | THEMATIQUE | RETOUR_STAGE
-  countedInHours  Boolean  @default(true)
-  createdAt       DateTime @default(now())
+  id             String   @id @default(cuid())
+  label          String
+  color          String
+  order          Int      @default(0)
+  evaluable      Boolean  @default(false)
+  category       String   @default("AUTRE") // THEORIE | ANIMATION | AUTRE | THEMATIQUE | RETOUR_STAGE
+  countedInHours Boolean  @default(true)
+  createdAt      DateTime @default(now())
 }
 
 model Evaluation {

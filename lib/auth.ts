@@ -31,8 +31,9 @@ export async function getSession(): Promise<AuthSession | null> {
 
   // Compte BafaPilot de niveau SUPERADMIN : mêmes droits que le super-admin historique. Le niveau
   // est relu en base à chaque requête via la session opaque — jamais déduit d'un cookie.
+  // Une session ouverte « en tant que » ne donne jamais les droits super-admin.
   const user = await getVerifiedUser();
-  if (user?.platformRole === "SUPERADMIN") return { role: "superadmin" };
+  if (user?.platformRole === "SUPERADMIN" && !user.impersonatorId) return { role: "superadmin" };
   return null;
 }
 

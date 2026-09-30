@@ -12,6 +12,8 @@ import AdminFormationDates from "../../../AdminFormationDates";
 import AdminReset from "../../../AdminReset";
 import AdminCronControls from "../../../AdminCronControls";
 import LogoutClient from "../../../LogoutClient";
+import TeamManager from "@/components/TeamManager";
+import { loadTeam } from "@/lib/team";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -105,6 +107,8 @@ export default async function FormationDetailPage({ params }: { params: Promise<
       })
     : [];
 
+  const team = superAdmin ? await loadTeam(formationId) : null;
+
   const quotaConfig =
     superAdmin && formation.active
       ? await prisma.config.findUnique({ where: { formationId_key: { formationId, key: "buzzQuota" } } })
@@ -183,7 +187,11 @@ export default async function FormationDetailPage({ params }: { params: Promise<
               <AdminCreateCode formationId={formation.id} directorAccounts={directorAccounts} />
             </Section>
 
-            <Section title={`Équipe (${staff.length})`}>
+            <Section title={`Équipe — comptes BafaPilot (${team!.members.length})`}>
+              <TeamManager formationId={formation.id} members={team!.members} linkable={team!.linkable} />
+            </Section>
+
+            <Section title={`Équipe — accès par code (${staff.length})`}>
               <AdminStaffList staff={staff} />
             </Section>
 

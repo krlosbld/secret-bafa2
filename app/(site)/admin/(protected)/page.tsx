@@ -3,6 +3,7 @@ import { getSession, isSuperAdmin } from "@/lib/auth";
 import AdminManagers from "../AdminManagers";
 import AdminFormations from "../AdminFormations";
 import LogoutClient from "../LogoutClient";
+import AdminNav from "../AdminNav";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -57,9 +58,10 @@ export default async function AdminPage() {
           </h1>
           <LogoutClient />
         </div>
-        <p className="sub" style={{ marginBottom: 32 }}>
-          {superAdmin ? "Super-admin" : "Gestionnaire"} · Session 10 min
+        <p className="sub" style={{ marginBottom: 20 }}>
+          {superAdmin ? "Super-admin" : "Gestionnaire"}
         </p>
+        {superAdmin && <AdminNav active="formations" />}
 
         <Section title="Formations">
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}

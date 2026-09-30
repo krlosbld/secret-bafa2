@@ -44,7 +44,8 @@ export async function canManageFormation(formationId: string): Promise<boolean> 
   if (isSuperAdmin(await getSession())) return true;
 
   const user = await getCurrentUser();
-  if (!user?.emailVerifiedAt || user.platformRole !== "GESTIONNAIRE") return false;
+  // Une session « en tant que » n'agit jamais au nom d'un gestionnaire.
+  if (!user?.emailVerifiedAt || user.impersonatorId || user.platformRole !== "GESTIONNAIRE") return false;
 
   const grant = await prisma.managerFormation.findUnique({
     where: { userId_formationId: { userId: user.id, formationId } },

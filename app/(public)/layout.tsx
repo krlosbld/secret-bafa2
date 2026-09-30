@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getVerifiedUser } from "@/lib/userSession";
+import ImpersonationBanner from "@/components/ImpersonationBanner";
 import "./public.css";
 
 export const dynamic = "force-dynamic";
@@ -11,6 +12,7 @@ export default async function PublicLayout({ children }: { children: React.React
 
   return (
     <div className="bp">
+      <ImpersonationBanner />
       <header className="bp-header">
         <div className="bp-header__inner">
           <Link href="/" className="bp-logo" aria-label="BafaPilot — accueil">
@@ -22,6 +24,11 @@ export default async function PublicLayout({ children }: { children: React.React
           <nav className="bp-nav">
             {user ? (
               <>
+                {user.platformRole === "GESTIONNAIRE" && !user.impersonatorId && (
+                  <Link href="/gestion" className="bp-btn bp-btn--ghost bp-nav__optional">
+                    Gestion
+                  </Link>
+                )}
                 {user.platformRole === "SUPERADMIN" && (
                   <Link href="/admin" className="bp-btn bp-btn--ghost bp-nav__optional">
                     Administration
