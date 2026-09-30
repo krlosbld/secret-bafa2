@@ -5,13 +5,15 @@ import { getDirectorAccountSession } from "@/lib/directorAuth";
 import { prisma } from "@/lib/prisma";
 import NavSubmitButton from "@/components/NavSubmitButton";
 import BrandLink from "@/components/BrandLink";
+import LogoutButton from "@/components/LogoutButton";
+import { getCurrentUser } from "@/lib/userSession";
 
 export default async function Navbar() {
   const isAdmin = !!(await getSession());
+  const playerSession = await getPlayerSession();
 
   let gearHref = "/admin";
   if (!isAdmin) {
-    const playerSession = await getPlayerSession();
     if (playerSession) {
       const player = await prisma.player.findUnique({
         where: { id: playerSession.playerId },
@@ -24,6 +26,8 @@ export default async function Navbar() {
   }
 
   const directorAccountSession = await getDirectorAccountSession();
+  // Connecté d'une façon ou d'une autre (compte, admin, stagiaire/formateur, compte directeur).
+  const loggedIn = isAdmin || !!playerSession || !!directorAccountSession || !!(await getCurrentUser());
 
   return (
     <header className="navbar">
@@ -49,6 +53,7 @@ export default async function Navbar() {
           <Link className="nav-link" href={gearHref} title="Administration">
             ⚙️
           </Link>
+          {loggedIn && <LogoutButton />}
         </div>
       </div>
     </header>

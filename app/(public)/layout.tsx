@@ -1,6 +1,9 @@
 import Link from "next/link";
 import { getVerifiedUser } from "@/lib/userSession";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
+import { getSession } from "@/lib/auth";
+import { getPlayerSession } from "@/lib/playerAuth";
+import { getDirectorAccountSession } from "@/lib/directorAuth";
 import "./public.css";
 
 export const dynamic = "force-dynamic";
@@ -9,6 +12,9 @@ export const dynamic = "force-dynamic";
 // distincte de celle du jeu et du BAFA Manager : pas de barre du jeu, pas de fenêtre de règles.
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   const user = await getVerifiedUser();
+  // Connexion sans compte BafaPilot (admin du .env, code stagiaire, compte directeur) : on propose
+  // quand même de se déconnecter.
+  const otherSession = !user && (!!(await getSession()) || !!(await getPlayerSession()) || !!(await getDirectorAccountSession()));
 
   return (
     <div className="bp">
@@ -43,9 +49,15 @@ export default async function PublicLayout({ children }: { children: React.React
               </>
             ) : (
               <>
-                <Link href="/login" className="bp-btn bp-btn--ghost">
-                  Se connecter
-                </Link>
+                {otherSession ? (
+                  <Link href="/logout" className="bp-btn bp-btn--outline">
+                    Se déconnecter
+                  </Link>
+                ) : (
+                  <Link href="/login" className="bp-btn bp-btn--ghost">
+                    Se connecter
+                  </Link>
+                )}
                 <Link href="/register" className="bp-btn bp-btn--primary bp-nav__optional">
                   Créer mon compte
                 </Link>

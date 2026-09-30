@@ -148,6 +148,34 @@ a {
   background: #115e59;
 }
 
+/* Bouton « Se déconnecter » : toujours visible dès qu'on est connecté (icône seule sur mobile). */
+.nav-logout {
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  cursor: pointer;
+  color: #b91c1c;
+  font-family: inherit;
+}
+
+.nav-logout:hover {
+  background: #fef2f2;
+  color: #991b1b;
+}
+
+.nav-logout__icon {
+  display: none;
+}
+
+@media (max-width: 520px) {
+  .nav-logout__text {
+    display: none;
+  }
+
+  .nav-logout__icon {
+    display: inline;
+  }
+}
+
 /* ================= LAYOUT ================= */
 .page {
   min-height: calc(100vh - 56px);
