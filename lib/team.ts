@@ -114,3 +114,20 @@ export async function loadTeam(formationId: string) {
   }));
   return { members, linkable };
 }
+
+// Fiche Player d'un membre, recréée si elle a disparu (ex. supprimée depuis l'ancien écran
+// d'équipe) : ouvrir la session doit toujours mener à une fiche valide dans le BAFA Manager.
+export async function ensureMemberPlayer(memberId: string): Promise<string> {
+  const member = await prisma.formationMember.findUnique({
+    where: { id: memberId },
+    select: { formationId: true, role: true, playerId: true, user: { select: { firstName: true, lastName: true } } },
+  });
+  if (!member) throw new TeamError("Rattachement introuvable.");
+  if (member.playerId) return member.playerId;
+
+  const firstName = await uniqueDisplayName(member.formationId, member.user.firstName, member.user.lastName);
+  const code = await generateUniquePlayerCode(member.formationId);
+  const player = await prisma.player.create({ data: { formationId: member.formationId, firstName, code, role: member.role }, select: { id: true } });
+  await prisma.formationMember.update({ where: { id: memberId }, data: { playerId: player.id } });
+  return player.id;
+}

@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { hashPassword, verifyPassword } from "@/lib/password";
 import { createUserSession } from "@/lib/userSession";
+import { clearPlayerSessionCookies } from "@/lib/playerAuth";
+import { clearDirectorAccountCookie } from "@/lib/directorAuth";
 import { normalizeEmail } from "@/lib/access";
 import { readJsonBody, str, limited, safeNextPath } from "@/lib/requestGuard";
 
@@ -55,6 +57,10 @@ export async function POST(req: Request) {
   }
 
   const res = NextResponse.json({ ok: true, next: safeNextPath(body.next) });
+  // Connexions par code laissées par quelqu'un d'autre sur ce navigateur : effacées, la session
+  // de formation sera rouverte à partir des rattachements du compte.
+  clearPlayerSessionCookies(res);
+  clearDirectorAccountCookie(res);
   await createUserSession(res, user.id, req.headers.get("user-agent"));
   return res;
 }

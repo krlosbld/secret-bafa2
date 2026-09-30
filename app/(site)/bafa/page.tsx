@@ -18,6 +18,9 @@ import { resolveAdminFormationId } from "@/lib/formation";
 import { getFormationFromCookie } from "@/lib/formationSession";
 import SessionCodeGate from "@/components/SessionCodeGate";
 import AdminFormationPicker from "./AdminFormationPicker";
+import { redirect } from "next/navigation";
+import { getVerifiedUser } from "@/lib/userSession";
+import { resolveSessionToOpen, openSessionPath } from "@/lib/mySessions";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -611,6 +614,32 @@ export default async function BafaPage({
 
   if (!loggedIn) {
     const formationCookie = await getFormationFromCookie();
+
+    // Compte BafaPilot sans session ouverte : l'onglet Formation n'est accessible qu'une fois
+    // rattaché à une session. On rouvre la dernière (ou la seule), sinon on passe par « Ma session ».
+    const account = await getVerifiedUser();
+    if (account) {
+      const target = await resolveSessionToOpen(account.id, formationCookie?.id ?? null);
+      if (target.kind === "open") {
+        const query = new URLSearchParams(Object.entries({ tab, as, day, abandoned }).filter((e): e is [string, string] => !!e[1])).toString();
+        redirect(openSessionPath(target.formationId, `/bafa${query ? `?${query}` : ""}`));
+      }
+      if (target.kind === "choose") redirect("/sessions");
+      return (
+        <main className="page">
+          <div className="container" style={{ maxWidth: 560 }}>
+            <h1 className="h1">Formation</h1>
+            <div className="card" style={{ textAlign: "center" }}>
+              <p style={{ fontWeight: 800, margin: "0 0 6px" }}>Aucune session ne vous est encore attribuée.</p>
+              <p style={{ color: "#64748b", margin: 0 }}>
+                Un responsable ou gestionnaire doit vous rattacher à une session pour accéder à la formation.
+              </p>
+            </div>
+          </div>
+        </main>
+      );
+    }
+
     if (!formationCookie) {
       return <SessionCodeGate />;
     }

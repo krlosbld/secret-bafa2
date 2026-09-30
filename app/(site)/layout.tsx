@@ -1,4 +1,5 @@
-import Navbar from "@/components/Navbar";
+import AppNav from "@/components/AppNav";
+import GameSubNav from "@/components/GameSubNav";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
 import RulesModal from "@/components/RulesModal";
 import PersonalNoteGate from "@/components/PersonalNoteGate";
@@ -8,7 +9,8 @@ export default function SiteLayout({ children }: { children: React.ReactNode }) 
   return (
     <>
       <ImpersonationBanner />
-      <Navbar />
+      <AppNav />
+      <GameSubNav />
       {children}
       <RulesModal />
       <PersonalNoteGate />

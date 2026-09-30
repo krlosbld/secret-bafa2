@@ -13,9 +13,9 @@ export default function LogoutButton() {
   }
 
   return (
-    <button type="button" className="nav-link nav-logout" onClick={logout} disabled={loading} aria-label="Se déconnecter" title="Se déconnecter">
-      <span className="nav-logout__text">{loading ? "Déconnexion…" : "Se déconnecter"}</span>
-      <span className="nav-logout__icon" aria-hidden>
+    <button type="button" className="app-nav__action app-nav__logout" onClick={logout} disabled={loading} aria-label="Se déconnecter" title="Se déconnecter">
+      <span className="app-nav__logout-text">{loading ? "Déconnexion…" : "Se déconnecter"}</span>
+      <span className="app-nav__logout-icon" aria-hidden>
         ⏻
       </span>
     </button>
