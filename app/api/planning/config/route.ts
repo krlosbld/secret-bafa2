@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getPlanningAuth } from "@/lib/planningAuth";
 import { SESSION_TYPES, DEFAULT_SESSION_TYPE, todayISO } from "@/lib/planningConfig";
 import { resolveViewFormationId } from "@/lib/formation";
+import { syncSessionDatesFromPlanning } from "@/lib/sessionSettings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -15,7 +16,9 @@ export async function GET() {
     where: { formationId, key: { in: ["planningSessionType", "planningStartDate"] } },
   });
   const sessionType = rows.find((r) => r.key === "planningSessionType")?.value ?? DEFAULT_SESSION_TYPE;
-  const startDate = rows.find((r) => r.key === "planningStartDate")?.value ?? todayISO();
+  const formation = await prisma.formation.findUnique({ where: { id: formationId }, select: { startDate: true } });
+  const startDate =
+    rows.find((r) => r.key === "planningStartDate")?.value ?? formation?.startDate?.toISOString().slice(0, 10) ?? todayISO();
   return NextResponse.json({ ok: true, sessionType, startDate });
 }
 
@@ -48,6 +51,8 @@ export async function PATCH(req: Request) {
       create: { formationId, key: "planningStartDate", value: startDate },
     }),
   ]);
+  // Une seule vérité : les dates de la session (Ma session, admin, réglages) suivent le planning.
+  await syncSessionDatesFromPlanning(formationId, sessionType, startDate);
 
   return NextResponse.json({ ok: true, sessionType, startDate });
 }

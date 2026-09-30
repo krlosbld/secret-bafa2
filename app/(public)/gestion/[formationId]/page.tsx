@@ -5,6 +5,8 @@ import { getManagerActor } from "@/lib/adminActor";
 import { canManageFormation } from "@/lib/access";
 import { loadTeam } from "@/lib/team";
 import TeamManager from "@/components/TeamManager";
+import SessionSettingsForm from "@/components/SessionSettingsForm";
+import { getSessionSettings } from "@/lib/sessionSettings";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Équipe de la session — BafaPilot" };
@@ -18,7 +20,7 @@ export default async function GestionFormationPage({ params }: { params: Promise
 
   const formation = await prisma.formation.findUnique({ where: { id: formationId }, select: { id: true, name: true } });
   if (!formation) notFound();
-  const team = await loadTeam(formationId);
+  const [team, settings] = await Promise.all([loadTeam(formationId), getSessionSettings(formationId)]);
 
   return (
     <div style={{ maxWidth: 760, margin: "0 auto" }}>
@@ -28,7 +30,10 @@ export default async function GestionFormationPage({ params }: { params: Promise
       <h1 className="bp-auth__title" style={{ textAlign: "left", margin: "16px 0 4px" }}>
         {formation.name}
       </h1>
-      <p style={{ color: "var(--bp-muted)", margin: "0 0 24px" }}>Équipe de la session — le rattachement est immédiat, sans code de session.</p>
+      <h2 style={{ fontSize: "1.1rem", fontWeight: 800, margin: "24px 0 12px" }}>Réglages de la session</h2>
+      <SessionSettingsForm formationId={formation.id} initial={settings!} />
+      <h2 style={{ fontSize: "1.1rem", fontWeight: 800, margin: "32px 0 4px" }}>Équipe</h2>
+      <p style={{ color: "var(--bp-muted)", margin: "0 0 16px" }}>Le rattachement est immédiat, sans code de session.</p>
       <TeamManager formationId={formation.id} members={team.members} linkable={team.linkable} />
     </div>
   );

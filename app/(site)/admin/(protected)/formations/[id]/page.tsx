@@ -8,12 +8,13 @@ import AdminPlayers from "../../../AdminPlayers";
 import AdminStaffList from "../../../AdminStaffList";
 import AdminCreateCode from "../../../AdminCreateCode";
 import AdminActivateFormation from "../../../AdminActivateFormation";
-import AdminFormationDates from "../../../AdminFormationDates";
 import AdminReset from "../../../AdminReset";
 import AdminCronControls from "../../../AdminCronControls";
 import LogoutClient from "../../../LogoutClient";
 import TeamManager from "@/components/TeamManager";
 import { loadTeam } from "@/lib/team";
+import SessionSettingsForm from "@/components/SessionSettingsForm";
+import { getSessionSettings } from "@/lib/sessionSettings";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -108,6 +109,7 @@ export default async function FormationDetailPage({ params }: { params: Promise<
     : [];
 
   const team = superAdmin ? await loadTeam(formationId) : null;
+  const settings = superAdmin ? await getSessionSettings(formationId) : null;
 
   const quotaConfig =
     superAdmin && formation.active
@@ -157,12 +159,8 @@ export default async function FormationDetailPage({ params }: { params: Promise<
         </p>
 
         {superAdmin && (
-          <Section title="Dates">
-            <AdminFormationDates
-              formationId={formation.id}
-              startDate={formation.startDate ? formation.startDate.toISOString().slice(0, 10) : ""}
-              endDate={formation.endDate ? formation.endDate.toISOString().slice(0, 10) : ""}
-            />
+          <Section title="Réglages de la session">
+            <SessionSettingsForm formationId={formation.id} initial={settings!} />
           </Section>
         )}
 

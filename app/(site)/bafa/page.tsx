@@ -21,6 +21,8 @@ import AdminFormationPicker from "./AdminFormationPicker";
 import { redirect } from "next/navigation";
 import { getVerifiedUser } from "@/lib/userSession";
 import { resolveSessionToOpen, openSessionPath } from "@/lib/mySessions";
+import { canEditSessionSettings, getSessionSettings } from "@/lib/sessionSettings";
+import SessionSettingsForm from "@/components/SessionSettingsForm";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -37,10 +39,12 @@ function TabNav({
   active,
   showGroups,
   showAdmin,
+  showSettings,
 }: {
-  active: "espace" | "planning" | "groupes" | "admin";
+  active: "espace" | "planning" | "groupes" | "admin" | "reglages";
   showGroups: boolean;
   showAdmin: boolean;
+  showSettings: boolean;
 }) {
   const tabStyle = (isActive: boolean) => ({
     background: isActive ? "#0f766e" : "transparent",
@@ -57,7 +61,7 @@ function TabNav({
   return (
     <div className="tab-nav">
       <Link href="/bafa" style={tabStyle(active === "espace")}>
-        Espace
+        Stagiaires
       </Link>
       <Link href="/bafa?tab=planning" style={tabStyle(active === "planning")}>
         📅 Planning
@@ -70,6 +74,11 @@ function TabNav({
       {showAdmin && (
         <Link href="/bafa?tab=admin" style={tabStyle(active === "admin")}>
           🛠️ Administration
+        </Link>
+      )}
+      {showSettings && (
+        <Link href="/bafa?tab=reglages" style={tabStyle(active === "reglages")}>
+          ⚙️ Réglages
         </Link>
       )}
     </div>
@@ -676,6 +685,26 @@ export default async function BafaPage({
   const isDirector = !!player && player.role === "DIRECTEUR";
   const isGameMasterFormateur = !!player && player.role === "FORMATEUR" && player.isGameMaster;
   const canSeeAdminTab = isDirector || isGameMasterFormateur;
+  // Réglages de la session (nom, type, dates, lieu) : directeurs de la session et admin.
+  const canEditSettings = await canEditSessionSettings(formationId);
+
+  if (tab === "reglages" && canEditSettings) {
+    const settings = await getSessionSettings(formationId);
+    return (
+      <main className="page">
+        <div className="container">
+          <h1 className="h1" style={{ margin: "0 0 4px" }}>
+            Réglages
+          </h1>
+          <p className="sub" style={{ marginBottom: 20 }}>
+            Détails de la session : nom, type de formation, dates et lieu.
+          </p>
+          <TabNav active="reglages" showGroups={isStaff} showAdmin={canSeeAdminTab} showSettings={canEditSettings} />
+          <SessionSettingsForm formationId={formationId} initial={settings!} />
+        </div>
+      </main>
+    );
+  }
 
   if (showGroups && isStaff) {
     const [groupRows, stagiaires, staffList] = await Promise.all([
@@ -724,7 +753,7 @@ export default async function BafaPage({
           <p className="sub" style={{ marginBottom: 20 }}>
             Répartition des stagiaires en groupes, aléatoire ou manuelle.
           </p>
-          <TabNav active="groupes" showGroups={isStaff} showAdmin={canSeeAdminTab} />
+          <TabNav active="groupes" showGroups={isStaff} showAdmin={canSeeAdminTab} showSettings={canEditSettings} />
           <GroupGenerator initialGroups={initialGroups} stagiaires={stagiaires} staffList={staffList} />
         </div>
       </main>
@@ -744,7 +773,7 @@ export default async function BafaPage({
           <p className="sub" style={{ marginBottom: 20 }}>
             Modération des secrets et des buzz pour ta formation.
           </p>
-          <TabNav active="admin" showGroups={isStaff} showAdmin={canSeeAdminTab} />
+          <TabNav active="admin" showGroups={isStaff} showAdmin={canSeeAdminTab} showSettings={canEditSettings} />
           <AdminTab formationId={formationId} secretsOnly={!isDirector} />
         </div>
       </main>
@@ -818,7 +847,7 @@ export default async function BafaPage({
               startDate={startDate}
             />
           )}
-          <TabNav active="planning" showGroups={isStaff} showAdmin={canSeeAdminTab} />
+          <TabNav active="planning" showGroups={isStaff} showAdmin={canSeeAdminTab} showSettings={canEditSettings} />
           <PlanningTab
             initialBlocks={blocksWithStaffIds}
             initialPostes={postes}
@@ -846,7 +875,7 @@ export default async function BafaPage({
       return (
         <main className="page">
           <div className="container">
-            <TabNav active="espace" showGroups={isStaff} showAdmin={canSeeAdminTab} />
+            <TabNav active="espace" showGroups={isStaff} showAdmin={canSeeAdminTab} showSettings={canEditSettings} />
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 4 }}>
               <h1 className="h1" style={{ margin: 0 }}>
                 Abandons
@@ -900,7 +929,7 @@ export default async function BafaPage({
         return (
           <main className="page">
             <div className="container">
-              <TabNav active="espace" showGroups={isStaff} showAdmin={canSeeAdminTab} />
+              <TabNav active="espace" showGroups={isStaff} showAdmin={canSeeAdminTab} showSettings={canEditSettings} />
               <PersonalSpace
                 playerId={as}
                 formationId={formationId}
@@ -939,7 +968,7 @@ export default async function BafaPage({
     return (
       <main className="page">
         <div className="container">
-          <TabNav active="espace" showGroups={isStaff} showAdmin={canSeeAdminTab} />
+          <TabNav active="espace" showGroups={isStaff} showAdmin={canSeeAdminTab} showSettings={canEditSettings} />
           <StagiaireList
             players={players}
             showLogout={!!player}
@@ -957,7 +986,7 @@ export default async function BafaPage({
   return (
     <main className="page">
       <div className="container">
-        <TabNav active="espace" showGroups={isStaff} showAdmin={canSeeAdminTab} />
+        <TabNav active="espace" showGroups={isStaff} showAdmin={canSeeAdminTab} showSettings={canEditSettings} />
         <PersonalSpace
           playerId={playerSession!.playerId}
           formationId={formationId}
