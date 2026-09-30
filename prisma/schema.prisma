@@ -14,8 +14,11 @@ model Formation {
   active    Boolean  @default(false)
   startDate DateTime?
   endDate   DateTime?
+  location  String? // lieu de la session (facultatif)
   createdAt DateTime @default(now())
 
+  members           FormationMember[]
+  managers          ManagerFormation[]
   players           Player[]
   secrets           Secret[]
   planningBlocks    PlanningBlock[]
@@ -119,6 +122,7 @@ model Player {
   dailyRemarks     DailyRemark[]
   groupMemberships GroupMember[]
   groupStaffRoles  GroupStaff[]
+  member           FormationMember? // compte BafaPilot représenté par cette fiche, s'il y en a un
 
   // Panneau latéral de la page stagiaire
   personalNote               String  @default("") // écrit par le stagiaire lui-même
@@ -147,6 +151,89 @@ model DirectorAccount {
   passwordHash String
   createdAt    DateTime @default(now())
   players      Player[]
+}
+
+// ── Comptes BafaPilot ───────────────────────────────────────────────────────────────────────────
+// User = identité permanente d'une personne sur BafaPilot. Player = sa représentation dans une
+// formation précise (tout le BAFA Manager repose dessus). FormationMember fait le lien
+// User ↔ Formation ↔ rôle ↔ Player. Les anciens accès (codes, DirectorAccount) restent en place.
+
+model User {
+  id              String    @id @default(cuid())
+  firstName       String
+  lastName        String
+  email           String    @unique // toujours stocké en minuscules
+  passwordHash    String // format auto-décrit "scrypt$..." (voir lib/password.ts)
+  emailVerifiedAt DateTime?
+  platformRole    String    @default("AUCUN") // AUCUN | GESTIONNAIRE — le super-admin reste hors base
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  memberships       FormationMember[]
+  managedFormations ManagerFormation[]
+  sessions          UserSession[]
+  authTokens        AuthToken[]
+}
+
+// Rattachement d'un compte à une formation, avec son rôle dans CETTE formation.
+model FormationMember {
+  id          String    @id @default(cuid())
+  formationId String
+  userId      String
+  role        String // DIRECTEUR | FORMATEUR (texte pour pouvoir ajouter d'autres rôles)
+  playerId    String?   @unique // fiche Player utilisée par le BAFA Manager pour cette personne
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  formation   Formation @relation(fields: [formationId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  player      Player?   @relation(fields: [playerId], references: [id], onDelete: SetNull)
+
+  @@unique([formationId, userId])
+  @@index([userId])
+}
+
+// Formations qu'un compte GESTIONNAIRE a le droit d'administrer.
+model ManagerFormation {
+  id          String    @id @default(cuid())
+  userId      String
+  formationId String
+  createdAt   DateTime  @default(now())
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  formation   Formation @relation(fields: [formationId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, formationId])
+  @@index([formationId])
+}
+
+// Session de connexion : le cookie contient un jeton aléatoire opaque, seule son empreinte
+// SHA-256 est stockée ici — une fuite de la base ne permet pas de se connecter.
+model UserSession {
+  id         String   @id @default(cuid())
+  userId     String
+  tokenHash  String   @unique
+  expiresAt  DateTime
+  lastUsedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  userAgent  String?
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+// Jetons à usage unique envoyés par email (confirmation d'adresse, mot de passe oublié) :
+// seule l'empreinte est stockée, usedAt les rend inutilisables une fois consommés.
+model AuthToken {
+  id        String    @id @default(cuid())
+  userId    String
+  type      String // VERIFY_EMAIL | RESET_PASSWORD
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, type])
 }
 
 model Secret {
