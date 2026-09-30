@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { cookies } from "next/headers";
+import { getSession } from "@/lib/auth";
 import { getPlayerSession } from "@/lib/playerAuth";
 import { getDirectorAccountSession } from "@/lib/directorAuth";
 import { prisma } from "@/lib/prisma";
@@ -7,10 +7,7 @@ import NavSubmitButton from "@/components/NavSubmitButton";
 import BrandLink from "@/components/BrandLink";
 
 export default async function Navbar() {
-  const store = await cookies();
-  const role = store.get("auth_role")?.value;
-  const until = Number(store.get("auth_until")?.value ?? "0");
-  const isAdmin = !!role && Date.now() < until;
+  const isAdmin = !!(await getSession());
 
   let gearHref = "/admin";
   if (!isAdmin) {

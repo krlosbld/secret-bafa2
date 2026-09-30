@@ -1,34 +1,34 @@
 import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { signCookie, verifyCookie, secureCookieBase } from "@/lib/signedCookie";
 
 export const PLAYER_AUTH_TTL = 60 * 10; // 10 minutes, glissant (comme la session admin)
 
+const COOKIE = "bp_player";
+type PlayerPayload = { p: string; u: number };
+
+function parse(value: string | undefined): { playerId: string } | null {
+  const data = verifyCookie<PlayerPayload>(COOKIE, value);
+  if (!data || typeof data.p !== "string" || !data.p || !Number.isFinite(data.u) || Date.now() >= data.u) return null;
+  return { playerId: data.p };
+}
+
 export async function getPlayerSession(): Promise<{ playerId: string } | null> {
   const store = await cookies();
-  const playerId = store.get("player_id")?.value;
-  const until = Number(store.get("player_until")?.value ?? "0");
-
-  if (!playerId || !Number.isFinite(until) || Date.now() >= until) return null;
-  // Session posée sous une ancienne durée de vie plus longue : forcer une reconnexion.
-  if (until - Date.now() > PLAYER_AUTH_TTL * 1000 + 5000) return null;
-
-  return { playerId };
+  return parse(store.get(COOKIE)?.value);
 }
 
 export function setPlayerSessionCookies(res: NextResponse, playerId: string) {
-  const until = Date.now() + PLAYER_AUTH_TTL * 1000;
-  const opts = {
-    httpOnly: true,
-    sameSite: "lax" as const,
-    path: "/",
-    maxAge: PLAYER_AUTH_TTL,
-  };
-  res.cookies.set("player_id", playerId, opts);
-  res.cookies.set("player_until", String(until), opts);
+  const payload: PlayerPayload = { p: playerId, u: Date.now() + PLAYER_AUTH_TTL * 1000 };
+  res.cookies.set(COOKIE, signCookie(COOKIE, payload), { ...secureCookieBase, maxAge: PLAYER_AUTH_TTL });
 }
 
 export function clearPlayerSessionCookies(res: NextResponse) {
-  const opts = { maxAge: 0, path: "/" };
-  res.cookies.set("player_id", "", opts);
-  res.cookies.set("player_until", "", opts);
+  res.cookies.set(COOKIE, "", { maxAge: 0, path: "/" });
+}
+
+// Session glissante : prolongée à chaque requête tant qu'elle est encore valide (appelé par proxy.ts).
+export function refreshPlayerSessionCookie(req: NextRequest, res: NextResponse) {
+  const session = parse(req.cookies.get(COOKIE)?.value);
+  if (session) setPlayerSessionCookies(res, session.playerId);
 }

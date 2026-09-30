@@ -1,5 +1,6 @@
 import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { signCookie, verifyCookie, secureCookieBase } from "@/lib/signedCookie";
 
 export type AuthRole = "superadmin" | "manager";
 
@@ -10,50 +11,39 @@ export interface AuthSession {
 
 export const AUTH_TTL = 60 * 10; // 10 minutes
 
+const COOKIE = "bp_admin";
+type AdminPayload = { r: AuthRole; m?: string; u: number };
+
+function parse(value: string | undefined): AuthSession | null {
+  const data = verifyCookie<AdminPayload>(COOKIE, value);
+  if (!data || !Number.isFinite(data.u) || Date.now() >= data.u) return null;
+
+  if (data.r === "superadmin") return { role: "superadmin" };
+  if (data.r === "manager" && typeof data.m === "string" && data.m) return { role: "manager", managerId: data.m };
+  return null;
+}
+
 export async function getSession(): Promise<AuthSession | null> {
   const store = await cookies();
-  const role = store.get("auth_role")?.value as AuthRole | undefined;
-  const until = Number(store.get("auth_until")?.value ?? "0");
-
-  if (!role || !Number.isFinite(until) || Date.now() >= until) return null;
-  // Session posée sous une ancienne durée de vie plus longue : forcer une reconnexion.
-  if (until - Date.now() > AUTH_TTL * 1000 + 5000) return null;
-
-  if (role === "superadmin") return { role };
-
-  if (role === "manager") {
-    const managerId = store.get("auth_manager_id")?.value;
-    if (!managerId) return null;
-    return { role: "manager", managerId };
-  }
-
-  return null;
+  return parse(store.get(COOKIE)?.value);
 }
 
 export function isSuperAdmin(session: AuthSession | null): boolean {
   return session?.role === "superadmin";
 }
 
-const cookieOpts = (ttl: number) => ({
-  httpOnly: true,
-  sameSite: "lax" as const,
-  path: "/",
-  maxAge: ttl,
-});
-
 export function setSessionCookies(res: NextResponse, session: AuthSession) {
-  const until = Date.now() + AUTH_TTL * 1000;
-  const opts = cookieOpts(AUTH_TTL);
-  res.cookies.set("auth_role", session.role, opts);
-  res.cookies.set("auth_until", String(until), opts);
-  if (session.managerId) {
-    res.cookies.set("auth_manager_id", session.managerId, opts);
-  }
+  const payload: AdminPayload = { r: session.role, u: Date.now() + AUTH_TTL * 1000 };
+  if (session.managerId) payload.m = session.managerId;
+  res.cookies.set(COOKIE, signCookie(COOKIE, payload), { ...secureCookieBase, maxAge: AUTH_TTL });
 }
 
 export function clearSessionCookies(res: NextResponse) {
-  const opts = { maxAge: 0, path: "/" };
-  res.cookies.set("auth_role", "", opts);
-  res.cookies.set("auth_until", "", opts);
-  res.cookies.set("auth_manager_id", "", opts);
+  res.cookies.set(COOKIE, "", { maxAge: 0, path: "/" });
+}
+
+// Session glissante : prolongée à chaque requête tant qu'elle est encore valide (appelé par proxy.ts).
+export function refreshSessionCookie(req: NextRequest, res: NextResponse) {
+  const session = parse(req.cookies.get(COOKIE)?.value);
+  if (session) setSessionCookies(res, session);
 }

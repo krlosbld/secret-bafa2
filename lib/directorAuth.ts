@@ -1,33 +1,34 @@
 import { cookies } from "next/headers";
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { signCookie, verifyCookie, secureCookieBase } from "@/lib/signedCookie";
 
 export const DIRECTOR_ACCOUNT_TTL = 60 * 10; // 10 minutes, glissant (comme les autres sessions)
 
+const COOKIE = "bp_director";
+type DirectorPayload = { d: string; u: number };
+
+function parse(value: string | undefined): { directorAccountId: string } | null {
+  const data = verifyCookie<DirectorPayload>(COOKIE, value);
+  if (!data || typeof data.d !== "string" || !data.d || !Number.isFinite(data.u) || Date.now() >= data.u) return null;
+  return { directorAccountId: data.d };
+}
+
 export async function getDirectorAccountSession(): Promise<{ directorAccountId: string } | null> {
   const store = await cookies();
-  const directorAccountId = store.get("director_account_id")?.value;
-  const until = Number(store.get("director_account_until")?.value ?? "0");
-
-  if (!directorAccountId || !Number.isFinite(until) || Date.now() >= until) return null;
-  if (until - Date.now() > DIRECTOR_ACCOUNT_TTL * 1000 + 5000) return null;
-
-  return { directorAccountId };
+  return parse(store.get(COOKIE)?.value);
 }
 
 export function setDirectorAccountCookie(res: NextResponse, directorAccountId: string) {
-  const until = Date.now() + DIRECTOR_ACCOUNT_TTL * 1000;
-  const opts = {
-    httpOnly: true,
-    sameSite: "lax" as const,
-    path: "/",
-    maxAge: DIRECTOR_ACCOUNT_TTL,
-  };
-  res.cookies.set("director_account_id", directorAccountId, opts);
-  res.cookies.set("director_account_until", String(until), opts);
+  const payload: DirectorPayload = { d: directorAccountId, u: Date.now() + DIRECTOR_ACCOUNT_TTL * 1000 };
+  res.cookies.set(COOKIE, signCookie(COOKIE, payload), { ...secureCookieBase, maxAge: DIRECTOR_ACCOUNT_TTL });
 }
 
 export function clearDirectorAccountCookie(res: NextResponse) {
-  const opts = { maxAge: 0, path: "/" };
-  res.cookies.set("director_account_id", "", opts);
-  res.cookies.set("director_account_until", "", opts);
+  res.cookies.set(COOKIE, "", { maxAge: 0, path: "/" });
+}
+
+// Session glissante : prolongée à chaque requête tant qu'elle est encore valide (appelé par proxy.ts).
+export function refreshDirectorAccountCookie(req: NextRequest, res: NextResponse) {
+  const session = parse(req.cookies.get(COOKIE)?.value);
+  if (session) setDirectorAccountCookie(res, session.directorAccountId);
 }

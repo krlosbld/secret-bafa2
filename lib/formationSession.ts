@@ -1,15 +1,20 @@
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { signCookie, verifyCookie, secureCookieBase } from "@/lib/signedCookie";
 
 export const FORMATION_COOKIE_TTL = 60 * 60 * 24 * 7; // 7 jours
+
+const COOKIE = "bp_formation";
+type FormationPayload = { f: string; u: number };
 
 type FormationCookieRow = { id: string; name: string; active: boolean; startDate: Date | null };
 
 export async function getFormationFromCookie(): Promise<FormationCookieRow | null> {
   const store = await cookies();
-  const formationId = store.get("formation_id")?.value;
-  if (!formationId) return null;
+  const data = verifyCookie<FormationPayload>(COOKIE, store.get(COOKIE)?.value);
+  if (!data || typeof data.f !== "string" || !data.f || !Number.isFinite(data.u) || Date.now() >= data.u) return null;
+  const formationId = data.f;
 
   const formation = await prisma.formation.findUnique({
     where: { id: formationId },
@@ -25,14 +30,10 @@ export function hasNotStartedYet(formation: { active: boolean; startDate: Date |
 }
 
 export function setFormationCookie(res: NextResponse, formationId: string) {
-  res.cookies.set("formation_id", formationId, {
-    httpOnly: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: FORMATION_COOKIE_TTL,
-  });
+  const payload: FormationPayload = { f: formationId, u: Date.now() + FORMATION_COOKIE_TTL * 1000 };
+  res.cookies.set(COOKIE, signCookie(COOKIE, payload), { ...secureCookieBase, maxAge: FORMATION_COOKIE_TTL });
 }
 
 export function clearFormationCookie(res: NextResponse) {
-  res.cookies.set("formation_id", "", { maxAge: 0, path: "/" });
+  res.cookies.set(COOKIE, "", { maxAge: 0, path: "/" });
 }
