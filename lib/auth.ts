@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import { NextResponse, type NextRequest } from "next/server";
 import { signCookie, verifyCookie, secureCookieBase } from "@/lib/signedCookie";
+import { getVerifiedUser } from "@/lib/userSession";
 
 export type AuthRole = "superadmin" | "manager";
 
@@ -25,7 +26,14 @@ function parse(value: string | undefined): AuthSession | null {
 
 export async function getSession(): Promise<AuthSession | null> {
   const store = await cookies();
-  return parse(store.get(COOKIE)?.value);
+  const legacy = parse(store.get(COOKIE)?.value);
+  if (legacy) return legacy;
+
+  // Compte BafaPilot de niveau SUPERADMIN : mêmes droits que le super-admin historique. Le niveau
+  // est relu en base à chaque requête via la session opaque — jamais déduit d'un cookie.
+  const user = await getVerifiedUser();
+  if (user?.platformRole === "SUPERADMIN") return { role: "superadmin" };
+  return null;
 }
 
 export function isSuperAdmin(session: AuthSession | null): boolean {

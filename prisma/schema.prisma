@@ -165,7 +165,7 @@ model User {
   email           String    @unique // toujours stocké en minuscules
   passwordHash    String // format auto-décrit "scrypt$..." (voir lib/password.ts)
   emailVerifiedAt DateTime?
-  platformRole    String    @default("AUCUN") // AUCUN | GESTIONNAIRE — le super-admin reste hors base
+  platformRole    String    @default("AUCUN") // AUCUN | GESTIONNAIRE | SUPERADMIN (le super-admin du .env reste en secours)
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 

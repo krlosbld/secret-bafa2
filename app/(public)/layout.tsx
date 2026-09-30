@@ -22,6 +22,11 @@ export default async function PublicLayout({ children }: { children: React.React
           <nav className="bp-nav">
             {user ? (
               <>
+                {user.platformRole === "SUPERADMIN" && (
+                  <Link href="/admin" className="bp-btn bp-btn--ghost bp-nav__optional">
+                    Administration
+                  </Link>
+                )}
                 <Link href="/sessions" className="bp-btn bp-btn--ghost">
                   Mes sessions
                 </Link>
