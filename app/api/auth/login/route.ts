@@ -1,0 +1,60 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { hashPassword, verifyPassword } from "@/lib/password";
+import { createUserSession } from "@/lib/userSession";
+import { normalizeEmail } from "@/lib/access";
+import { readJsonBody, str, limited, safeNextPath } from "@/lib/requestGuard";
+
+export const runtime = "nodejs";
+
+const FIFTEEN_MIN = 15 * 60 * 1000;
+const INVALID = "Email ou mot de passe incorrect.";
+
+// Hachage factice : quand l'adresse est inconnue, on vérifie quand même un mot de passe pour que
+// le temps de réponse ne révèle pas si le compte existe.
+let dummyHash: Promise<string> | null = null;
+
+export async function POST(req: Request) {
+  const body = await readJsonBody(req);
+  if (body instanceof NextResponse) return body;
+
+  const email = normalizeEmail(str(body.email, 300));
+  const password = str(body.password, 300);
+  if (!email || !password) return NextResponse.json({ error: "Email et mot de passe requis." }, { status: 400 });
+
+  const tooMany = limited(req, [
+    { key: "login:{ip}", max: 20, windowMs: FIFTEEN_MIN },
+    { key: `login:${email}`, max: 8, windowMs: FIFTEEN_MIN },
+  ]);
+  if (tooMany) return tooMany;
+
+  const user = await prisma.user.findUnique({
+    where: { email },
+    select: { id: true, passwordHash: true, emailVerifiedAt: true },
+  });
+
+  if (!user) {
+    dummyHash ??= hashPassword("mot-de-passe-factice-1");
+    await verifyPassword(password, await dummyHash);
+    return NextResponse.json({ error: INVALID }, { status: 401 });
+  }
+
+  const check = await verifyPassword(password, user.passwordHash);
+  if (!check.ok) return NextResponse.json({ error: INVALID }, { status: 401 });
+
+  if (check.needsRehash) {
+    await prisma.user.update({ where: { id: user.id }, data: { passwordHash: await hashPassword(password) } });
+  }
+
+  // Mot de passe correct mais adresse non confirmée : pas de session, l'espace BafaPilot reste fermé.
+  if (!user.emailVerifiedAt) {
+    return NextResponse.json(
+      { error: "Votre adresse email n'est pas encore confirmée. Ouvrez le lien reçu par email.", code: "EMAIL_NOT_VERIFIED" },
+      { status: 403 }
+    );
+  }
+
+  const res = NextResponse.json({ ok: true, next: safeNextPath(body.next) });
+  await createUserSession(res, user.id, req.headers.get("user-agent"));
+  return res;
+}
