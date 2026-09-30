@@ -34,7 +34,7 @@ export default async function PublicLayout({ children }: { children: React.React
                 <Link href="/login" className="bp-btn bp-btn--ghost">
                   Se connecter
                 </Link>
-                <Link href="/register" className="bp-btn bp-btn--primary">
+                <Link href="/register" className="bp-btn bp-btn--primary bp-nav__optional">
                   Créer mon compte
                 </Link>
               </>

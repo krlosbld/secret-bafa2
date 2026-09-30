@@ -4,7 +4,9 @@ import { isSecretCurrentlyVisible } from "@/lib/secretVisibility";
 import { historyRevealCost } from "@/lib/buzzResolution";
 import SessionCodeGate from "@/components/SessionCodeGate";
 import FakeSecretAnnouncement from "@/components/FakeSecretAnnouncement";
-import SecretsClient from "./SecretsClient";
+import SecretsClient from "../SecretsClient";
+
+export const metadata = { title: "BafaPilot 🤫" };
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;

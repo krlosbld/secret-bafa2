@@ -8,7 +8,7 @@ export default function BrandLink() {
   const isBafa = pathname?.startsWith("/bafa");
 
   return (
-    <Link className="brand" href={isBafa ? "/bafa" : "/"}>
+    <Link className="brand" href={isBafa ? "/bafa" : "/jeu"}>
       {isBafa ? "BAFA Manager" : "BafaPilot 🤫"}
     </Link>
   );

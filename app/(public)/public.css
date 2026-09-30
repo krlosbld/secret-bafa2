@@ -355,6 +355,142 @@
   gap: 10px;
 }
 
+/* ---------- Page d'accueil ---------- */
+.bp-home {
+  display: flex;
+  flex-direction: column;
+  gap: 56px;
+}
+
+.bp-hero {
+  text-align: center;
+  padding: 48px 0 8px;
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.bp-hero__eyebrow {
+  display: inline-block;
+  margin: 0 0 18px;
+  padding: 6px 14px;
+  border-radius: 999px;
+  background: var(--bp-brand-soft);
+  color: var(--bp-brand-dark);
+  font-weight: 800;
+  font-size: 0.85rem;
+  letter-spacing: 0.04em;
+}
+
+.bp-hero__title {
+  margin: 0 0 16px;
+  font-size: clamp(2.1rem, 5vw, 3.4rem);
+  line-height: 1.08;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  text-wrap: balance;
+}
+
+.bp-hero__sub {
+  margin: 0 auto 32px;
+  max-width: 580px;
+  color: var(--bp-muted);
+  font-size: 1.15rem;
+  line-height: 1.55;
+  text-wrap: pretty;
+}
+
+.bp-hero__actions {
+  display: flex;
+  justify-content: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.bp-features {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.bp-feature {
+  background: var(--bp-card);
+  border: 1px solid var(--bp-line);
+  border-radius: 18px;
+  padding: 22px 20px;
+}
+
+.bp-feature__icon {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: var(--bp-brand-soft);
+  display: grid;
+  place-items: center;
+  margin-bottom: 14px;
+}
+
+.bp-feature__icon svg {
+  width: 24px;
+  height: 24px;
+  fill: none;
+  stroke: var(--bp-brand);
+  stroke-width: 1.7;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.bp-feature__title {
+  margin: 0 0 6px;
+  font-size: 1.02rem;
+  font-weight: 800;
+}
+
+.bp-feature__text {
+  margin: 0;
+  color: var(--bp-muted);
+  font-size: 0.93rem;
+  line-height: 1.5;
+}
+
+.bp-trainee {
+  margin: 0;
+  text-align: center;
+  color: var(--bp-muted);
+  font-size: 0.9rem;
+}
+
+@media (max-width: 900px) {
+  .bp-features {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .bp-home {
+    gap: 36px;
+  }
+
+  .bp-hero {
+    padding-top: 16px;
+  }
+
+  .bp-hero__sub {
+    font-size: 1.02rem;
+  }
+
+  .bp-hero__actions .bp-btn {
+    width: 100%;
+  }
+
+  .bp-features {
+    grid-template-columns: 1fr;
+  }
+
+  .bp-trainee {
+    line-height: 1.7;
+  }
+}
+
 @media (max-width: 520px) {
   .bp-main {
     padding: 28px 16px 48px;
@@ -376,5 +512,16 @@
 
   .bp-auth__title {
     font-size: 1.5rem;
+  }
+}
+
+/* Très petits écrans : l'en-tête ne garde que l'essentiel (l'inscription reste dans la page). */
+@media (max-width: 400px) {
+  .bp-nav__optional {
+    display: none;
+  }
+
+  .bp-nav {
+    gap: 4px;
   }
 }

@@ -32,7 +32,7 @@ export default async function Navbar() {
 
         <div className="nav-links">
           <NavSubmitButton />
-          <Link className="nav-link" href="/">
+          <Link className="nav-link" href="/jeu">
             Secrets
           </Link>
           <Link className="nav-link" href="/ranking">
