@@ -17,7 +17,7 @@ export async function generateAiDecoy(realSecrets: string[], existingNames: stri
     : "(aucun exemple disponible)";
   const names = existingNames.join(", ") || "(aucun)";
 
-  const prompt = `Tu inventes un faux secret pour un jeu d'animateurs BAFA ("KiCéKi") : les joueurs lisent des secrets anonymes et devinent à qui ils appartiennent, sauf que celui-ci est entièrement inventé, personne n'est derrière.
+  const prompt = `Tu inventes un faux secret pour un jeu d'animateurs BAFA ("BafaPilot") : les joueurs lisent des secrets anonymes et devinent à qui ils appartiennent, sauf que celui-ci est entièrement inventé, personne n'est derrière.
 
 Voici des exemples de vrais secrets déjà publiés dans cette formation, pour que tu calques le ton, le registre et la longueur :
 ${examples}

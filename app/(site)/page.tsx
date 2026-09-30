@@ -46,7 +46,7 @@ export default async function HomePage() {
     <main className="page">
       <FakeSecretAnnouncement />
       <div className="container">
-        <h1 className="h1">KiCéKi 🤫</h1>
+        <h1 className="h1">BafaPilot 🤫</h1>
         <p className="sub">
           Lis les secrets et devine à qui ils appartiennent. Buzze pour tenter ta chance !
         </p>

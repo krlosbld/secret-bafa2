@@ -1,7 +1,7 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "KiCéKi 🤫",
+  title: "BafaPilot 🤫",
   description: "Le jeu des secrets anonymes",
 };
 

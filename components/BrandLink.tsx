@@ -9,7 +9,7 @@ export default function BrandLink() {
 
   return (
     <Link className="brand" href={isBafa ? "/bafa" : "/"}>
-      {isBafa ? "BAFA Manager" : "KiCéKi 🤫"}
+      {isBafa ? "BAFA Manager" : "BafaPilot 🤫"}
     </Link>
   );
 }
