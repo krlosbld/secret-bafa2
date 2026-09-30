@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession, isSuperAdmin } from "@/lib/auth";
-import crypto from "crypto";
+import { hashPassword } from "@/lib/password";
 
 export const runtime = "nodejs";
 
@@ -19,7 +19,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const passwordHash = crypto.createHash("sha256").update(password).digest("hex");
+  const passwordHash = await hashPassword(password);
 
   try {
     const manager = await prisma.manager.create({

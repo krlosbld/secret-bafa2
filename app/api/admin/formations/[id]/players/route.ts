@@ -4,7 +4,7 @@ import { getSession, isSuperAdmin } from "@/lib/auth";
 import { getPlayerSession } from "@/lib/playerAuth";
 import { generateUniquePlayerCode } from "@/lib/playerCode";
 import { findNameCollision, nameCollisionError } from "@/lib/nameCollision";
-import crypto from "crypto";
+import { hashPassword } from "@/lib/password";
 
 export const runtime = "nodejs";
 
@@ -75,7 +75,7 @@ export async function POST(req: Request, { params }: Params) {
     }
 
     const code = await generateUniquePlayerCode(formationId); // valeur cachée, jamais communiquée
-    const passwordHash = crypto.createHash("sha256").update(password).digest("hex");
+    const passwordHash = await hashPassword(password);
     try {
       const account = await prisma.directorAccount.create({ data: { firstName, username, passwordHash } });
       const player = await prisma.player.create({

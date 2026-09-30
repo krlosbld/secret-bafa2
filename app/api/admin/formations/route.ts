@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSession, isSuperAdmin } from "@/lib/auth";
 import { generateUniqueFormationCode } from "@/lib/formationCode";
-import crypto from "crypto";
+import { hashPassword } from "@/lib/password";
 
 export const runtime = "nodejs";
 
@@ -68,7 +68,7 @@ export async function POST(req: Request) {
         });
       } else if (wantsNewDirector) {
         const hiddenCode = String(Math.floor(1000 + Math.random() * 9000));
-        const passwordHash = crypto.createHash("sha256").update(directorPassword).digest("hex");
+        const passwordHash = await hashPassword(directorPassword);
         const account = await tx.directorAccount.create({
           data: { firstName: directorFirstName, username: directorUsername, passwordHash },
         });

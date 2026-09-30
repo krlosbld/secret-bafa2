@@ -4,7 +4,7 @@ import { setSessionCookies } from "@/lib/auth";
 import { setPlayerSessionCookies } from "@/lib/playerAuth";
 import { setDirectorAccountCookie } from "@/lib/directorAuth";
 import { setFormationCookie } from "@/lib/formationSession";
-import crypto from "crypto";
+import { verifyPassword, hashPassword } from "@/lib/password";
 
 export const runtime = "nodejs";
 
@@ -32,8 +32,12 @@ export async function POST(req: Request) {
     // Gestionnaire
     const manager = await prisma.manager.findUnique({ where: { username } });
     if (manager) {
-      const hash = crypto.createHash("sha256").update(password).digest("hex");
-      if (hash === manager.passwordHash) {
+      const check = await verifyPassword(password, manager.passwordHash);
+      if (check.ok) {
+        // Migration progressive : un ancien hachage SHA-256 est remplacé par scrypt dès la première connexion réussie.
+        if (check.needsRehash) {
+          await prisma.manager.update({ where: { id: manager.id }, data: { passwordHash: await hashPassword(password) } });
+        }
         const res = NextResponse.json({ ok: true, role: "manager" });
         setSessionCookies(res, { role: "manager", managerId: manager.id });
         return res;
@@ -43,8 +47,11 @@ export async function POST(req: Request) {
     // Directeur (identifiant/mot de passe, réutilisable sur plusieurs formations)
     const account = await prisma.directorAccount.findUnique({ where: { username } });
     if (account) {
-      const hash = crypto.createHash("sha256").update(password).digest("hex");
-      if (hash === account.passwordHash) {
+      const check = await verifyPassword(password, account.passwordHash);
+      if (check.ok) {
+        if (check.needsRehash) {
+          await prisma.directorAccount.update({ where: { id: account.id }, data: { passwordHash: await hashPassword(password) } });
+        }
         const players = await prisma.player.findMany({
           where: { directorAccountId: account.id },
           select: { id: true, formationId: true },
