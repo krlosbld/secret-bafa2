@@ -879,6 +879,18 @@ a {
   flex-shrink: 0;
 }
 
+.st-ec {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  color: #fff;
+  background: #ea580c;
+  padding: 1px 6px;
+  border-radius: 999px;
+  align-self: center;
+}
+
 .st-name__groups {
   display: flex;
   gap: 4px;

@@ -448,6 +448,7 @@ type StagiaireRow = {
   dayRatios: number[];
   trends: (number | null)[];
   values: Record<string, number | boolean>;
+  hasComplementary: boolean; // entretien complémentaire rédigé → badge EC à côté du nom
 };
 
 // Vue « Stagiaires » du staff : tableau compact — stagiaire, colonnes configurables (réglages de
@@ -539,6 +540,11 @@ function StagiaireTable({
                     <span className="st-name__line">
                       <span className="st-name__text">{r.name}</span>
                       <span className="st-name__code">#{r.code}</span>
+                      {r.hasComplementary && (
+                        <span className="st-ec" title="Entretien complémentaire">
+                          EC
+                        </span>
+                      )}
                     </span>
                     {r.groups.length > 0 && (
                       <span className="st-name__groups">
@@ -994,6 +1000,7 @@ export default async function BafaPage({
       groups: groupsByPlayerId[p.id] ?? [],
       dayRatios: Array.from({ length: dayCount }, (_, d) => dailyFillRatio(p.id, d)),
       trends: Array.from({ length: dayCount }, (_, d) => dailyTrend(p.id, d)),
+      hasComplementary: !!p.complementaryNote.trim(),
       values: Object.fromEntries(
         visibleColumns.map((c) => [
           c.id,
