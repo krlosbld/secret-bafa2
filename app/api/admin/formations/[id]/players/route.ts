@@ -36,7 +36,14 @@ export async function POST(req: Request, { params }: Params) {
   if (!formation) return NextResponse.json({ error: "Formation introuvable." }, { status: 404 });
 
   const body = await req.json().catch(() => ({}));
-  const role = body.role === "STAGIAIRE" || body.role === "FORMATEUR" || body.role === "DIRECTEUR" ? body.role : "DIRECTEUR";
+  // Les stagiaires ne s'inscrivent plus par code : uniquement par le QR code / lien d'invitation de la session.
+  if (body.role === "STAGIAIRE") {
+    return NextResponse.json(
+      { error: "Les stagiaires rejoignent la session avec le QR code « Ajouter les stagiaires à la session »." },
+      { status: 400 }
+    );
+  }
+  const role = body.role === "FORMATEUR" || body.role === "DIRECTEUR" ? body.role : "DIRECTEUR";
 
   if (role === "DIRECTEUR" && !isSuper) {
     return NextResponse.json({ error: "Seul le super-admin peut créer un compte directeur." }, { status: 403 });

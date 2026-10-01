@@ -91,7 +91,8 @@ export default function AdminCreateCode({
               style={{ border: "1px solid #ddd", borderRadius: 6, padding: "6px 8px", fontSize: 14 }}
             >
               {Object.entries(ROLE_LABELS)
-                .filter(([value]) => allowDirector || value !== "DIRECTEUR")
+                // Les stagiaires rejoignent la session uniquement par le QR code / lien d'invitation.
+                .filter(([value]) => value !== "STAGIAIRE" && (allowDirector || value !== "DIRECTEUR"))
                 .map(([value, label]) => (
                   <option key={value} value={value}>
                     {label}

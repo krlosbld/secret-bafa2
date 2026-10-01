@@ -89,14 +89,8 @@ export default async function HomePage() {
       </section>
 
       <p className="bp-trainee">
-        Vous êtes stagiaire ? Avec le code donné par votre équipe :{" "}
-        <Link href="/bafa" className="bp-link">
-          Espace stagiaire
-        </Link>
-        {" · "}
-        <Link href="/jeu" className="bp-link">
-          Jeu des secrets
-        </Link>
+        Vous êtes stagiaire ? Scannez le <strong>QR code</strong> donné par votre équipe : il vous permet de créer votre compte et de rejoindre votre
+        session.
       </p>
     </div>
   );

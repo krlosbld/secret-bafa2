@@ -120,13 +120,18 @@ export default async function SessionsPage({ searchParams }: { searchParams: Pro
             <strong>Aucune session ne vous est encore attribuée.</strong>
           </p>
           <p className="bp-status__text" style={{ fontSize: "0.9rem", marginBottom: 0 }}>
-            Un responsable ou gestionnaire doit vous rattacher à une session.
+            Stagiaire : scannez le QR code de votre session pour la rejoindre.
+            <br />
+            Équipe : un responsable ou gestionnaire doit vous rattacher à une session.
           </p>
         </div>
       ) : (
         <>
           <Group title="En cours et à venir" cards={current} hrefOf={hrefOf} empty="Aucune session en cours ni à venir." />
           <Group title="Archives" cards={archived} hrefOf={hrefOf} empty="Aucune session archivée." />
+          <p className="bp-sessions__empty" style={{ marginTop: 24, textAlign: "center" }}>
+            Pour rejoindre une autre session, scannez son QR code.
+          </p>
         </>
       )}
     </div>
