@@ -6,6 +6,7 @@ import { canManageFormation } from "@/lib/access";
 import { loadTeam } from "@/lib/team";
 import TeamManager from "@/components/TeamManager";
 import SessionSettingsForm from "@/components/SessionSettingsForm";
+import InviteStagiaires from "@/components/InviteStagiaires";
 import { getSessionSettings } from "@/lib/sessionSettings";
 
 export const dynamic = "force-dynamic";
@@ -32,6 +33,8 @@ export default async function GestionFormationPage({ params }: { params: Promise
       </h1>
       <h2 style={{ fontSize: "1.1rem", fontWeight: 800, margin: "24px 0 12px" }}>Réglages de la session</h2>
       <SessionSettingsForm formationId={formation.id} initial={settings!} />
+      <h2 style={{ fontSize: "1.1rem", fontWeight: 800, margin: "32px 0 12px" }}>Stagiaires</h2>
+      <InviteStagiaires formationId={formation.id} sessionName={formation.name} />
       <h2 style={{ fontSize: "1.1rem", fontWeight: 800, margin: "32px 0 4px" }}>Équipe</h2>
       <p style={{ color: "var(--bp-muted)", margin: "0 0 16px" }}>Le rattachement est immédiat, sans code de session.</p>
       <TeamManager formationId={formation.id} members={team.members} linkable={team.linkable} />
