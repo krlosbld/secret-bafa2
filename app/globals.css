@@ -741,3 +741,217 @@ a {
     grid-template-columns: 46px 1fr 54px;
   }
 }
+/* ================= VUE « STAGIAIRES » (tableau compact) ================= */
+.st-title {
+  font-size: 1.35rem;
+  font-weight: 800;
+  margin: 8px 0 4px;
+  color: #0f172a;
+}
+
+.st-hint {
+  margin: 0 0 14px;
+  font-size: 12.5px;
+  color: #64748b;
+}
+
+.st-hint__link {
+  color: #0f766e;
+  font-weight: 700;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.st-hint__link:hover {
+  text-decoration: underline;
+}
+
+.st-hint__aside {
+  color: #94a3b8;
+}
+
+/* Défilement horizontal si l'écran est étroit ; la colonne Stagiaire reste collée à gauche. */
+.st-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 6px;
+}
+
+.st-table {
+  --st-name-w: 220px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.st-grid {
+  display: grid;
+  align-items: center;
+  column-gap: 6px;
+  padding: 0 14px 0 0;
+}
+
+.st-head {
+  font-size: 11px;
+  font-weight: 800;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.st-head .st-cell {
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+.st-row {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.05);
+  transition: box-shadow 0.15s;
+}
+
+.st-row:hover {
+  box-shadow: 0 3px 12px rgba(15, 23, 42, 0.08);
+}
+
+.st-row .st-grid {
+  min-height: 54px;
+}
+
+.st-cell {
+  min-width: 0;
+  font-size: 13px;
+}
+
+.st-center {
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Colonne Stagiaire : collée à gauche pendant le défilement horizontal. */
+.st-name {
+  position: sticky;
+  left: 0;
+  z-index: 1;
+  background: #fff;
+  border-radius: 12px 0 0 12px;
+  padding: 9px 12px 8px 16px;
+  text-decoration: none;
+  color: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.st-head__name {
+  background: #f5f7f6;
+  padding-top: 2px;
+  padding-bottom: 2px;
+}
+
+.st-name__line {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+.st-name__text {
+  font-weight: 800;
+  font-size: 14px;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.st-row:hover .st-name__text {
+  color: #0f766e;
+}
+
+.st-name__code {
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.st-name__groups {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}
+
+.st-badge {
+  font-size: 10px;
+  font-weight: 800;
+  color: #0f766e;
+  background: #ccfbf1;
+  padding: 1px 7px;
+  border-radius: 999px;
+}
+
+.st-gauge {
+  display: flex;
+  gap: 3px;
+}
+
+.st-gauge__bar {
+  width: 14px;
+  height: 5px;
+  border-radius: 3px;
+  background: #e2e8f0;
+  overflow: hidden;
+}
+
+.st-gauge__bar > span {
+  display: block;
+  height: 100%;
+  background: #0f766e;
+}
+
+.st-count {
+  font-weight: 800;
+  font-size: 14px;
+  color: #0f766e;
+}
+
+.st-count--zero {
+  color: #cbd5e1;
+  font-weight: 600;
+}
+
+.st-check {
+  width: 20px;
+  height: 20px;
+  border-radius: 5px;
+  background: #e2e8f0;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 900;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.st-check--on {
+  background: #16a34a;
+}
+
+@media (max-width: 640px) {
+  .st-table {
+    --st-name-w: 150px;
+  }
+
+  .st-name {
+    padding-left: 12px;
+  }
+
+  .st-name__code {
+    display: none;
+  }
+}

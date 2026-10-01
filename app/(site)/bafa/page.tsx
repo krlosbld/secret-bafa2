@@ -24,6 +24,8 @@ import { resolveSessionToOpen, openSessionPath } from "@/lib/mySessions";
 import { canEditSessionSettings, getSessionSettings } from "@/lib/sessionSettings";
 import SessionSettingsForm from "@/components/SessionSettingsForm";
 import InviteStagiaires from "@/components/InviteStagiaires";
+import StagiaireColumnsForm from "@/components/StagiaireColumnsForm";
+import { getStagiaireColumns, countPosteAssignments, INDICATOR_KINDS, type StagiaireColumn } from "@/lib/stagiaireColumns";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -253,79 +255,6 @@ function lerpColor(a: string, b: string, t: number): string {
   return `rgb(${r},${g},${bl})`;
 }
 
-function NameGauge({
-  firstName,
-  code,
-  dayRatios,
-  groupNames,
-}: {
-  firstName: string;
-  code: string;
-  dayRatios: number[];
-  groupNames?: string[];
-}) {
-  return (
-    <div>
-      <div>
-        {firstName} · #{code}
-        {groupNames?.map((name) => (
-          <span
-            key={name}
-            style={{
-              marginLeft: 8,
-              fontSize: 11,
-              fontWeight: 800,
-              color: "#0f766e",
-              background: "#ccfbf1",
-              padding: "1px 7px",
-              borderRadius: 999,
-            }}
-          >
-            {name}
-          </span>
-        ))}
-      </div>
-      <div style={{ marginTop: 6, display: "flex", gap: 3 }}>
-        {dayRatios.map((ratio, d) => (
-          <div
-            key={d}
-            title={`J${d + 1} : ${Math.round(ratio * 100)}% rempli`}
-            style={{ width: 16, height: 7, borderRadius: 3, background: "#e2e8f0", overflow: "hidden" }}
-          >
-            <div style={{ width: `${Math.round(ratio * 100)}%`, height: "100%", background: "#0f766e" }} />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function StatusSquare({ label, title, filled, href }: { label: string; title: string; filled: boolean; href: string }) {
-  return (
-    <Link
-      href={href}
-      title={`${title} : ${filled ? "rempli" : "non rempli"}`}
-      style={{
-        width: 22,
-        height: 22,
-        borderRadius: 5,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        fontSize: 9,
-        fontWeight: 800,
-        background: filled ? "#16a34a" : "#e2e8f0",
-        color: filled ? "#fff" : "#64748b",
-        flexShrink: 0,
-        textDecoration: "none",
-        cursor: "pointer",
-      }}
-    >
-      {label}
-    </Link>
-  );
-}
-
 const SCORE_MIN = -1;
 const SCORE_MAX = 2;
 
@@ -511,91 +440,151 @@ async function PersonalSpace({
   );
 }
 
-function StagiaireList({
-  players,
-  showLogout,
+type StagiaireRow = {
+  id: string;
+  name: string;
+  code: string;
+  groups: string[];
+  dayRatios: number[];
+  trends: (number | null)[];
+  values: Record<string, number | boolean>;
+};
+
+// Vue « Stagiaires » du staff : tableau compact — stagiaire, colonnes configurables (réglages de
+// la session), puis une colonne par jour de la session avec la tendance du jour.
+function StagiaireTable({
+  rows,
+  columns,
   dayCount,
-  dailyFillRatio,
-  dailyTrend,
+  showLogout,
   abandonedCount,
-  groupsByPlayerId,
+  canEditSettings,
 }: {
-  players: { id: string; firstName: string; code: string; ems: string; retourEms: string; finalAppraisal: string; complementaryNote: string }[];
-  showLogout: boolean;
+  rows: StagiaireRow[];
+  columns: StagiaireColumn[];
   dayCount: number;
-  dailyFillRatio: (playerId: string, day: number) => number;
-  dailyTrend: (playerId: string, day: number) => number | null;
+  showLogout: boolean;
   abandonedCount: number;
-  groupsByPlayerId: Record<string, string[]>;
+  canEditSettings: boolean;
 }) {
+  const days = Array.from({ length: dayCount }, (_, d) => d);
+  // Largeur de la colonne Stagiaire : --st-name-w (réduite sur téléphone, voir globals.css).
+  const template = `minmax(var(--st-name-w), 1.6fr) repeat(${columns.length}, 52px) repeat(${dayCount}, 38px)`;
+  const minWidth = `calc(var(--st-name-w) + ${columns.length * 52 + dayCount * 38 + (columns.length + dayCount) * 6 + 28}px)`;
+  const postAbbrs = columns.filter((c) => c.kind === "poste").map((c) => c.abbr);
+
   return (
     <>
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginBottom: 4,
-        }}
-      >
-        <h1 className="h1" style={{ margin: 0 }}>
-          Espace stagiaire
-        </h1>
-        {showLogout && <BafaLogoutClient />}
-      </div>
-      <p className="sub" style={{ marginBottom: 8 }}>
-        Sélectionne un stagiaire pour voir son espace. Clic droit sur une carte pour marquer un abandon.
-      </p>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
         <a className="btn btn-ghost" href="/api/players/pdf-all">
           📄 Tous les dossiers (PDF)
         </a>
         <a className="btn btn-ghost" href="/api/players/pdf-appraisals">
           📄 Appréciations finales uniquement (PDF)
         </a>
+        {showLogout && (
+          <span style={{ marginLeft: "auto" }}>
+            <BafaLogoutClient />
+          </span>
+        )}
       </div>
       {abandonedCount > 0 && (
-        <p style={{ marginBottom: 24 }}>
+        <p style={{ margin: "0 0 16px" }}>
           <Link href="/bafa?abandoned=1" style={{ fontSize: 13, color: "#0f766e", fontWeight: 700 }}>
             🗂️ {abandonedCount} abandon{abandonedCount > 1 ? "s" : ""} — voir / réactiver
           </Link>
         </p>
       )}
 
-      <div className="cards">
-        {players.map((p) => (
-          <StagiaireCardMenu key={p.id} playerId={p.id} firstName={p.firstName}>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "minmax(160px, 260px) 108px 1fr",
-                alignItems: "center",
-                gap: 12,
-              }}
-            >
-              <Link href={`/bafa?as=${p.id}`} style={{ textDecoration: "none", color: "inherit", minWidth: 0 }}>
-                <NameGauge
-                  firstName={p.firstName}
-                  code={p.code}
-                  dayRatios={Array.from({ length: dayCount }, (_, d) => dailyFillRatio(p.id, d))}
-                  groupNames={groupsByPlayerId[p.id]}
-                />
-              </Link>
-              <div style={{ display: "flex", gap: 4, flexShrink: 0 }}>
-                <StatusSquare label="EMS" title="EMS (entretien de mi-stage)" filled={!!p.ems.trim()} href={`/bafa?as=${p.id}`} />
-                <StatusSquare label="RE" title="Retour EMS" filled={!!p.retourEms.trim()} href={`/bafa?as=${p.id}`} />
-                <StatusSquare label="EC" title="Entretien complémentaire" filled={!!p.complementaryNote.trim()} href={`/bafa?as=${p.id}`} />
-                <StatusSquare label="AF" title="Appréciation finale" filled={!!p.finalAppraisal.trim()} href={`/bafa?as=${p.id}`} />
-              </div>
-              <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
-                {Array.from({ length: dayCount }, (_, d) => d).map((d) => (
-                  <TrendArrow key={d} day={d} score={dailyTrend(p.id, d)} href={`/bafa?as=${p.id}&day=${d}`} />
-                ))}
-              </div>
+      <h1 className="st-title">Stagiaires ({rows.length})</h1>
+      <p className="st-hint">
+        Les colonnes {postAbbrs.length > 0 ? `${postAbbrs.slice(0, 3).join(", ")}…` : "GJ, EDS, AE…"} sont configurables dans les réglages de la formation.
+        {canEditSettings && (
+          <>
+            {" "}
+            <Link href="/bafa?tab=reglages#colonnes" className="st-hint__link">
+              Modifier les réglages
+            </Link>
+          </>
+        )}
+        <span className="st-hint__aside"> · Clic droit sur une ligne pour marquer un abandon.</span>
+      </p>
+
+      {rows.length === 0 ? (
+        <p style={{ color: "#64748b" }}>Aucun stagiaire pour l&apos;instant.</p>
+      ) : (
+        <div className="st-scroll">
+          <div className="st-table" style={{ minWidth }}>
+            <div className="st-grid st-head" style={{ gridTemplateColumns: template }}>
+              <div className="st-cell st-name st-head__name">Stagiaire</div>
+              {columns.map((c) => (
+                <div key={c.id} className="st-cell st-center" title={c.label}>
+                  {c.abbr}
+                </div>
+              ))}
+              {days.map((d) => (
+                <div key={d} className="st-cell st-center">
+                  J{d + 1}
+                </div>
+              ))}
             </div>
-          </StagiaireCardMenu>
-        ))}
-      </div>
+
+            {rows.map((r) => (
+              <StagiaireCardMenu key={r.id} playerId={r.id} firstName={r.name} className="st-row">
+                <div className="st-grid" style={{ gridTemplateColumns: template }}>
+                  <Link href={`/bafa?as=${r.id}`} className="st-cell st-name">
+                    <span className="st-name__line">
+                      <span className="st-name__text">{r.name}</span>
+                      <span className="st-name__code">#{r.code}</span>
+                    </span>
+                    {r.groups.length > 0 && (
+                      <span className="st-name__groups">
+                        {r.groups.map((g) => (
+                          <span key={g} className="st-badge">
+                            {g}
+                          </span>
+                        ))}
+                      </span>
+                    )}
+                    <span className="st-gauge" aria-hidden>
+                      {r.dayRatios.map((ratio, d) => (
+                        <span key={d} className="st-gauge__bar" title={`J${d + 1} : ${Math.round(ratio * 100)}% rempli`}>
+                          <span style={{ width: `${Math.round(ratio * 100)}%` }} />
+                        </span>
+                      ))}
+                    </span>
+                  </Link>
+
+                  {columns.map((c) => {
+                    const v = r.values[c.id];
+                    if (c.kind === "poste") {
+                      const n = typeof v === "number" ? v : 0;
+                      return (
+                        <div key={c.id} className={`st-cell st-center st-count${n === 0 ? " st-count--zero" : ""}`} title={`${c.label} : ${n}`}>
+                          {n}
+                        </div>
+                      );
+                    }
+                    return (
+                      <div key={c.id} className="st-cell st-center">
+                        <Link href={`/bafa?as=${r.id}`} className={`st-check${v ? " st-check--on" : ""}`} title={`${c.label} : ${v ? "rempli" : "non rempli"}`}>
+                          {v ? "✓" : ""}
+                        </Link>
+                      </div>
+                    );
+                  })}
+
+                  {days.map((d) => (
+                    <div key={d} className="st-cell st-center">
+                      <TrendArrow day={d} score={r.trends[d]} href={`/bafa?as=${r.id}&day=${d}`} />
+                    </div>
+                  ))}
+                </div>
+              </StagiaireCardMenu>
+            ))}
+          </div>
+        </div>
+      )}
     </>
   );
 }
@@ -690,7 +679,11 @@ export default async function BafaPage({
   const canEditSettings = await canEditSessionSettings(formationId);
 
   if (tab === "reglages" && canEditSettings) {
-    const settings = await getSessionSettings(formationId);
+    const [settings, columns, postes] = await Promise.all([
+      getSessionSettings(formationId),
+      getStagiaireColumns(formationId),
+      prisma.posteType.findMany({ select: { id: true, label: true }, orderBy: { label: "asc" } }),
+    ]);
     return (
       <main className="page">
         <div className="container">
@@ -702,6 +695,10 @@ export default async function BafaPage({
           </p>
           <TabNav active="reglages" showGroups={isStaff} showAdmin={canSeeAdminTab} showSettings={canEditSettings} />
           <SessionSettingsForm formationId={formationId} initial={settings!} />
+          <h2 id="colonnes" style={{ fontSize: 18, fontWeight: 800, margin: "32px 0 12px", scrollMarginTop: 120 }}>
+            Colonnes de la vue Stagiaires
+          </h2>
+          <StagiaireColumnsForm formationId={formationId} initial={columns} postes={postes} />
         </div>
       </main>
     );
@@ -969,19 +966,50 @@ export default async function BafaPage({
 
     const { groupsByPlayerId } = groupAssignment;
 
+    // Colonnes configurables (réglages de la session) et leurs valeurs : nombre d'affectations
+    // explicites par type de créneau, et indicateurs remplis / non remplis de la fiche.
+    const visibleColumns = (await getStagiaireColumns(formationId)).filter((c) => c.visible);
+    const posteCounts = await countPosteAssignments(
+      formationId,
+      dayCount,
+      visibleColumns.flatMap((c) => (c.kind === "poste" ? [c.posteTypeId] : []))
+    );
+    // Nom complet quand la fiche est reliée à un compte BafaPilot (prénom + nom), sinon le prénom de la fiche.
+    const accountNames = new Map(
+      (
+        await prisma.formationMember.findMany({
+          where: { formationId, playerId: { in: players.map((p) => p.id) } },
+          select: { playerId: true, user: { select: { firstName: true, lastName: true } } },
+        })
+      ).map((m) => [m.playerId, `${m.user.firstName} ${m.user.lastName}`])
+    );
+    const stagiaireRows = players.map((p) => ({
+      id: p.id,
+      name: accountNames.get(p.id) ?? p.firstName,
+      code: p.code,
+      groups: groupsByPlayerId[p.id] ?? [],
+      dayRatios: Array.from({ length: dayCount }, (_, d) => dailyFillRatio(p.id, d)),
+      trends: Array.from({ length: dayCount }, (_, d) => dailyTrend(p.id, d)),
+      values: Object.fromEntries(
+        visibleColumns.map((c) => [
+          c.id,
+          c.kind === "poste" ? posteCounts.get(p.id)?.get(c.posteTypeId) ?? 0 : !!p[INDICATOR_KINDS[c.kind].field].trim(),
+        ])
+      ),
+    }));
+
     return (
       <main className="page">
         <div className="container">
           <TabNav active="espace" showGroups={isStaff} showAdmin={canSeeAdminTab} showSettings={canEditSettings} />
           {canEditSettings && <InviteStagiaires formationId={formationId} sessionName={sessionName} />}
-          <StagiaireList
-            players={players}
-            showLogout={!!player}
+          <StagiaireTable
+            rows={stagiaireRows}
+            columns={visibleColumns}
             dayCount={dayCount}
-            groupsByPlayerId={groupsByPlayerId}
-            dailyFillRatio={dailyFillRatio}
-            dailyTrend={dailyTrend}
+            showLogout={!!player}
             abandonedCount={abandonedCount}
+            canEditSettings={canEditSettings}
           />
         </div>
       </main>

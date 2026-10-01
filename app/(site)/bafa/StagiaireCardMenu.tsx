@@ -6,10 +6,12 @@ export default function StagiaireCardMenu({
   playerId,
   firstName,
   children,
+  className = "card admin-card",
 }: {
   playerId: string;
   firstName: string;
   children: React.ReactNode;
+  className?: string;
 }) {
   const router = useRouter();
 
@@ -31,7 +33,7 @@ export default function StagiaireCardMenu({
   }
 
   return (
-    <div className="card admin-card" onContextMenu={handleContextMenu} title="Clic droit pour marquer comme abandon">
+    <div className={className} onContextMenu={handleContextMenu} title="Clic droit pour marquer comme abandon">
       {children}
     </div>
   );
