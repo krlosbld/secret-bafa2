@@ -2,7 +2,7 @@ import { getCurrentUser, getOriginUser } from "@/lib/userSession";
 import StopImpersonationButton from "@/components/StopImpersonationButton";
 
 // Bandeau permanent pendant une prise de contrôle (« Se connecter en tant que »), sur toutes les
-// pages. Il reste aussi affiché si la session d'une heure a expiré, pour pouvoir revenir à son compte.
+// pages, avec le temps restant. Au bout d'une heure, le retour au compte admin est automatique.
 export default async function ImpersonationBanner() {
   const user = await getCurrentUser();
   const impersonating = !!user?.impersonatorId;
@@ -28,9 +28,9 @@ export default async function ImpersonationBanner() {
       <span>
         {impersonating
           ? `Vous êtes connecté en tant que ${user!.firstName} ${user!.lastName} (${user!.email}).`
-          : "La connexion « en tant que » a expiré."}
+          : "La connexion « en tant que » est terminée."}
       </span>
-      <StopImpersonationButton />
+      <StopImpersonationButton expiresAt={impersonating ? user!.sessionExpiresAt.toISOString() : null} />
     </div>
   );
 }

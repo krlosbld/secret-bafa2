@@ -26,6 +26,7 @@ export type CurrentUser = {
   emailVerifiedAt: Date | null;
   platformRole: string;
   impersonatorId: string | null; // non null = session ouverte par un super-admin « en tant que »
+  sessionExpiresAt: Date; // fin de la session (1 h pour une prise de contrôle)
 };
 
 export function hashToken(token: string): string {
@@ -74,7 +75,9 @@ async function sessionFromToken(token: string | undefined): Promise<CurrentUser 
   if (!session) return null;
 
   if (session.expiresAt.getTime() <= Date.now()) {
-    await prisma.userSession.delete({ where: { id: session.id } }).catch(() => {});
+    // Une prise de contrôle expirée est gardée jusqu'au retour (stopImpersonation) : il faut savoir
+    // vers quel compte renvoyer le super-admin et journaliser la fin. Les autres sont effacées.
+    if (!session.impersonatorId) await prisma.userSession.delete({ where: { id: session.id } }).catch(() => {});
     return null;
   }
 
@@ -82,7 +85,7 @@ async function sessionFromToken(token: string | undefined): Promise<CurrentUser 
     await prisma.userSession.update({ where: { id: session.id }, data: { lastUsedAt: new Date() } }).catch(() => {});
   }
 
-  return { ...session.user, impersonatorId: session.impersonatorId };
+  return { ...session.user, impersonatorId: session.impersonatorId, sessionExpiresAt: session.expiresAt };
 }
 
 // Compte connecté (email confirmé ou non), ou null. Mis en cache pour la durée d'une requête :
@@ -136,17 +139,23 @@ export async function startImpersonation(res: NextResponse, targetUserId: string
 
 // Fin de prise de contrôle : la session « en tant que » est supprimée et la session personnelle du
 // super-admin est remise en place (le super-admin du .env retrouve simplement son cookie admin).
-export async function stopImpersonation(res: NextResponse): Promise<{ targetUserId: string | null }> {
+export async function stopImpersonation(
+  res: NextResponse
+): Promise<{ targetUserId: string | null; targetEmail: string | null; impersonatorId: string | null }> {
   const store = await cookies();
   const current = store.get(COOKIE)?.value;
   const row = current
-    ? await prisma.userSession.findUnique({ where: { tokenHash: hashToken(current) }, select: { userId: true, impersonatorId: true } })
+    ? await prisma.userSession.findUnique({
+        where: { tokenHash: hashToken(current) },
+        select: { userId: true, impersonatorId: true, user: { select: { email: true } } },
+      })
     : null;
   const origin = store.get(ORIGIN_COOKIE)?.value;
+  const none = { targetUserId: null, targetEmail: null, impersonatorId: null };
   // Session normale en cours, ou rien à restaurer : on ne touche à rien.
-  if ((row && !row.impersonatorId) || (!row && !origin)) return { targetUserId: null };
+  if ((row && !row.impersonatorId) || (!row && !origin)) return none;
 
-  // row absent = la session « en tant que » a déjà expiré : on restaure quand même le compte d'origine.
+  // row absent = la session « en tant que » a déjà disparu : on restaure quand même le compte d'origine.
   const targetUserId = row?.userId ?? null;
   if (row) await prisma.userSession.deleteMany({ where: { tokenHash: hashToken(current!) } });
 
@@ -156,5 +165,5 @@ export async function stopImpersonation(res: NextResponse): Promise<{ targetUser
     res.cookies.set(COOKIE, "", { maxAge: 0, path: "/" });
   }
   res.cookies.set(ORIGIN_COOKIE, "", { maxAge: 0, path: "/" });
-  return { targetUserId };
+  return { targetUserId, targetEmail: row?.user.email ?? null, impersonatorId: row?.impersonatorId ?? null };
 }
