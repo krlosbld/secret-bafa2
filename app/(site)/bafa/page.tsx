@@ -468,9 +468,11 @@ function StagiaireTable({
   canEditSettings: boolean;
 }) {
   const days = Array.from({ length: dayCount }, (_, d) => d);
-  // Largeur de la colonne Stagiaire : --st-name-w (réduite sur téléphone, voir globals.css).
-  const template = `minmax(var(--st-name-w), 1.6fr) repeat(${columns.length}, 52px) repeat(${dayCount}, 38px)`;
-  const minWidth = `calc(var(--st-name-w) + ${columns.length * 52 + dayCount * 38 + (columns.length + dayCount) * 6 + 28}px)`;
+  // Colonne Stagiaire à largeur fixe (--st-name-w, réduite sur téléphone), colonnes configurables
+  // juste à côté, un espace de deux colonnes vides, puis les jours qui se partagent le reste.
+  const SPACER = 2 * 52;
+  const template = `var(--st-name-w) repeat(${columns.length}, 52px) ${SPACER}px repeat(${dayCount}, minmax(38px, 1fr))`;
+  const minWidth = `calc(var(--st-name-w) + ${columns.length * 52 + SPACER + dayCount * 38 + (columns.length + dayCount + 1) * 6 + 28}px)`;
   const postAbbrs = columns.filter((c) => c.kind === "poste").map((c) => c.abbr);
 
   return (
@@ -522,6 +524,7 @@ function StagiaireTable({
                   {c.abbr}
                 </div>
               ))}
+              <div aria-hidden />
               {days.map((d) => (
                 <div key={d} className="st-cell st-center">
                   J{d + 1}
@@ -574,6 +577,7 @@ function StagiaireTable({
                     );
                   })}
 
+                  <div aria-hidden />
                   {days.map((d) => (
                     <div key={d} className="st-cell st-center">
                       <TrendArrow day={d} score={r.trends[d]} href={`/bafa?as=${r.id}&day=${d}`} />

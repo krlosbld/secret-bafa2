@@ -778,7 +778,7 @@ a {
 }
 
 .st-table {
-  --st-name-w: 220px;
+  --st-name-w: 240px;
   display: flex;
   flex-direction: column;
   gap: 6px;
