@@ -23,12 +23,12 @@ export type StagiaireColumn =
 const CONFIG_KEY = "stagiaireColumns";
 const MAX_COLUMNS = 16;
 
-// Colonnes de créneau proposées par défaut si ces types existent dans le planning.
+// Colonnes de créneau proposées par défaut si ces types existent dans le planning (vocabulaire de
+// l'équipe : PJ et AE désignent la même chose → AE).
 const SUGGESTED_POSTES = [
-  { match: "grand jeu", abbr: "GJ" },
-  { match: "etude de situation", abbr: "EDS" },
-  { match: "accueil echelonne", abbr: "AE" },
-  { match: "petit jeu", abbr: "PJ" },
+  { match: ["projet d'animation"], abbr: "PA", label: "Projet d'animation" },
+  { match: ["entretien de debut de stage"], abbr: "EDS", label: "Entretien de début de stage" },
+  { match: ["accueil echelonne", "petit jeu"], abbr: "AE", label: "Accueil échelonné" },
 ];
 
 const newId = () => crypto.randomBytes(6).toString("base64url");
@@ -36,8 +36,8 @@ const newId = () => crypto.randomBytes(6).toString("base64url");
 function defaultColumns(posteTypes: { id: string; label: string }[]): StagiaireColumn[] {
   const postes: StagiaireColumn[] = [];
   for (const s of SUGGESTED_POSTES) {
-    const pt = posteTypes.find((p) => normalize(p.label) === s.match);
-    if (pt) postes.push({ id: newId(), kind: "poste", posteTypeId: pt.id, label: pt.label, abbr: s.abbr, visible: true });
+    const pt = s.match.map((m) => posteTypes.find((p) => normalize(p.label) === normalize(m))).find(Boolean);
+    if (pt) postes.push({ id: newId(), kind: "poste", posteTypeId: pt.id, label: s.label, abbr: s.abbr, visible: true });
   }
   const indicators: StagiaireColumn[] = (Object.keys(INDICATOR_KINDS) as IndicatorKind[]).map((kind) => ({
     id: kind,

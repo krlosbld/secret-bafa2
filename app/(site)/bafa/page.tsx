@@ -498,7 +498,7 @@ function StagiaireTable({
 
       <h1 className="st-title">Stagiaires ({rows.length})</h1>
       <p className="st-hint">
-        Les colonnes {postAbbrs.length > 0 ? `${postAbbrs.slice(0, 3).join(", ")}…` : "GJ, EDS, AE…"} sont configurables dans les réglages de la formation.
+        Les colonnes {postAbbrs.length > 0 ? `${postAbbrs.slice(0, 3).join(", ")}…` : "PA, EDS, AE…"} sont configurables dans les réglages de la formation.
         {canEditSettings && (
           <>
             {" "}
