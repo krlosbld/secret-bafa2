@@ -161,7 +161,9 @@ export default async function FormationDetailPage({ params }: { params: Promise<
 
         {superAdmin && (
           <Section title="Réglages de la session">
-            <SessionSettingsForm formationId={formation.id} initial={settings!} />
+            <div style={{ maxWidth: 560 }}>
+              <SessionSettingsForm formationId={formation.id} initial={settings!} />
+            </div>
           </Section>
         )}
 

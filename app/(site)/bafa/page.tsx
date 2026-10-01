@@ -697,18 +697,11 @@ export default async function BafaPage({
     return (
       <main className="page">
         <div className="container">
-          <h1 className="h1" style={{ margin: "0 0 4px" }}>
-            Réglages
-          </h1>
-          <p className="sub" style={{ marginBottom: 20 }}>
-            Détails de la session : nom, type de formation, dates et lieu.
-          </p>
           <TabNav active="reglages" showGroups={isStaff} showAdmin={canSeeAdminTab} showSettings={canEditSettings} />
-          <SessionSettingsForm formationId={formationId} initial={settings!} />
-          <h2 id="colonnes" style={{ fontSize: 18, fontWeight: 800, margin: "32px 0 12px", scrollMarginTop: 120 }}>
-            Colonnes de la vue Stagiaires
-          </h2>
-          <StagiaireColumnsForm formationId={formationId} initial={columns} postes={postes} />
+          <div className="set-grid">
+            <SessionSettingsForm formationId={formationId} initial={settings!} />
+            <StagiaireColumnsForm formationId={formationId} initial={columns} postes={postes} />
+          </div>
         </div>
       </main>
     );

@@ -39,7 +39,7 @@ export default function SessionSettingsForm({ formationId, initial }: { formatio
         body: JSON.stringify({ name, sessionType, startDate: startDate || null, location }),
       });
       const data = await res.json().catch(() => ({}));
-      setMessage(res.ok ? { ok: true, text: "Réglages enregistrés ✓" } : { ok: false, text: data.error || "Enregistrement impossible." });
+      setMessage(res.ok ? { ok: true, text: "Enregistré ✓" } : { ok: false, text: data.error || "Enregistrement impossible." });
       if (res.ok) router.refresh();
     } catch {
       setMessage({ ok: false, text: "Connexion impossible." });
@@ -51,60 +51,55 @@ export default function SessionSettingsForm({ formationId, initial }: { formatio
   const days = TYPES.find((t) => t.value === sessionType)?.days;
 
   return (
-    <form className="card" onSubmit={save} style={{ maxWidth: 640 }}>
-      <div className="sb-form">
-        <label className="sb-field">
-          <span>Nom de la session</span>
-          <input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} required disabled={saving} />
-        </label>
+    <form className="set-card" onSubmit={save}>
+      <div className="set-card__head">
+        <h2 className="set-card__title">Session</h2>
+        <p className="set-card__sub">Le type et la date de début règlent aussi le planning.</p>
+      </div>
 
-        <label className="sb-field">
+      <label className="set-field">
+        <span>Nom de la session</span>
+        <input value={name} onChange={(e) => setName(e.target.value)} maxLength={120} required disabled={saving} />
+      </label>
+
+      <div className="set-row">
+        <label className="set-field">
           <span>Type de formation</span>
-          <select
-            value={sessionType}
-            onChange={(e) => setSessionType(e.target.value)}
-            disabled={saving}
-            style={{ width: "100%", border: "1px solid #ddd", borderRadius: 8, padding: "10px 12px", fontSize: "0.9rem", background: "#fff" }}
-          >
+          <select value={sessionType} onChange={(e) => setSessionType(e.target.value)} disabled={saving}>
             {TYPES.map((t) => (
-              <option key={t.value} value={t.value}>
-                {t.label} — {t.days} jours
+              <option key={t.value} value={t.value} title={t.label}>
+                {t.label.split(" — ")[0]} · {t.days} jours
               </option>
             ))}
           </select>
         </label>
-
-        <label className="sb-field">
+        <label className="set-field">
           <span>Date de début</span>
           <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} disabled={saving} />
         </label>
-        <p style={{ margin: "-4px 0 0", fontSize: 13, color: "#475569" }}>
-          {end ? (
-            <>
-              Fin de la session : <strong>{end}</strong> ({days} jours).
-            </>
-          ) : (
-            "Sans date de début, la session apparaît « Dates à venir »."
-          )}
-        </p>
+      </div>
+      <p className="set-note">
+        {end ? (
+          <>
+            {TYPES.find((t) => t.value === sessionType)?.label} · fin : <strong>{end}</strong> ({days} jours)
+          </>
+        ) : (
+          "Sans date de début, la session apparaît « Dates à venir »."
+        )}
+      </p>
 
-        <label className="sb-field">
-          <span>
-            Lieu <span style={{ fontWeight: 400, color: "#64748b" }}>(facultatif)</span>
-          </span>
-          <input value={location} onChange={(e) => setLocation(e.target.value)} maxLength={120} placeholder="ex : Dijon" disabled={saving} />
-        </label>
+      <label className="set-field">
+        <span>
+          Lieu <em>(facultatif)</em>
+        </span>
+        <input value={location} onChange={(e) => setLocation(e.target.value)} maxLength={120} placeholder="ex : Dijon" disabled={saving} />
+      </label>
 
-        <p style={{ margin: 0, fontSize: 12, color: "#64748b" }}>
-          Le type et la date de début règlent aussi le planning (nombre de jours, dates affichées).
-        </p>
-
-        <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-          <button className="btn btn-main" type="submit" disabled={saving}>
-            {saving ? "Enregistrement…" : "Enregistrer"}
-          </button>
-          {message && <span style={{ fontSize: 14, fontWeight: 700, color: message.ok ? "#15803d" : "#dc2626" }}>{message.text}</span>}
-        </div>
+      <div className="set-actions">
+        <button className="btn btn-main" type="submit" disabled={saving}>
+          {saving ? "Enregistrement…" : "Enregistrer"}
+        </button>
+        {message && <span className={`set-msg${message.ok ? "" : " set-msg--error"}`}>{message.text}</span>}
       </div>
     </form>
   );

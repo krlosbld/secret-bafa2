@@ -32,7 +32,9 @@ export default async function GestionFormationPage({ params }: { params: Promise
         {formation.name}
       </h1>
       <h2 style={{ fontSize: "1.1rem", fontWeight: 800, margin: "24px 0 12px" }}>Réglages de la session</h2>
-      <SessionSettingsForm formationId={formation.id} initial={settings!} />
+      <div style={{ maxWidth: 560 }}>
+        <SessionSettingsForm formationId={formation.id} initial={settings!} />
+      </div>
       <h2 style={{ fontSize: "1.1rem", fontWeight: 800, margin: "32px 0 12px" }}>Stagiaires</h2>
       <InviteStagiaires formationId={formation.id} sessionName={formation.name} />
       <h2 style={{ fontSize: "1.1rem", fontWeight: 800, margin: "32px 0 4px" }}>Équipe</h2>
