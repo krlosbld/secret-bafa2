@@ -1,5 +1,7 @@
 import { getFormationFromCookie } from "@/lib/formationSession";
-import SessionCodeGate from "@/components/SessionCodeGate";
+import SessionAccessGate from "@/components/SessionAccessGate";
+import { getPlayerSession } from "@/lib/playerAuth";
+import { getSession } from "@/lib/auth";
 import RankingClient from "./RankingClient";
 
 export const dynamic = "force-dynamic";
@@ -7,8 +9,9 @@ export const revalidate = 0;
 
 export default async function RankingPage() {
   const formation = await getFormationFromCookie();
-  if (!formation) {
-    return <SessionCodeGate />;
+  const allowed = formation && ((await getPlayerSession()) || (await getSession()));
+  if (!formation || !allowed) {
+    return <SessionAccessGate next="/ranking" title="Classement" />;
   }
 
   return <RankingClient />;

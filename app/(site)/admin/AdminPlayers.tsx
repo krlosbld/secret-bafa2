@@ -135,7 +135,7 @@ export default function AdminPlayers({
                   </>
                 ) : (
                   <>
-                    {p.firstName} · <span style={{ color: "#0f766e", fontWeight: 900 }}>#{p.code}</span>
+                    {p.firstName}
                     <button className="btn btn-ghost" style={{ padding: "1px 8px", fontSize: 12 }} onClick={() => { setEditingName(p.id); setNameValue(p.firstName); }}>✏️</button>
                   </>
                 )}

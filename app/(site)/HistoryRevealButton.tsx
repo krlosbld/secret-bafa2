@@ -4,7 +4,6 @@ import { useState } from "react";
 
 export default function HistoryRevealButton({ secretId, cost }: { secretId: string; cost: number }) {
   const [open, setOpen] = useState(false);
-  const [fromCode, setFromCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [result, setResult] = useState<{ wrongNames: string[]; pointsRemaining: number } | null>(null);
@@ -12,22 +11,17 @@ export default function HistoryRevealButton({ secretId, cost }: { secretId: stri
   function handleOpen() {
     setError("");
     setResult(null);
-    setFromCode("");
     setOpen(true);
   }
 
   async function reveal() {
     setError("");
-    if (!fromCode.trim()) {
-      setError("Ton code personnel est requis.");
-      return;
-    }
     setLoading(true);
     try {
       const res = await fetch(`/api/secrets/${secretId}/history-reveal`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ fromCode }),
+        body: "{}",
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -98,18 +92,6 @@ export default function HistoryRevealButton({ secretId, cost }: { secretId: stri
             ) : (
               <div className="sb-form" style={{ marginTop: 12 }}>
                 <p className="sb-help">Ça te coûtera {cost} points pour voir les prénoms déjà devinés à tort sur ce secret.</p>
-                <label className="sb-field">
-                  <span>Ton code personnel</span>
-                  <input
-                    value={fromCode}
-                    onChange={(e) => setFromCode(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                    placeholder="Ex : 4823"
-                    inputMode="numeric"
-                    maxLength={4}
-                    disabled={loading}
-                    style={{ letterSpacing: 4, fontWeight: 700, fontSize: 18 }}
-                  />
-                </label>
                 {error && (
                   <div
                     style={{

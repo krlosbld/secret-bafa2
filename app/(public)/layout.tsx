@@ -3,8 +3,6 @@ import { getVerifiedUser } from "@/lib/userSession";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
 import AppNav from "@/components/AppNav";
 import { getSession } from "@/lib/auth";
-import { getPlayerSession } from "@/lib/playerAuth";
-import { getDirectorAccountSession } from "@/lib/directorAuth";
 import "./public.css";
 
 export const dynamic = "force-dynamic";
@@ -13,8 +11,7 @@ export const dynamic = "force-dynamic";
 // de n'importe quelle façon — on retrouve la barre commune Accueil · Ma session · Formation · Jeu ;
 // sinon, un en-tête simple centré sur « Se connecter » / « Créer mon compte ».
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
-  const loggedIn =
-    !!(await getVerifiedUser()) || !!(await getSession()) || !!(await getPlayerSession()) || !!(await getDirectorAccountSession());
+  const loggedIn = !!(await getVerifiedUser()) || !!(await getSession());
 
   return (
     <div className="bp">

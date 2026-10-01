@@ -4,7 +4,6 @@ import AdminBuzzPending from "../admin/AdminBuzzPending";
 import AdminPlayers from "../admin/AdminPlayers";
 import AdminStaffList from "../admin/AdminStaffList";
 import AdminCronControls from "../admin/AdminCronControls";
-import AdminCreateCode from "../admin/AdminCreateCode";
 import AdminEndGame from "../admin/AdminEndGame";
 import AdminGameRules from "../admin/AdminGameRules";
 import { GAME_RULES } from "@/lib/gameRules";
@@ -128,9 +127,6 @@ export default async function AdminTab({ formationId, secretsOnly = false }: { f
 
       {!secretsOnly && (
         <>
-          <Section title="Codes">
-            <AdminCreateCode formationId={formationId} directorAccounts={[]} allowDirector={false} />
-          </Section>
 
           <Section title={`Équipe (${staff.length})`}>
             <AdminStaffList staff={staff} />

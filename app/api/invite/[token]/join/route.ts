@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { readJsonBody, limited } from "@/lib/requestGuard";
+import { readJsonBody, limited, str } from "@/lib/requestGuard";
 import { getVerifiedUser } from "@/lib/userSession";
 import { joinWithInvite } from "@/lib/invites";
 import { openSessionPath } from "@/lib/mySessions";
@@ -19,8 +19,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ token: 
   if (user.impersonatorId) return NextResponse.json({ error: "Action impossible pendant une connexion « en tant que »." }, { status: 403 });
 
   const { token } = await params;
+  const legacyCode = str(body.legacyCode, 10).trim() || null;
+  if (legacyCode) {
+    // Ancien code : quelques essais seulement (4 chiffres → on freine toute tentative de deviner).
+    const tooManyCodes = limited(req, [
+      { key: "legacy:{ip}", max: 8, windowMs: 60 * 60 * 1000 },
+      { key: `legacy:${user.id}`, max: 5, windowMs: 60 * 60 * 1000 },
+    ]);
+    if (tooManyCodes) return tooManyCodes;
+  }
   try {
-    const { formationId } = await joinWithInvite(user.id, token);
+    const { formationId } = await joinWithInvite(user.id, token, legacyCode);
     return NextResponse.json({ ok: true, next: openSessionPath(formationId) });
   } catch (e) {
     if (e instanceof TeamError) return NextResponse.json({ error: e.message }, { status: 400 });

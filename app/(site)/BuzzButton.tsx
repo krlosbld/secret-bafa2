@@ -4,8 +4,6 @@ import { useState } from "react";
 
 export default function BuzzButton({ secretId }: { secretId: string }) {
   const [open, setOpen] = useState(false);
-  const [fromName, setFromName] = useState("");
-  const [fromCode, setFromCode] = useState("");
   const [guessedName, setGuessedName] = useState("");
   const [claimFake, setClaimFake] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -23,13 +21,8 @@ export default function BuzzButton({ secretId }: { secretId: string }) {
 
   async function sendBuzz() {
     setError("");
-    if (claimFake) {
-      if (!fromCode.trim()) {
-        setError("Ton code personnel est requis.");
-        return;
-      }
-    } else if (!fromName.trim() || !fromCode.trim() || !guessedName.trim()) {
-      setError("Tous les champs sont requis.");
+    if (!claimFake && !guessedName.trim()) {
+      setError("Indique à qui appartient ce secret.");
       return;
     }
     setLoading(true);
@@ -38,7 +31,7 @@ export default function BuzzButton({ secretId }: { secretId: string }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(
-          claimFake ? { secretId, fromCode, claimFake: true } : { secretId, fromName, fromCode, guessedName }
+          claimFake ? { secretId, claimFake: true } : { secretId, guessedName }
         ),
       });
       const data = await res.json().catch(() => ({}));
@@ -48,8 +41,6 @@ export default function BuzzButton({ secretId }: { secretId: string }) {
       }
       setClaimFakeResult(data?.claimFakeResult ?? null);
       setSuccess(true);
-      setFromName("");
-      setFromCode("");
       setGuessedName("");
     } catch {
       setError("Erreur réseau.");
@@ -120,35 +111,7 @@ export default function BuzzButton({ secretId }: { secretId: string }) {
               </div>
             ) : (
               <div className="sb-form" style={{ marginTop: 12 }}>
-                <p className="sb-help">
-                  Utilise le code reçu quand tu as soumis ton secret.
-                </p>
-
-                {!claimFake && (
-                  <label className="sb-field">
-                    <span>Ton prénom</span>
-                    <input
-                      value={fromName}
-                      onChange={(e) => setFromName(e.target.value)}
-                      placeholder="Ex : Lucas"
-                      maxLength={40}
-                      disabled={loading}
-                    />
-                  </label>
-                )}
-
-                <label className="sb-field">
-                  <span>Ton code personnel</span>
-                  <input
-                    value={fromCode}
-                    onChange={(e) => setFromCode(e.target.value.replace(/\D/g, "").slice(0, 4))}
-                    placeholder="Ex : 4823"
-                    inputMode="numeric"
-                    maxLength={4}
-                    disabled={loading}
-                    style={{ letterSpacing: 4, fontWeight: 700, fontSize: 18 }}
-                  />
-                </label>
+                <p className="sb-help">Tu buzzes avec ton compte BafaPilot.</p>
 
                 {!claimFake && (
                   <label className="sb-field">

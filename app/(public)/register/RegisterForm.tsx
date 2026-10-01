@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { PasswordInput, Alert, postJson, ResendVerification } from "../_components/ui";
+import { LegacyCodeField } from "../rejoindre/[token]/JoinButton";
 
 export default function RegisterForm({
   invite,
@@ -16,9 +17,16 @@ export default function RegisterForm({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
+  const [legacyCode, setLegacyCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<{ message: string; code?: string } | null>(null);
-  const [done, setDone] = useState<{ email: string; mailSent: boolean; joinedSession: string | null } | null>(null);
+  const [done, setDone] = useState<{
+    email: string;
+    mailSent: boolean;
+    joinedSession: string | null;
+    recoveredHistory: boolean;
+    legacyCodeRejected: boolean;
+  } | null>(null);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -28,13 +36,19 @@ export default function RegisterForm({
       return;
     }
     setLoading(true);
-    const r = await postJson("/api/auth/register", { firstName, lastName, email, password, confirm, inviteToken: invite?.token });
+    const r = await postJson("/api/auth/register", { firstName, lastName, email, password, confirm, inviteToken: invite?.token, legacyCode: invite ? legacyCode : "" });
     setLoading(false);
     if (!r.ok) {
       setError({ message: String(r.data.error ?? "Inscription impossible."), code: r.data.code as string | undefined });
       return;
     }
-    setDone({ email: String(r.data.email), mailSent: !!r.data.mailSent, joinedSession: (r.data.joinedSession as string | null) ?? null });
+    setDone({
+      email: String(r.data.email),
+      mailSent: !!r.data.mailSent,
+      joinedSession: (r.data.joinedSession as string | null) ?? null,
+      recoveredHistory: !!r.data.recoveredHistory,
+      legacyCodeRejected: !!r.data.legacyCodeRejected,
+    });
   }
 
   if (done) {
@@ -47,8 +61,15 @@ export default function RegisterForm({
           <h1 className="bp-status__title">Confirmez votre adresse email</h1>
           {done.joinedSession && (
             <div className="bp-alert bp-alert--ok" style={{ marginBottom: 14, textAlign: "left" }}>
-              Vous êtes inscrit à la session <strong>{done.joinedSession}</strong> en tant que stagiaire. Elle apparaîtra dans « Ma session » après
-              confirmation de votre adresse.
+              Vous êtes inscrit à la session <strong>{done.joinedSession}</strong> en tant que stagiaire
+              {done.recoveredHistory ? ", avec votre historique récupéré" : ""}. Elle apparaîtra dans « Ma session » après confirmation de votre
+              adresse.
+            </div>
+          )}
+          {done.legacyCodeRejected && (
+            <div className="bp-alert bp-alert--error" style={{ marginBottom: 14, textAlign: "left" }}>
+              L&apos;ancien code ne correspondait pas à votre prénom : une nouvelle fiche a été créée. Prévenez votre directeur ou directrice pour
+              retrouver votre historique.
             </div>
           )}
           {done.mailSent ? (
@@ -117,6 +138,7 @@ export default function RegisterForm({
           disabled={loading}
         />
         <PasswordInput label="Confirmation du mot de passe" value={confirm} onChange={setConfirm} autoComplete="new-password" disabled={loading} />
+        {invite && <LegacyCodeField value={legacyCode} onChange={setLegacyCode} disabled={loading} />}
 
         {error && (
           <Alert kind="error">

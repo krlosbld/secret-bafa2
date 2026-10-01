@@ -2,8 +2,6 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getPlayerSession } from "@/lib/playerAuth";
 import { getSession } from "@/lib/auth";
-import BafaLoginForm from "./BafaLoginForm";
-import BafaLogoutClient from "./BafaLogoutClient";
 import PlanningTab from "./PlanningTab";
 import PlanningHoursTable from "./PlanningHoursTable";
 import PersonalSpaceBody from "./PersonalSpaceBody";
@@ -15,12 +13,8 @@ import { DEFAULT_SESSION_TYPE, todayISO, daysForType, todayDayIndex } from "@/li
 import { getPlayerNotes } from "@/lib/playerNotes";
 import { resolveAuthorNames } from "@/lib/authorNames";
 import { resolveAdminFormationId } from "@/lib/formation";
-import { getFormationFromCookie } from "@/lib/formationSession";
-import SessionCodeGate from "@/components/SessionCodeGate";
+import SessionAccessGate from "@/components/SessionAccessGate";
 import AdminFormationPicker from "./AdminFormationPicker";
-import { redirect } from "next/navigation";
-import { getVerifiedUser } from "@/lib/userSession";
-import { resolveSessionToOpen, openSessionPath } from "@/lib/mySessions";
 import { canEditSessionSettings, getSessionSettings } from "@/lib/sessionSettings";
 import SessionSettingsForm from "@/components/SessionSettingsForm";
 import InviteStagiaires from "@/components/InviteStagiaires";
@@ -327,10 +321,8 @@ async function PersonalSpace({
   playerId,
   formationId,
   firstName,
-  code,
   subLabel,
   backHref,
-  showLogout,
   canEditEvaluations,
   prevId,
   nextId,
@@ -339,10 +331,8 @@ async function PersonalSpace({
   playerId: string;
   formationId: string;
   firstName: string;
-  code: string;
   subLabel?: string;
   backHref?: string;
-  showLogout: boolean;
   canEditEvaluations: boolean;
   prevId?: string | null;
   nextId?: string | null;
@@ -408,12 +398,10 @@ async function PersonalSpace({
               Liste des stagiaires
             </Link>
           </div>
-        ) : showLogout ? (
-          <BafaLogoutClient />
         ) : null}
       </div>
       <p className="sub" style={{ marginBottom: 12 }}>
-        {subLabel ? `${subLabel} · ` : ""}#{code}
+        {subLabel ?? ""}
         {groupNames?.map((name) => (
           <span
             key={name}
@@ -473,14 +461,12 @@ function StagiaireTable({
   rows,
   columns,
   dayCount,
-  showLogout,
   abandonedCount,
   canEditSettings,
 }: {
   rows: StagiaireRow[];
   columns: StagiaireColumn[];
   dayCount: number;
-  showLogout: boolean;
   abandonedCount: number;
   canEditSettings: boolean;
 }) {
@@ -501,11 +487,6 @@ function StagiaireTable({
         <a className="btn btn-ghost" href="/api/players/pdf-appraisals">
           📄 Appréciations finales uniquement (PDF)
         </a>
-        {showLogout && (
-          <span style={{ marginLeft: "auto" }}>
-            <BafaLogoutClient />
-          </span>
-        )}
       </div>
       {abandonedCount > 0 && (
         <p style={{ margin: "0 0 16px" }}>
@@ -555,7 +536,6 @@ function StagiaireTable({
                   <Link href={`/bafa?as=${r.id}`} className="st-cell st-name">
                     <span className="st-name__line">
                       <span className="st-name__text">{r.name}</span>
-                      <span className="st-name__code">#{r.code}</span>
                       {r.hasComplementary && (
                         <span className="st-ec" title="Entretien complémentaire">
                           EC
@@ -637,46 +617,11 @@ export default async function BafaPage({
   const adminSession = player ? null : await getSession();
   const loggedIn = !!player || !!adminSession;
 
+  // Tout passe par le compte : sans session ouverte, on rouvre celle du compte (ou on la choisit),
+  // sinon connexion / QR code de la session.
   if (!loggedIn) {
-    const formationCookie = await getFormationFromCookie();
-
-    // Compte BafaPilot sans session ouverte : l'onglet Formation n'est accessible qu'une fois
-    // rattaché à une session. On rouvre la dernière (ou la seule), sinon on passe par « Ma session ».
-    const account = await getVerifiedUser();
-    if (account) {
-      const target = await resolveSessionToOpen(account.id, formationCookie?.id ?? null);
-      if (target.kind === "open") {
-        const query = new URLSearchParams(Object.entries({ tab, as, day, abandoned }).filter((e): e is [string, string] => !!e[1])).toString();
-        redirect(openSessionPath(target.formationId, `/bafa${query ? `?${query}` : ""}`));
-      }
-      if (target.kind === "choose") redirect("/sessions");
-      return (
-        <main className="page">
-          <div className="container" style={{ maxWidth: 560 }}>
-            <h1 className="h1">Formation</h1>
-            <div className="card" style={{ textAlign: "center" }}>
-              <p style={{ fontWeight: 800, margin: "0 0 6px" }}>Aucune session ne vous est encore attribuée.</p>
-              <p style={{ color: "#64748b", margin: 0 }}>
-                Un responsable ou gestionnaire doit vous rattacher à une session pour accéder à la formation.
-              </p>
-            </div>
-          </div>
-        </main>
-      );
-    }
-
-    if (!formationCookie) {
-      return <SessionCodeGate />;
-    }
-    return (
-      <main className="page">
-        <div className="container">
-          <h1 className="h1">Espace stagiaire</h1>
-          <p className="sub">Connecte-toi avec ton code personnel à 4 chiffres.</p>
-          <BafaLoginForm />
-        </div>
-      </main>
-    );
+    const query = new URLSearchParams(Object.entries({ tab, as, day, abandoned }).filter((e): e is [string, string] => !!e[1])).toString();
+    return <SessionAccessGate next={`/bafa${query ? `?${query}` : ""}`} title="Formation" />;
   }
 
   // Un joueur voit toujours son propre espace.
@@ -766,7 +711,6 @@ export default async function BafaPage({
             <h1 className="h1" style={{ margin: 0 }}>
               Groupes
             </h1>
-            {player && <BafaLogoutClient />}
           </div>
           <p className="sub" style={{ marginBottom: 20 }}>
             Répartition des stagiaires en groupes, aléatoire ou manuelle.
@@ -786,7 +730,6 @@ export default async function BafaPage({
             <h1 className="h1" style={{ margin: 0 }}>
               Administration
             </h1>
-            {player && <BafaLogoutClient />}
           </div>
           <p className="sub" style={{ marginBottom: 20 }}>
             Modération des secrets et des buzz pour ta formation.
@@ -853,7 +796,6 @@ export default async function BafaPage({
             <h1 className="h1" style={{ margin: 0 }}>
               Planning
             </h1>
-            {player && <BafaLogoutClient />}
           </div>
           {isStaff && (
             <PlanningHoursTable
@@ -915,7 +857,7 @@ export default async function BafaPage({
                   <div key={p.id} className="card admin-card">
                     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12 }}>
                       <div>
-                        {p.firstName} · #{p.code}
+                        {p.firstName}
                       </div>
                       <ReactivateButton playerId={p.id} />
                     </div>
@@ -953,10 +895,8 @@ export default async function BafaPage({
                 playerId={as}
                 formationId={formationId}
                 firstName={target.firstName}
-                code={target.code}
                 subLabel={player ? `Aperçu ${ROLE_LABELS[player.role]}` : "Aperçu admin"}
                 backHref="/bafa"
-                showLogout={false}
                 canEditEvaluations={true}
                 prevId={prevId}
                 nextId={nextId}
@@ -1029,7 +969,6 @@ export default async function BafaPage({
             rows={stagiaireRows}
             columns={visibleColumns}
             dayCount={dayCount}
-            showLogout={!!player}
             abandonedCount={abandonedCount}
             canEditSettings={canEditSettings}
           />
@@ -1046,8 +985,6 @@ export default async function BafaPage({
           playerId={playerSession!.playerId}
           formationId={formationId}
           firstName={player!.firstName}
-          code={player!.code}
-          showLogout={true}
           canEditEvaluations={false}
           requestedDay={requestedDay}
         />

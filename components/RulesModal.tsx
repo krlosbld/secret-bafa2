@@ -10,8 +10,8 @@ const rules = [
   },
   {
     emoji: "🔑",
-    title: "Note ton code",
-    text: "Après envoi, un code unique à 4 chiffres t'est attribué (ex: #4823). Note-le bien, tu en auras besoin pour jouer. Sans ce code, impossible de participer.",
+    title: "Ton compte suffit",
+    text: "Ton secret est rattaché à ton compte BafaPilot : aucun code à retenir. Connecte-toi et ouvre ta session pour jouer.",
   },
   {
     emoji: "⏳",
@@ -21,7 +21,7 @@ const rules = [
   {
     emoji: "⚡",
     title: "Buzze !",
-    text: "Tu penses reconnaître l'auteur d'un secret ? Clique sur BUZZ 🔥, entre ton prénom, ton code et le prénom que tu devines.",
+    text: "Tu penses reconnaître l'auteur d'un secret ? Clique sur BUZZ 🔥 et entre le prénom que tu devines.",
   },
   {
     emoji: "🎯",

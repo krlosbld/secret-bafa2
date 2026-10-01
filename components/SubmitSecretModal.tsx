@@ -13,22 +13,16 @@ export default function SubmitSecretModal({
   onClose: () => void;
 }) {
   const [state, setState] = useState<State>("form");
-  const [firstName, setFirstName] = useState("");
   const [content, setContent] = useState("");
   const [bonus, setBonus] = useState(1);
-  const [code, setCode] = useState("");
-  const [attached, setAttached] = useState(false);
   const [error, setError] = useState("");
 
   if (!open) return null;
 
   function handleClose() {
     if (state === "success") {
-      setFirstName("");
       setContent("");
       setBonus(1);
-      setCode("");
-      setAttached(false);
       setState("form");
     }
     setError("");
@@ -42,18 +36,13 @@ export default function SubmitSecretModal({
       const res = await fetch("/api/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ firstName, content, bonus }),
+        body: JSON.stringify({ content, bonus }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setError(data?.message || "Erreur.");
         setState("form");
         return;
-      }
-      if (data.attached) {
-        setAttached(true);
-      } else {
-        setCode(data.code);
       }
       setState("success");
     } catch {
@@ -74,62 +63,19 @@ export default function SubmitSecretModal({
 
         {state === "success" ? (
           <div style={{ textAlign: "center", padding: "24px 0" }}>
-            {attached ? (
-              <>
-                <p style={{ color: "#555", marginBottom: 8 }}>
-                  Ton secret est en attente de validation. Un compte existait déjà pour ce prénom — le
-                  secret y a été rattaché.
-                </p>
-                <p style={{ color: "#0f766e", fontWeight: 700, fontSize: 14 }}>
-                  Utilise ton code personnel habituel pour te connecter.
-                </p>
-              </>
-            ) : (
-              <>
-                <p style={{ color: "#555", marginBottom: 8 }}>
-                  Ton secret est en attente de validation. Voici ton code personnel :
-                </p>
-                <div
-                  style={{
-                    fontSize: 64,
-                    fontWeight: 900,
-                    color: "#0f766e",
-                    letterSpacing: 8,
-                    margin: "16px 0",
-                  }}
-                >
-                  #{code}
-                </div>
-                <p style={{ color: "#e11d48", fontWeight: 700, fontSize: 14 }}>
-                  Note ce code ! Tu en auras besoin pour buzzer les secrets des autres.
-                </p>
-              </>
-            )}
-            <button
-              className="sb-btn sb-btn--main"
-              onClick={handleClose}
-              style={{ marginTop: 20 }}
-            >
-              OK, je l&apos;ai noté !
+            <p style={{ color: "#555", marginBottom: 8 }}>
+              Ton secret est en attente de validation. Il est rattaché à ton compte : rien à noter, tu buzzes directement avec ton compte.
+            </p>
+            <button className="sb-btn sb-btn--main" onClick={handleClose} style={{ marginTop: 20 }}>
+              OK
             </button>
           </div>
         ) : (
           <>
             <p className="sb-help">
-              Ton prénom est visible par l&apos;admin uniquement. La page publique reste anonyme.
+              Ton secret est rattaché à ton compte : seul l&apos;admin voit qu&apos;il est à toi, la page publique reste anonyme.
             </p>
             <div className="sb-form">
-              <label className="sb-field">
-                <span>Prénom</span>
-                <input
-                  value={firstName}
-                  onChange={(e) => setFirstName(e.target.value)}
-                  placeholder="Ex : Lucas"
-                  maxLength={40}
-                  disabled={state === "loading"}
-                />
-              </label>
-
               <label className="sb-field">
                 <span>Secret</span>
                 <textarea
@@ -206,7 +152,7 @@ export default function SubmitSecretModal({
                 <button
                   className="sb-btn sb-btn--main"
                   onClick={submit}
-                  disabled={state === "loading" || !firstName.trim() || !content.trim()}
+                  disabled={state === "loading" || !content.trim()}
                 >
                   {state === "loading" ? "Envoi..." : "Envoyer"}
                 </button>

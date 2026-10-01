@@ -5,6 +5,7 @@ import { createAuthToken } from "@/lib/authTokens";
 import { sendVerificationEmail } from "@/lib/mail";
 import { normalizeEmail } from "@/lib/access";
 import { readJsonBody, str, limited, EMAIL_RE } from "@/lib/requestGuard";
+import { TeamError } from "@/lib/team";
 import { findActiveInvite, joinWithInvite } from "@/lib/invites";
 
 export const runtime = "nodejs";
@@ -33,6 +34,11 @@ export async function POST(req: Request) {
 
   // Inscription depuis le QR code d'une session : le lien doit être encore valide.
   const inviteToken = str(body.inviteToken, 64);
+  const legacyCode = str(body.legacyCode, 10).trim() || null;
+  if (legacyCode) {
+    const tooManyCodes = limited(req, [{ key: "legacy:{ip}", max: 8, windowMs: HOUR }]);
+    if (tooManyCodes) return tooManyCodes;
+  }
   if (inviteToken && !(await findActiveInvite(inviteToken))) {
     return NextResponse.json({ error: "Ce lien d'invitation n'est plus valide. Demandez le nouveau lien à votre directeur ou directrice." }, { status: 400 });
   }
@@ -59,19 +65,33 @@ export async function POST(req: Request) {
 
   // Rattachement immédiat à la session de l'invitation (accès ouvert une fois l'email confirmé).
   let joinedSession: string | null = null;
+  let recoveredHistory = false;
+  let legacyCodeRejected = false;
   if (inviteToken) {
     // Un échec du rattachement ne doit pas faire perdre l'inscription : la personne pourra
     // rescanner le QR code une fois connectée.
     try {
-      const { formationId } = await joinWithInvite(userId, inviteToken);
+      const { formationId, recovered } = await joinWithInvite(userId, inviteToken, legacyCode);
       joinedSession = (await prisma.formation.findUnique({ where: { id: formationId }, select: { name: true } }))?.name ?? null;
+      recoveredHistory = recovered;
     } catch (e) {
-      console.error("REGISTER: rattachement par invitation impossible pour", userId, e instanceof Error ? e.message : e);
+      // Ancien code non reconnu : rattachement normal (nouvelle fiche), et on le signale.
+      if (e instanceof TeamError && legacyCode) {
+        legacyCodeRejected = true;
+        try {
+          const { formationId } = await joinWithInvite(userId, inviteToken);
+          joinedSession = (await prisma.formation.findUnique({ where: { id: formationId }, select: { name: true } }))?.name ?? null;
+        } catch (e2) {
+          console.error("REGISTER: rattachement par invitation impossible pour", userId, e2 instanceof Error ? e2.message : e2);
+        }
+      } else {
+        console.error("REGISTER: rattachement par invitation impossible pour", userId, e instanceof Error ? e.message : e);
+      }
     }
   }
 
   const token = await createAuthToken(userId, "VERIFY_EMAIL");
   const mail = await sendVerificationEmail(email, firstName, token);
 
-  return NextResponse.json({ ok: true, email, mailSent: mail.ok, joinedSession });
+  return NextResponse.json({ ok: true, email, mailSent: mail.ok, joinedSession, recoveredHistory, legacyCodeRejected });
 }

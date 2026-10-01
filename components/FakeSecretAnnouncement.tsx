@@ -42,7 +42,7 @@ export default function FakeSecretAnnouncement() {
         <p className="sb-help">
           Attention, certains secrets sont peut-être des <strong>faux</strong> — inventés de toutes pièces, sans
           personne derrière. Si tu penses en avoir repéré un, clique sur <strong>BUZZ 🔥</strong> puis sur{" "}
-          <strong>« Je pense que c&apos;est un faux secret »</strong>, entre juste ton code perso et confirme. Si tu as
+          <strong>« Je pense que c&apos;est un faux secret »</strong>, puis confirme. Si tu as
           raison, tu gagnes des points !
         </p>
         <div className="sb-actions">

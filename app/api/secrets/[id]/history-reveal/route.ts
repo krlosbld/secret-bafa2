@@ -2,22 +2,17 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { CLAIM_FAKE_GUESS_LABEL, historyRevealCost } from "@/lib/buzzResolution";
 import { getFormationFromCookie, hasNotStartedYet } from "@/lib/formationSession";
+import { getPlayerSession } from "@/lib/playerAuth";
 
 export const runtime = "nodejs";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function POST(req: Request, { params }: Params) {
+export async function POST(_req: Request, { params }: Params) {
   const { id: secretId } = await params;
-  const body = await req.json().catch(() => ({}));
-  const fromCode = String(body.fromCode ?? "").trim();
-  if (!fromCode) {
-    return NextResponse.json({ error: "Code manquant." }, { status: 400 });
-  }
-
   const formation = await getFormationFromCookie();
   if (!formation) {
-    return NextResponse.json({ error: "Code de session manquant. Retourne sur la page d'accueil." }, { status: 400 });
+    return NextResponse.json({ error: "Ouvre ta session depuis « Ma session » (connexion avec ton compte BafaPilot)." }, { status: 400 });
   }
   if (!formation.active) {
     return NextResponse.json(
@@ -38,9 +33,10 @@ export async function POST(req: Request, { params }: Params) {
     return NextResponse.json({ error: "Cette option n'est pas activée." }, { status: 403 });
   }
 
-  const player = await prisma.player.findUnique({ where: { formationId_code: { formationId, code: fromCode } } });
-  if (!player) {
-    return NextResponse.json({ error: "Code invalide. Vérifie ton code personnel." }, { status: 400 });
+  const playerSession = await getPlayerSession();
+  const player = playerSession ? await prisma.player.findUnique({ where: { id: playerSession.playerId } }) : null;
+  if (!player || player.formationId !== formationId) {
+    return NextResponse.json({ error: "Connecte-toi avec ton compte BafaPilot." }, { status: 401 });
   }
 
   const secret = await prisma.secret.findUnique({ where: { id: secretId } });

@@ -210,7 +210,7 @@ export function AdminSecretsPending({ secrets }: { secrets: Secret[] }) {
           )}
           <div className="row">
             <div className="label">Auteur</div>
-            <div className="value">{s.player.firstName} · #{s.player.code}</div>
+            <div className="value">{s.player.firstName}</div>
           </div>
           <div className="row">
             <div className="label">Secret</div>
@@ -381,7 +381,7 @@ export function AdminSecretsPublished({ secrets }: { secrets: Secret[] }) {
           />
           <div className="row">
             <div className="label">Auteur</div>
-            <div className="value">{s.player.firstName} · #{s.player.code}</div>
+            <div className="value">{s.player.firstName}</div>
           </div>
           <div className="row">
             <div className="label">Secret</div>

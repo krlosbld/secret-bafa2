@@ -11,7 +11,6 @@ export type SessionCard = {
   location: string | null;
   dates: string;
   role: string;
-  gameCode: string | null; // code personnel du stagiaire, demandé par le jeu pour buzzer
   archived: boolean;
   sortKey: number;
 };
@@ -66,16 +65,15 @@ async function typeLabels(formationIds: string[]): Promise<Map<string, string>> 
 
 type FormationRow = { id: string; name: string; location: string | null; startDate: Date | null; endDate: Date | null; active: boolean };
 
-export async function toCards(rows: { formation: FormationRow; role: string; gameCode?: string | null }[]): Promise<SessionCard[]> {
+export async function toCards(rows: { formation: FormationRow; role: string }[]): Promise<SessionCard[]> {
   const labels = await typeLabels(rows.map((r) => r.formation.id));
-  return rows.map(({ formation: f, role, gameCode }) => ({
+  return rows.map(({ formation: f, role }) => ({
     formationId: f.id,
     name: f.name,
     typeLabel: labels.get(f.id)!,
     location: f.location,
     dates: formatDateRange(f.startDate, f.endDate),
     role,
-    gameCode: role === "STAGIAIRE" ? gameCode ?? null : null,
     archived: isArchived(f),
     sortKey: (f.startDate ?? f.endDate)?.getTime() ?? Number.MAX_SAFE_INTEGER,
   }));
@@ -86,9 +84,9 @@ const FORMATION_SELECT = { id: true, name: true, location: true, startDate: true
 export async function getMySessionCards(userId: string): Promise<SessionCard[]> {
   const memberships = await prisma.formationMember.findMany({
     where: { userId },
-    select: { role: true, formation: { select: FORMATION_SELECT }, player: { select: { code: true } } },
+    select: { role: true, formation: { select: FORMATION_SELECT } },
   });
-  return toCards(memberships.map((m) => ({ formation: m.formation, role: m.role, gameCode: m.player?.code ?? null })));
+  return toCards(memberships);
 }
 
 // Onglet Formation pour un compte qui n'a pas encore de session ouverte : laquelle ouvrir ?

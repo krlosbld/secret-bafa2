@@ -2,45 +2,35 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isFlagged } from "@/lib/contentFilter";
 import { getFormationFromCookie, hasNotStartedYet } from "@/lib/formationSession";
-import { generateUniquePlayerCode } from "@/lib/playerCode";
-import { findMatchingPlayer } from "@/lib/nameCollision";
+import { getPlayerSession } from "@/lib/playerAuth";
 
 export const runtime = "nodejs";
 
+// Ajouter son secret : il est rattaché à la fiche du compte connecté dans la session ouverte.
+// Plus de prénom à saisir ni de code à noter, et plus aucune fiche créée depuis le jeu.
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const firstName = String(body.firstName ?? "").trim();
     const content = String(body.content ?? "").trim();
     const bonus = Number(body.bonus ?? 1);
 
-    if (!firstName || !content) {
-      return NextResponse.json(
-        { ok: false, message: "Prénom et secret obligatoires." },
-        { status: 400 }
-      );
+    if (!content) {
+      return NextResponse.json({ ok: false, message: "Ton secret est vide." }, { status: 400 });
     }
-
     if (!Number.isInteger(bonus) || bonus < 1 || bonus > 5) {
-      return NextResponse.json(
-        { ok: false, message: "Le bonus doit être entre 1 et 5." },
-        { status: 400 }
-      );
+      return NextResponse.json({ ok: false, message: "Le bonus doit être entre 1 et 5." }, { status: 400 });
     }
-
-    if (firstName.length > 40 || content.length > 800) {
-      return NextResponse.json(
-        { ok: false, message: "Texte trop long." },
-        { status: 400 }
-      );
+    if (content.length > 800) {
+      return NextResponse.json({ ok: false, message: "Texte trop long." }, { status: 400 });
     }
 
     const formation = await getFormationFromCookie();
-    if (!formation) {
-      return NextResponse.json(
-        { ok: false, message: "Code de session manquant. Retourne sur la page d'accueil." },
-        { status: 400 }
-      );
+    const playerSession = await getPlayerSession();
+    const player = playerSession
+      ? await prisma.player.findUnique({ where: { id: playerSession.playerId }, select: { id: true, formationId: true } })
+      : null;
+    if (!formation || !player || player.formationId !== formation.id) {
+      return NextResponse.json({ ok: false, message: "Connecte-toi avec ton compte BafaPilot pour ajouter ton secret." }, { status: 401 });
     }
     if (!formation.active) {
       return NextResponse.json(
@@ -53,49 +43,18 @@ export async function POST(req: Request) {
         { status: 403 }
       );
     }
-    const formationId = formation.id;
 
-    const flagged = isFlagged(content);
-
-    // Un prénom qui correspond à un joueur déjà enregistré (fuzzy match, y compris diminutifs et
-    // noms composés) — plutôt que de bloquer, on rattache le secret à ce compte existant s'il n'en a
-    // pas déjà un (ex. un formateur/directeur créé sans secret). On ne renvoie jamais le code de ce
-    // compte existant : n'importe qui pourrait sinon récupérer le code de quelqu'un d'autre en tapant
-    // simplement son prénom.
-    const match = await findMatchingPlayer(formationId, firstName);
-    if (match) {
-      const existingSecret = await prisma.secret.findUnique({ where: { playerId: match.id } });
-      if (existingSecret) {
-        return NextResponse.json(
-          { ok: false, message: "Un secret existe déjà pour ce prénom." },
-          { status: 409 }
-        );
-      }
-      await prisma.secret.create({
-        data: { playerId: match.id, formationId, content, bonus, status: "PENDING", flagged },
-      });
-      return NextResponse.json({ ok: true, attached: true });
+    const existingSecret = await prisma.secret.findUnique({ where: { playerId: player.id } });
+    if (existingSecret) {
+      return NextResponse.json({ ok: false, message: "Tu as déjà ajouté ton secret." }, { status: 409 });
     }
 
-    const code = await generateUniquePlayerCode(formationId);
-
-    await prisma.player.create({
-      data: {
-        firstName,
-        code,
-        formationId,
-        secret: {
-          create: { content, bonus, status: "PENDING", flagged, formationId },
-        },
-      },
+    await prisma.secret.create({
+      data: { playerId: player.id, formationId: formation.id, content, bonus, status: "PENDING", flagged: isFlagged(content) },
     });
-
-    return NextResponse.json({ ok: true, code });
+    return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("API SUBMIT ERROR:", e);
-    return NextResponse.json(
-      { ok: false, message: "Erreur serveur." },
-      { status: 500 }
-    );
+    return NextResponse.json({ ok: false, message: "Erreur serveur." }, { status: 500 });
   }
 }

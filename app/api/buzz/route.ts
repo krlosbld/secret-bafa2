@@ -4,6 +4,7 @@ import { matchesName } from "@/lib/nameCollision";
 import { resolveWinningBuzz, CLAIM_FAKE_GUESS_LABEL } from "@/lib/buzzResolution";
 import { isSecretCurrentlyVisible } from "@/lib/secretVisibility";
 import { getFormationFromCookie, hasNotStartedYet } from "@/lib/formationSession";
+import { getPlayerSession } from "@/lib/playerAuth";
 
 export const runtime = "nodejs";
 
@@ -34,18 +35,16 @@ export async function POST(req: Request) {
     const body = await req.json();
     const secretId = String(body.secretId ?? "").trim();
     const claimFake = body.claimFake === true;
-    const fromName = String(body.fromName ?? "").trim();
-    const fromCode = String(body.fromCode ?? "").trim();
     const guessedName = claimFake ? CLAIM_FAKE_GUESS_LABEL : String(body.guessedName ?? "").trim();
 
-    const missingFields = claimFake ? !secretId || !fromCode : !secretId || !fromName || !fromCode || !guessedName;
+    const missingFields = claimFake ? !secretId : !secretId || !guessedName;
     if (missingFields) {
       return NextResponse.json({ error: "Champs manquants." }, { status: 400 });
     }
 
     const formation = await getFormationFromCookie();
     if (!formation) {
-      return NextResponse.json({ error: "Code de session manquant. Retourne sur la page d'accueil." }, { status: 400 });
+      return NextResponse.json({ error: "Ouvre ta session depuis « Ma session » (connexion avec ton compte BafaPilot)." }, { status: 400 });
     }
     if (!formation.active) {
       return NextResponse.json(
@@ -72,13 +71,11 @@ export async function POST(req: Request) {
     }
     const lockPendingCorrect = lockPendingCorrectConfig?.value === "true";
 
-    // Trouver le joueur par son code
-    const player = await prisma.player.findUnique({ where: { formationId_code: { formationId, code: fromCode } } });
-    if (!player) {
-      return NextResponse.json(
-        { error: "Code invalide. Vérifie ton code personnel." },
-        { status: 400 }
-      );
+    // Le joueur est celui du compte connecté, dans la session ouverte (plus de code à taper).
+    const playerSession = await getPlayerSession();
+    const player = playerSession ? await prisma.player.findUnique({ where: { id: playerSession.playerId } }) : null;
+    if (!player || player.formationId !== formationId) {
+      return NextResponse.json({ error: "Connecte-toi avec ton compte BafaPilot pour buzzer." }, { status: 401 });
     }
 
     // Le maître du jeu (directeur, ou formateur délégué) a accès à l'administration des secrets —
@@ -87,15 +84,6 @@ export async function POST(req: Request) {
       return NextResponse.json(
         { error: "En tant que maître du jeu, tu ne peux pas buzzer." },
         { status: 403 }
-      );
-    }
-
-    // Vérifier que le prénom correspond au code (fuzzy) — inutile en mode "faux secret", le code
-    // suffit déjà à identifier le joueur sans lui redemander son prénom.
-    if (!claimFake && !matchesName(player.firstName, fromName)) {
-      return NextResponse.json(
-        { error: "Le code ne correspond pas à ce prénom." },
-        { status: 400 }
       );
     }
 

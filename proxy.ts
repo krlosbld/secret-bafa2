@@ -1,15 +1,11 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { refreshSessionCookie } from "@/lib/auth";
-import { refreshPlayerSessionCookie } from "@/lib/playerAuth";
-import { refreshDirectorAccountCookie } from "@/lib/directorAuth";
 
-// Sessions glissantes : chaque cookie signé encore valide est ré-émis avec une nouvelle échéance.
-// Un cookie absent, expiré ou dont la signature ne correspond pas est simplement ignoré.
+// Session glissante du super-admin historique (.env) : ré-émise avec une nouvelle échéance tant
+// qu'elle est valide. Les comptes BafaPilot ont leur propre session en base (lib/userSession).
 export function proxy(req: NextRequest) {
   const res = NextResponse.next();
   refreshSessionCookie(req, res);
-  refreshPlayerSessionCookie(req, res);
-  refreshDirectorAccountCookie(req, res);
   return res;
 }
 

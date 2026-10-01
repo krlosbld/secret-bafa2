@@ -1,34 +1,32 @@
+import { cache } from "react";
 import { cookies } from "next/headers";
-import { NextResponse, type NextRequest } from "next/server";
-import { signCookie, verifyCookie, secureCookieBase } from "@/lib/signedCookie";
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { getVerifiedUser } from "@/lib/userSession";
+import { verifyCookie } from "@/lib/signedCookie";
+import { ensureMemberPlayer } from "@/lib/team";
 
-export const PLAYER_AUTH_TTL = 60 * 10; // 10 minutes, glissant (comme la session admin)
+// Fiche Player de la personne connectée dans la session ouverte. Tout passe par le compte
+// BafaPilot : la fiche est celle du rattachement (FormationMember) du compte à la session ouverte
+// (cookie de formation posé par « Ouvrir »). Aucune connexion par code n'existe plus.
+export const getPlayerSession = cache(async (): Promise<{ playerId: string } | null> => {
+  const user = await getVerifiedUser();
+  if (!user) return null;
 
-const COOKIE = "bp_player";
-type PlayerPayload = { p: string; u: number };
-
-function parse(value: string | undefined): { playerId: string } | null {
-  const data = verifyCookie<PlayerPayload>(COOKIE, value);
-  if (!data || typeof data.p !== "string" || !data.p || !Number.isFinite(data.u) || Date.now() >= data.u) return null;
-  return { playerId: data.p };
-}
-
-export async function getPlayerSession(): Promise<{ playerId: string } | null> {
   const store = await cookies();
-  return parse(store.get(COOKIE)?.value);
-}
+  const formation = verifyCookie<{ f: string; u: number }>("bp_formation", store.get("bp_formation")?.value);
+  if (!formation || typeof formation.f !== "string" || !Number.isFinite(formation.u) || Date.now() >= formation.u) return null;
 
-export function setPlayerSessionCookies(res: NextResponse, playerId: string) {
-  const payload: PlayerPayload = { p: playerId, u: Date.now() + PLAYER_AUTH_TTL * 1000 };
-  res.cookies.set(COOKIE, signCookie(COOKIE, payload), { ...secureCookieBase, maxAge: PLAYER_AUTH_TTL });
-}
+  const member = await prisma.formationMember.findUnique({
+    where: { formationId_userId: { formationId: formation.f, userId: user.id } },
+    select: { id: true, playerId: true },
+  });
+  if (!member) return null;
+  return { playerId: member.playerId ?? (await ensureMemberPlayer(member.id)) };
+});
 
-export function clearPlayerSessionCookies(res: NextResponse) {
-  res.cookies.set(COOKIE, "", { maxAge: 0, path: "/" });
-}
-
-// Session glissante : prolongée à chaque requête tant qu'elle est encore valide (appelé par proxy.ts).
-export function refreshPlayerSessionCookie(req: NextRequest, res: NextResponse) {
-  const session = parse(req.cookies.get(COOKIE)?.value);
-  if (session) setPlayerSessionCookies(res, session.playerId);
+// Anciennes connexions par code (stagiaire/formateur et compte directeur) : leurs cookies sont
+// simplement effacés à la connexion et à la déconnexion.
+export function clearLegacyLoginCookies(res: NextResponse) {
+  for (const name of ["bp_player", "bp_director"]) res.cookies.set(name, "", { maxAge: 0, path: "/" });
 }

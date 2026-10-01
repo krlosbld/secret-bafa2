@@ -1,10 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { prisma } from "@/lib/prisma";
 import { getVerifiedUser } from "@/lib/userSession";
 import { getSession } from "@/lib/auth";
-import { getPlayerSession } from "@/lib/playerAuth";
-import { getMySessionCards, toCards, openSessionPath, type SessionCard } from "@/lib/mySessions";
+import { getMySessionCards, openSessionPath, type SessionCard } from "@/lib/mySessions";
 
 export const metadata = { title: "Ma session — BafaPilot" };
 export const dynamic = "force-dynamic";
@@ -27,7 +25,6 @@ function Card({ s, href }: { s: SessionCard; href: string }) {
           {s.dates}
         </p>
         <p className="bp-session__role">Rôle : {ROLE_LABELS[s.role] ?? s.role}</p>
-        {s.gameCode && <p className="bp-session__meta" style={{ margin: "6px 0 0" }}>Ton code perso pour le jeu : <strong>{s.gameCode}</strong></p>}
       </div>
       <Link href={href} className={`bp-btn ${s.archived ? "bp-btn--outline" : "bp-btn--primary"} bp-session__open`}>
         Ouvrir
@@ -67,37 +64,23 @@ export default async function SessionsPage({ searchParams }: { searchParams: Pro
     cards = await getMySessionCards(user.id);
     hrefOf = (s) => openSessionPath(s.formationId);
     greeting = user.firstName;
-  } else {
-    // Sans compte : stagiaire ou formateur connecté par code — sa session est celle de sa fiche.
-    const playerSession = await getPlayerSession();
-    const player = playerSession
-      ? await prisma.player.findUnique({
-          where: { id: playerSession.playerId },
-          select: { firstName: true, role: true, formation: { select: { id: true, name: true, location: true, startDate: true, endDate: true, active: true } } },
-        })
-      : null;
-    if (player) {
-      cards = await toCards([{ formation: player.formation, role: player.role }]);
-      hrefOf = () => "/bafa";
-      greeting = player.firstName;
-    } else if (await getSession()) {
-      return (
-        <div className="bp-auth" style={{ maxWidth: 560 }}>
-          <h1 className="bp-auth__title">Ma session</h1>
-          <div className="bp-card bp-status">
-            <p className="bp-status__text" style={{ margin: 0 }}>
-              Vous êtes connecté en administrateur. Les sessions se gèrent depuis{" "}
-              <Link href="/admin" className="bp-link">
-                l&apos;Administration
-              </Link>
-              .
-            </p>
-          </div>
+  } else if (await getSession()) {
+    return (
+      <div className="bp-auth" style={{ maxWidth: 560 }}>
+        <h1 className="bp-auth__title">Ma session</h1>
+        <div className="bp-card bp-status">
+          <p className="bp-status__text" style={{ margin: 0 }}>
+            Vous êtes connecté en administrateur. Les sessions se gèrent depuis{" "}
+            <Link href="/admin" className="bp-link">
+              l&apos;Administration
+            </Link>
+            .
+          </p>
         </div>
-      );
-    } else {
-      redirect("/login?next=/sessions");
-    }
+      </div>
+    );
+  } else {
+    redirect("/login?next=/sessions");
   }
 
   const current = cards.filter((s) => !s.archived).sort((a, b) => a.sortKey - b.sortKey);

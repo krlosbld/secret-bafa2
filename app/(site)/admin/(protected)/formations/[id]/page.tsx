@@ -6,7 +6,6 @@ import { AdminSecretsPending, AdminSecretsPublished } from "../../../AdminSecret
 import AdminBuzzPending from "../../../AdminBuzzPending";
 import AdminPlayers from "../../../AdminPlayers";
 import AdminStaffList from "../../../AdminStaffList";
-import AdminCreateCode from "../../../AdminCreateCode";
 import AdminActivateFormation from "../../../AdminActivateFormation";
 import AdminReset from "../../../AdminReset";
 import AdminCronControls from "../../../AdminCronControls";
@@ -102,12 +101,6 @@ export default async function FormationDetailPage({ params }: { params: Promise<
     : [];
   const staff = staffRows.map((s) => ({ id: s.id, firstName: s.firstName, role: s.role, isGameMaster: s.isGameMaster, username: s.directorAccount?.username ?? null }));
 
-  const directorAccounts = superAdmin
-    ? await prisma.directorAccount.findMany({
-        select: { id: true, firstName: true, username: true },
-        orderBy: { firstName: "asc" },
-      })
-    : [];
 
   const team = superAdmin ? await loadTeam(formationId) : null;
   const settings = superAdmin ? await getSessionSettings(formationId) : null;
@@ -155,8 +148,7 @@ export default async function FormationDetailPage({ params }: { params: Promise<
           )}
         </div>
         <p className="sub" style={{ marginBottom: 32 }}>
-          Créée le {new Date(formation.createdAt).toLocaleDateString("fr-FR")} · Code de session :{" "}
-          <span style={{ fontWeight: 900, color: "#0f766e" }}>{formation.code}</span>
+          Créée le {new Date(formation.createdAt).toLocaleDateString("fr-FR")}
         </p>
 
         {superAdmin && (
@@ -184,9 +176,6 @@ export default async function FormationDetailPage({ params }: { params: Promise<
 
         {superAdmin && (
           <>
-            <Section title="Codes">
-              <AdminCreateCode formationId={formation.id} directorAccounts={directorAccounts} />
-            </Section>
 
             <Section title="Stagiaires — inscription par QR code">
               <InviteStagiaires formationId={formation.id} sessionName={formation.name} />
@@ -196,7 +185,7 @@ export default async function FormationDetailPage({ params }: { params: Promise<
               <TeamManager formationId={formation.id} members={team!.members} linkable={team!.linkable} />
             </Section>
 
-            <Section title={`Équipe — accès par code (${staff.length})`}>
+            <Section title={`Fiches d'équipe (${staff.length})`}>
               <AdminStaffList staff={staff} />
             </Section>
 

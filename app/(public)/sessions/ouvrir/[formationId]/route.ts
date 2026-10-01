@@ -1,7 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getCurrentUser } from "@/lib/userSession";
-import { setPlayerSessionCookies } from "@/lib/playerAuth";
 import { setFormationCookie } from "@/lib/formationSession";
 import { safeNextPath } from "@/lib/requestGuard";
 import { ensureMemberPlayer } from "@/lib/team";
@@ -27,9 +26,8 @@ export async function GET(req: Request, { params }: { params: Promise<{ formatio
   });
   if (!member) return to("/sessions?erreur=acces");
 
-  const playerId = await ensureMemberPlayer(member.id);
+  await ensureMemberPlayer(member.id);
   const res = to(safeNextPath(url.searchParams.get("next"), "/bafa"));
-  setPlayerSessionCookies(res, playerId);
   setFormationCookie(res, formationId);
   return res;
 }

@@ -2,7 +2,6 @@ import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
 import { getPlayerSession } from "@/lib/playerAuth";
-import { getDirectorAccountSession } from "@/lib/directorAuth";
 import { getVerifiedUser } from "@/lib/userSession";
 import NavTabs from "@/components/NavTabs";
 import LogoutButton from "@/components/LogoutButton";
@@ -10,13 +9,8 @@ import LogoutButton from "@/components/LogoutButton";
 // Barre du haut commune à tout BafaPilot : Accueil · Ma session · Formation · Jeu, puis les accès
 // selon les droits (Gestion, Administration) et « Se déconnecter » dès qu'on est connecté.
 export default async function AppNav() {
-  const [user, adminSession, playerSession, directorAccountSession] = await Promise.all([
-    getVerifiedUser(),
-    getSession(),
-    getPlayerSession(),
-    getDirectorAccountSession(),
-  ]);
-  const loggedIn = !!user || !!adminSession || !!playerSession || !!directorAccountSession;
+  const [user, adminSession, playerSession] = await Promise.all([getVerifiedUser(), getSession(), getPlayerSession()]);
+  const loggedIn = !!user || !!adminSession;
 
   let adminHref: string | null = adminSession ? "/admin" : null;
   if (!adminHref && playerSession) {
@@ -41,11 +35,6 @@ export default async function AppNav() {
           {isGestionnaire && (
             <Link href="/gestion" className="app-nav__action">
               Gestion
-            </Link>
-          )}
-          {directorAccountSession && (
-            <Link href="/bafa/choisir-formation" className="app-nav__action" title="Changer de formation">
-              🔀
             </Link>
           )}
           {adminHref && (
