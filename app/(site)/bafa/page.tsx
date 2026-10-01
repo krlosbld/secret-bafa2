@@ -23,6 +23,7 @@ import { getVerifiedUser } from "@/lib/userSession";
 import { resolveSessionToOpen, openSessionPath } from "@/lib/mySessions";
 import { canEditSessionSettings, getSessionSettings } from "@/lib/sessionSettings";
 import SessionSettingsForm from "@/components/SessionSettingsForm";
+import InviteStagiaires from "@/components/InviteStagiaires";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -962,6 +963,9 @@ export default async function BafaPage({
     const sessionType = configRows.find((r) => r.key === "planningSessionType")?.value ?? DEFAULT_SESSION_TYPE;
     const dayCount = daysForType(sessionType);
     const { dailyFillRatio, dailyTrend } = await getStagiaireIndicators(dayCount, formationId);
+    const sessionName = canEditSettings
+      ? (await prisma.formation.findUnique({ where: { id: formationId }, select: { name: true } }))?.name ?? "la session"
+      : "";
 
     const { groupsByPlayerId } = groupAssignment;
 
@@ -969,6 +973,7 @@ export default async function BafaPage({
       <main className="page">
         <div className="container">
           <TabNav active="espace" showGroups={isStaff} showAdmin={canSeeAdminTab} showSettings={canEditSettings} />
+          {canEditSettings && <InviteStagiaires formationId={formationId} sessionName={sessionName} />}
           <StagiaireList
             players={players}
             showLogout={!!player}

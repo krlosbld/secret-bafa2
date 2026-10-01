@@ -93,7 +93,7 @@ export async function removeMember(memberId: string) {
 export async function loadTeam(formationId: string) {
   const [rows, linkable] = await Promise.all([
     prisma.formationMember.findMany({
-      where: { formationId },
+      where: { formationId, role: { in: ["DIRECTEUR", "FORMATEUR"] } },
       select: {
         id: true,
         role: true,

@@ -2,14 +2,12 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { SESSION_TYPES } from "@/lib/planningConfig";
 
 // Réglages d'une session : nom, type de formation, date de début (la fin est calculée d'après le
 // type), lieu. Même formulaire pour l'admin, le gestionnaire et le directeur de la session.
 
-const TYPES = [
-  { value: "BAFA", label: "Formation générale (BAFA)", days: 8 },
-  { value: "APPRO", label: "Approfondissement", days: 6 },
-];
+const TYPES = Object.entries(SESSION_TYPES).map(([value, t]) => ({ value, label: t.label, days: t.days }));
 
 type Settings = { name: string; sessionType: string; startDate: string | null; location: string };
 

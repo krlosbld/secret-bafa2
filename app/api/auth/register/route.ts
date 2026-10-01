@@ -5,6 +5,7 @@ import { createAuthToken } from "@/lib/authTokens";
 import { sendVerificationEmail } from "@/lib/mail";
 import { normalizeEmail } from "@/lib/access";
 import { readJsonBody, str, limited, EMAIL_RE } from "@/lib/requestGuard";
+import { findActiveInvite, joinWithInvite } from "@/lib/invites";
 
 export const runtime = "nodejs";
 
@@ -30,6 +31,12 @@ export async function POST(req: Request) {
   if (problem) return NextResponse.json({ error: problem }, { status: 400 });
   if (password !== confirm) return NextResponse.json({ error: "Les deux mots de passe ne correspondent pas." }, { status: 400 });
 
+  // Inscription depuis le QR code d'une session : le lien doit être encore valide.
+  const inviteToken = str(body.inviteToken, 64);
+  if (inviteToken && !(await findActiveInvite(inviteToken))) {
+    return NextResponse.json({ error: "Ce lien d'invitation n'est plus valide. Demandez le nouveau lien à votre directeur ou directrice." }, { status: 400 });
+  }
+
   const existing = await prisma.user.findUnique({ where: { email }, select: { id: true } });
   if (existing) {
     return NextResponse.json({ error: "Un compte existe déjà avec cette adresse email.", code: "EMAIL_TAKEN" }, { status: 409 });
@@ -50,8 +57,21 @@ export async function POST(req: Request) {
     throw e;
   }
 
+  // Rattachement immédiat à la session de l'invitation (accès ouvert une fois l'email confirmé).
+  let joinedSession: string | null = null;
+  if (inviteToken) {
+    // Un échec du rattachement ne doit pas faire perdre l'inscription : la personne pourra
+    // rescanner le QR code une fois connectée.
+    try {
+      const { formationId } = await joinWithInvite(userId, inviteToken);
+      joinedSession = (await prisma.formation.findUnique({ where: { id: formationId }, select: { name: true } }))?.name ?? null;
+    } catch (e) {
+      console.error("REGISTER: rattachement par invitation impossible pour", userId, e instanceof Error ? e.message : e);
+    }
+  }
+
   const token = await createAuthToken(userId, "VERIFY_EMAIL");
   const mail = await sendVerificationEmail(email, firstName, token);
 
-  return NextResponse.json({ ok: true, email, mailSent: mail.ok });
+  return NextResponse.json({ ok: true, email, mailSent: mail.ok, joinedSession });
 }

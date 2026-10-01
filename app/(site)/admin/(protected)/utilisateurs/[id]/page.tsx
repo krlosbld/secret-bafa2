@@ -8,7 +8,7 @@ import UserActions from "./UserActions";
 
 export const dynamic = "force-dynamic";
 
-const ROLE_LABELS: Record<string, string> = { DIRECTEUR: "Directeur", FORMATEUR: "Formateur" };
+const ROLE_LABELS: Record<string, string> = { DIRECTEUR: "Directeur", FORMATEUR: "Formateur", STAGIAIRE: "Stagiaire" };
 const fmt = (d: Date) => d.toLocaleString("fr-FR", { timeZone: "Europe/Paris", dateStyle: "short", timeStyle: "short" });
 const fmtDay = (d: Date | null) => (d ? d.toLocaleDateString("fr-FR", { timeZone: "UTC" }) : "?");
 

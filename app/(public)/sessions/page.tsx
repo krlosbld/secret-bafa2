@@ -27,6 +27,7 @@ function Card({ s, href }: { s: SessionCard; href: string }) {
           {s.dates}
         </p>
         <p className="bp-session__role">Rôle : {ROLE_LABELS[s.role] ?? s.role}</p>
+        {s.gameCode && <p className="bp-session__meta" style={{ margin: "6px 0 0" }}>Ton code perso pour le jeu : <strong>{s.gameCode}</strong></p>}
       </div>
       <Link href={href} className={`bp-btn ${s.archived ? "bp-btn--outline" : "bp-btn--primary"} bp-session__open`}>
         Ouvrir

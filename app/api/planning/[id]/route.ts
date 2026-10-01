@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getPlanningAuth } from "@/lib/planningAuth";
 import { snapshotPlanning } from "@/lib/planningSnapshot";
+import { MAX_DAY_INDEX } from "@/lib/planningConfig"; // 9 jours au plus (BAFD 1)
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -26,7 +27,7 @@ export async function PATCH(req: Request, { params }: Params) {
   const body = await req.json().catch(() => ({}));
   const data: Record<string, unknown> = {};
 
-  if (Number.isInteger(body.day) && body.day >= 0 && body.day <= 7) {
+  if (Number.isInteger(body.day) && body.day >= 0 && body.day <= MAX_DAY_INDEX) {
     data.day = body.day;
   }
   if (Number.isInteger(body.startMin) && body.startMin >= DAY_MIN && body.startMin % 5 === 0) {

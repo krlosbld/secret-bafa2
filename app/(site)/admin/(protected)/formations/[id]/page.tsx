@@ -14,6 +14,7 @@ import LogoutClient from "../../../LogoutClient";
 import TeamManager from "@/components/TeamManager";
 import { loadTeam } from "@/lib/team";
 import SessionSettingsForm from "@/components/SessionSettingsForm";
+import InviteStagiaires from "@/components/InviteStagiaires";
 import { getSessionSettings } from "@/lib/sessionSettings";
 
 export const dynamic = "force-dynamic";
@@ -183,6 +184,10 @@ export default async function FormationDetailPage({ params }: { params: Promise<
           <>
             <Section title="Codes">
               <AdminCreateCode formationId={formation.id} directorAccounts={directorAccounts} />
+            </Section>
+
+            <Section title="Stagiaires — inscription par QR code">
+              <InviteStagiaires formationId={formation.id} sessionName={formation.name} />
             </Section>
 
             <Section title={`Équipe — comptes BafaPilot (${team!.members.length})`}>

@@ -38,10 +38,17 @@ export function pickerGroupOf(category: string): string {
   return POSTE_PICKER_GROUP[category] ?? category;
 }
 
+// Types de session : le nombre de jours fixe la durée du planning (6 à 9 jours). Les clés BAFA et
+// APPRO sont conservées telles quelles pour les sessions existantes.
 export const SESSION_TYPES: Record<string, { label: string; days: number }> = {
-  BAFA: { label: "Formation générale (BAFA)", days: 8 },
-  APPRO: { label: "Approfondissement", days: 6 },
+  BAFA: { label: "BAFA 1 — Formation générale", days: 8 },
+  APPRO: { label: "BAFA 3 — Approfondissement", days: 6 },
+  BAFD1: { label: "BAFD 1 — Formation générale", days: 9 },
+  BAFD3: { label: "BAFD 3 — Perfectionnement", days: 6 },
 };
+
+// Plus longue session possible (indice du dernier jour) : borne de sécurité des créneaux.
+export const MAX_DAY_INDEX = Math.max(...Object.values(SESSION_TYPES).map((t) => t.days)) - 1;
 
 export const DEFAULT_SESSION_TYPE = "BAFA";
 

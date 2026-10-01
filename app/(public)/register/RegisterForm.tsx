@@ -4,7 +4,13 @@ import { useState } from "react";
 import Link from "next/link";
 import { PasswordInput, Alert, postJson, ResendVerification } from "../_components/ui";
 
-export default function RegisterForm() {
+export default function RegisterForm({
+  invite,
+  inviteInvalid,
+}: {
+  invite: { token: string; sessionName: string } | null;
+  inviteInvalid: boolean;
+}) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -12,7 +18,7 @@ export default function RegisterForm() {
   const [confirm, setConfirm] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<{ message: string; code?: string } | null>(null);
-  const [done, setDone] = useState<{ email: string; mailSent: boolean } | null>(null);
+  const [done, setDone] = useState<{ email: string; mailSent: boolean; joinedSession: string | null } | null>(null);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -22,13 +28,13 @@ export default function RegisterForm() {
       return;
     }
     setLoading(true);
-    const r = await postJson("/api/auth/register", { firstName, lastName, email, password, confirm });
+    const r = await postJson("/api/auth/register", { firstName, lastName, email, password, confirm, inviteToken: invite?.token });
     setLoading(false);
     if (!r.ok) {
       setError({ message: String(r.data.error ?? "Inscription impossible."), code: r.data.code as string | undefined });
       return;
     }
-    setDone({ email: String(r.data.email), mailSent: !!r.data.mailSent });
+    setDone({ email: String(r.data.email), mailSent: !!r.data.mailSent, joinedSession: (r.data.joinedSession as string | null) ?? null });
   }
 
   if (done) {
@@ -39,6 +45,12 @@ export default function RegisterForm() {
             ✉️
           </div>
           <h1 className="bp-status__title">Confirmez votre adresse email</h1>
+          {done.joinedSession && (
+            <div className="bp-alert bp-alert--ok" style={{ marginBottom: 14, textAlign: "left" }}>
+              Vous êtes inscrit à la session <strong>{done.joinedSession}</strong> en tant que stagiaire. Elle apparaîtra dans « Ma session » après
+              confirmation de votre adresse.
+            </div>
+          )}
           {done.mailSent ? (
             <p className="bp-status__text">
               Votre compte est créé. Nous venons d&apos;envoyer un lien de confirmation à <strong>{done.email}</strong>.
@@ -69,6 +81,17 @@ export default function RegisterForm() {
     <div className="bp-auth">
       <h1 className="bp-auth__title">Créer mon compte</h1>
       <p className="bp-auth__sub">Un seul compte pour retrouver toutes vos sessions BAFA.</p>
+      {invite && (
+        <div className="bp-alert bp-alert--info" style={{ marginBottom: 16 }}>
+          Vous rejoindrez la session <strong>{invite.sessionName}</strong> en tant que stagiaire.
+        </div>
+      )}
+      {inviteInvalid && (
+        <div className="bp-alert bp-alert--error" style={{ marginBottom: 16 }}>
+          Ce lien d&apos;invitation n&apos;est plus valide : votre compte sera créé sans rattachement. Demandez le nouveau QR code à votre directeur ou
+          directrice.
+        </div>
+      )}
 
       <form className="bp-card bp-form" onSubmit={onSubmit} noValidate>
         <div className="bp-row">
@@ -121,7 +144,7 @@ export default function RegisterForm() {
 
       <p className="bp-links">
         Déjà un compte ?{" "}
-        <Link href="/login" className="bp-link">
+        <Link href={invite ? `/login?next=${encodeURIComponent(`/rejoindre/${invite.token}`)}` : "/login"} className="bp-link">
           Se connecter
         </Link>
       </p>

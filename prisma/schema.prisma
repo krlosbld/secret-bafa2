@@ -19,6 +19,7 @@ model Formation {
 
   members           FormationMember[]
   managers          ManagerFormation[]
+  invites           FormationInvite[]
   players           Player[]
   secrets           Secret[]
   planningBlocks    PlanningBlock[]
@@ -190,6 +191,23 @@ model FormationMember {
 
   @@unique([formationId, userId])
   @@index([userId])
+}
+
+// Lien d'invitation d'une session (QR code) : en l'ouvrant, on crée son compte (ou on se connecte)
+// et on est rattaché automatiquement avec ce rôle. Un seul lien actif par session ; en générer un
+// nouveau révoque le précédent. Le jeton figure en clair car il doit pouvoir être réaffiché/imprimé.
+model FormationInvite {
+  id             String    @id @default(cuid())
+  formationId    String
+  token          String    @unique
+  role           String    @default("STAGIAIRE")
+  joinCount      Int       @default(0)
+  createdByLabel String
+  createdAt      DateTime  @default(now())
+  revokedAt      DateTime?
+  formation      Formation @relation(fields: [formationId], references: [id], onDelete: Cascade)
+
+  @@index([formationId])
 }
 
 // Formations qu'un compte GESTIONNAIRE a le droit d'administrer.

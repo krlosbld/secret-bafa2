@@ -12,7 +12,7 @@ const LEVELS: Record<string, { label: string; bg: string; color: string }> = {
   SUPERADMIN: { label: "Super-admin", bg: "#ede9fe", color: "#5b21b6" },
   GESTIONNAIRE: { label: "Gestionnaire", bg: "#e0f2fe", color: "#075985" },
 };
-const ROLE_LABELS: Record<string, string> = { DIRECTEUR: "Directeur", FORMATEUR: "Formateur" };
+const ROLE_LABELS: Record<string, string> = { DIRECTEUR: "Directeur", FORMATEUR: "Formateur", STAGIAIRE: "Stagiaire" };
 
 const pill = (bg: string, color: string): React.CSSProperties => ({
   fontSize: 11,

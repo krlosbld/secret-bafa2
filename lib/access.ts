@@ -5,7 +5,8 @@ import { getCurrentUser, type CurrentUser } from "@/lib/userSession";
 // Contrôle d'accès aux sessions (formations) pour les comptes BafaPilot, toujours évalué côté
 // serveur à partir de la base — jamais à partir d'une valeur de cookie.
 
-export const MEMBER_ROLES = ["DIRECTEUR", "FORMATEUR"] as const;
+// STAGIAIRE : rattachement via le lien d'invitation (QR code) de la session.
+export const MEMBER_ROLES = ["DIRECTEUR", "FORMATEUR", "STAGIAIRE"] as const;
 export type MemberRole = (typeof MEMBER_ROLES)[number];
 
 export function isMemberRole(role: string): role is MemberRole {

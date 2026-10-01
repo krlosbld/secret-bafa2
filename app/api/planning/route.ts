@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getPlanningAuth } from "@/lib/planningAuth";
 import { resolveViewFormationId } from "@/lib/formation";
 import { snapshotPlanning } from "@/lib/planningSnapshot";
+import { MAX_DAY_INDEX } from "@/lib/planningConfig"; // 9 jours au plus (BAFD 1)
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -14,7 +15,7 @@ function isValidNewBlock(body: Record<string, unknown>): boolean {
   return (
     Number.isInteger(body.day) &&
     (body.day as number) >= 0 &&
-    (body.day as number) <= 7 &&
+    (body.day as number) <= MAX_DAY_INDEX &&
     Number.isInteger(body.startMin) &&
     Number.isInteger(body.endMin) &&
     (body.startMin as number) >= DAY_MIN &&
