@@ -39,7 +39,7 @@ export default async function GestionFormationPage({ params }: { params: Promise
       <InviteStagiaires formationId={formation.id} sessionName={formation.name} />
       <h2 style={{ fontSize: "1.1rem", fontWeight: 800, margin: "32px 0 4px" }}>Équipe</h2>
       <p style={{ color: "var(--bp-muted)", margin: "0 0 16px" }}>Le rattachement est immédiat, sans code de session.</p>
-      <TeamManager formationId={formation.id} members={team.members} linkable={team.linkable} />
+      <TeamManager formationId={formation.id} members={team.members} linkable={team.linkable} invites={team.invites} />
     </div>
   );
 }

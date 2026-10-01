@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Alert, postJson } from "../../_components/ui";
 
-export default function JoinButton({ token }: { token: string }) {
+export default function JoinButton({ token, allowLegacyCode = true }: { token: string; allowLegacyCode?: boolean }) {
   const [legacyCode, setLegacyCode] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +22,7 @@ export default function JoinButton({ token }: { token: string }) {
 
   return (
     <>
-      <LegacyCodeField value={legacyCode} onChange={setLegacyCode} disabled={loading} />
+      {allowLegacyCode && <LegacyCodeField value={legacyCode} onChange={setLegacyCode} disabled={loading} />}
       {error && <Alert kind="error">{error}</Alert>}
       <button type="button" className="bp-btn bp-btn--primary bp-btn--block bp-btn--lg" onClick={join} disabled={loading}>
         {loading ? "Rattachement…" : "Rejoindre la session"}

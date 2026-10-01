@@ -10,6 +10,7 @@ import { useRouter } from "next/navigation";
 export type TeamMember = { id: string; role: string; name: string; email: string; verified: boolean; playerName: string | null };
 type SearchResult = { id: string; name: string; email: string; verified: boolean; alreadyMemberAs: string | null };
 type Linkable = { id: string; firstName: string; role: string };
+type PendingInvite = { id: string; email: string; role: string; expiresAt: string };
 
 const ROLES = [
   { value: "DIRECTEUR", label: "Directeur" },
@@ -37,7 +38,17 @@ const badge = (bg: string, color: string): React.CSSProperties => ({
   whiteSpace: "nowrap",
 });
 
-export default function TeamManager({ formationId, members, linkable }: { formationId: string; members: TeamMember[]; linkable: Linkable[] }) {
+export default function TeamManager({
+  formationId,
+  members,
+  linkable,
+  invites = [],
+}: {
+  formationId: string;
+  members: TeamMember[];
+  linkable: Linkable[];
+  invites?: PendingInvite[];
+}) {
   const router = useRouter();
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -109,6 +120,84 @@ export default function TeamManager({ formationId, members, linkable }: { format
         <button className="btn btn-main" onClick={() => setAdding(true)}>
           + Ajouter un membre
         </button>
+      )}
+
+      <InviteByEmail formationId={formationId} invites={invites} />
+    </div>
+  );
+}
+
+// Inviter par email une personne qui n'a pas encore de compte (ou qui en a un) : elle reçoit un lien
+// personnel, crée son compte et se retrouve rattachée à la session avec le rôle choisi.
+function InviteByEmail({ formationId, invites }: { formationId: string; invites: PendingInvite[] }) {
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [role, setRole] = useState("DIRECTEUR");
+  const [sending, setSending] = useState(false);
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+
+  async function invite() {
+    setSending(true);
+    setMessage(null);
+    const r = await send(`/api/team/${formationId}/invites`, "POST", { email, role });
+    setSending(false);
+    if (!r.ok) {
+      setMessage({ ok: false, text: r.error! });
+      return;
+    }
+    setMessage({ ok: true, text: `Invitation envoyée à ${email.trim()} ✓` });
+    setEmail("");
+    router.refresh();
+  }
+
+  async function revoke(i: PendingInvite) {
+    if (!confirm(`Annuler l'invitation envoyée à ${i.email} ?`)) return;
+    const r = await send(`/api/team/invites/${i.id}`, "DELETE", {});
+    if (!r.ok) setMessage({ ok: false, text: r.error! });
+    router.refresh();
+  }
+
+  return (
+    <div className="card" style={{ marginTop: 14, display: "flex", flexDirection: "column", gap: 10 }}>
+      <div>
+        <div style={{ fontWeight: 800 }}>Inviter par email</div>
+        <p style={{ margin: "2px 0 0", fontSize: 13, color: "#64748b" }}>
+          La personne reçoit un lien pour créer son compte : elle est rattachée automatiquement à la session (lien personnel, 7 jours).
+        </p>
+      </div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+        <input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="adresse@email.fr"
+          style={{ flex: "1 1 220px", border: "1px solid #ddd", borderRadius: 8, padding: "9px 10px", fontSize: 14 }}
+        />
+        {ROLES.map((r) => (
+          <button key={r.value} type="button" className={`btn ${role === r.value ? "btn-main" : "btn-ghost"}`} onClick={() => setRole(r.value)}>
+            {r.label}
+          </button>
+        ))}
+        <button type="button" className="btn btn-main" onClick={invite} disabled={sending || !email.trim()}>
+          {sending ? "Envoi…" : "Envoyer l'invitation"}
+        </button>
+      </div>
+      {message && <p style={{ margin: 0, fontSize: 14, fontWeight: 700, color: message.ok ? "#15803d" : "#dc2626" }}>{message.text}</p>}
+      {invites.length > 0 && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          <div style={{ fontSize: 12, fontWeight: 800, color: "#64748b", textTransform: "uppercase" }}>En attente</div>
+          {invites.map((i) => (
+            <div key={i.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, flexWrap: "wrap", fontSize: 14 }}>
+              <span>
+                <strong>{i.email}</strong> · {roleLabel(i.role)}{" "}
+                <span style={{ color: "#94a3b8" }}>(expire le {new Date(i.expiresAt).toLocaleDateString("fr-FR")})</span>
+              </span>
+              <button type="button" className="btn btn-ghost" onClick={() => revoke(i)}>
+                Annuler
+              </button>
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );

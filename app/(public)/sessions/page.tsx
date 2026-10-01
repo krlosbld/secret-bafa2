@@ -60,6 +60,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: Pro
   let hrefOf: (s: SessionCard) => string;
   let greeting: string | null = null;
 
+  if (user?.platformRole === "SUPERADMIN" && !user.impersonatorId) redirect("/admin");
   if (user) {
     cards = await getMySessionCards(user.id);
     hrefOf = (s) => openSessionPath(s.formationId);

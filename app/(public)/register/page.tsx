@@ -11,5 +11,10 @@ export default async function RegisterPage({ searchParams }: { searchParams: Pro
   if (await getVerifiedUser()) redirect(token ? `/rejoindre/${encodeURIComponent(token)}` : "/sessions");
 
   const invite = token ? await findActiveInvite(token) : null;
-  return <RegisterForm invite={invite && token ? { token, sessionName: invite.formation.name } : null} inviteInvalid={!!token && !invite} />;
+  return (
+    <RegisterForm
+      invite={invite && token ? { token, sessionName: invite.formation.name, email: invite.email, role: invite.role } : null}
+      inviteInvalid={!!token && !invite}
+    />
+  );
 }

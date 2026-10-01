@@ -182,7 +182,7 @@ export default async function FormationDetailPage({ params }: { params: Promise<
             </Section>
 
             <Section title={`Équipe — comptes BafaPilot (${team!.members.length})`}>
-              <TeamManager formationId={formation.id} members={team!.members} linkable={team!.linkable} />
+              <TeamManager formationId={formation.id} members={team!.members} linkable={team!.linkable} invites={team!.invites} />
             </Section>
 
             <Section title={`Fiches d'équipe (${staff.length})`}>

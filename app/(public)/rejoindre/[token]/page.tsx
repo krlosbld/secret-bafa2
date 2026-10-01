@@ -37,7 +37,15 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
   return (
     <div className="bp-auth">
       <h1 className="bp-auth__title">Rejoindre la session</h1>
-      <p className="bp-auth__sub">Vous êtes invité à rejoindre cette session en tant que stagiaire.</p>
+      <p className="bp-auth__sub">
+        Vous êtes invité(e) à rejoindre cette session en tant que {({ DIRECTEUR: "directeur", FORMATEUR: "formateur" } as Record<string, string>)[invite.role] ?? "stagiaire"}.
+        {invite.email && (
+          <>
+            <br />
+            Invitation personnelle pour <strong>{invite.email}</strong>.
+          </>
+        )}
+      </p>
       <div className="bp-card">
         <div style={{ textAlign: "center", marginBottom: 20 }}>
           <div style={{ fontSize: "1.3rem", fontWeight: 800 }}>{f.name}</div>
@@ -59,7 +67,7 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
               <p style={{ margin: 0, textAlign: "center", color: "var(--bp-muted)" }}>
                 Connecté en tant que <strong style={{ color: "var(--bp-ink)" }}>{user.firstName} {user.lastName}</strong>
               </p>
-              <JoinButton token={token} />
+              <JoinButton token={token} allowLegacyCode={!invite.email && invite.role === "STAGIAIRE"} />
             </div>
           )
         ) : (

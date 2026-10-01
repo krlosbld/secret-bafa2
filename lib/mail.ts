@@ -120,3 +120,23 @@ Si vous n'êtes pas à l'origine de cette demande, ignorez cet email : votre mot
   );
   return sendMail(to, subject, text, html);
 }
+
+export function sendTeamInviteEmail(to: string, sessionName: string, roleLabel: string, token: string): Promise<MailResult> {
+  const link = appUrl(`/rejoindre/${encodeURIComponent(token)}`);
+  const subject = `Invitation à rejoindre « ${sessionName} » — BafaPilot`;
+  const text = `Bonjour,
+
+Vous êtes invité(e) à rejoindre la session « ${sessionName} » sur BafaPilot en tant que ${roleLabel.toLowerCase()}.
+Créez votre compte (ou connectez-vous) en ouvrant ce lien : vous serez rattaché(e) automatiquement à la session.
+${link}
+
+Ce lien est personnel, valable 7 jours et utilisable une seule fois, avec l'adresse ${to}.`;
+  const html = layout(
+    `Invitation : ${escapeHtml(sessionName)}`,
+    `Bonjour,<br><br>Vous êtes invité(e) à rejoindre la session <strong>${escapeHtml(sessionName)}</strong> sur BafaPilot en tant que <strong>${escapeHtml(roleLabel.toLowerCase())}</strong>. Créez votre compte (ou connectez-vous) : vous serez rattaché(e) automatiquement à la session.`,
+    "Rejoindre la session",
+    link,
+    `Ce lien est personnel, valable 7 jours et utilisable une seule fois, avec l'adresse ${escapeHtml(to)}.`
+  );
+  return sendMail(to, subject, text, html);
+}

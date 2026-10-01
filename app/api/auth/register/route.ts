@@ -39,8 +39,12 @@ export async function POST(req: Request) {
     const tooManyCodes = limited(req, [{ key: "legacy:{ip}", max: 8, windowMs: HOUR }]);
     if (tooManyCodes) return tooManyCodes;
   }
-  if (inviteToken && !(await findActiveInvite(inviteToken))) {
+  const activeInvite = inviteToken ? await findActiveInvite(inviteToken) : null;
+  if (inviteToken && !activeInvite) {
     return NextResponse.json({ error: "Ce lien d'invitation n'est plus valide. Demandez le nouveau lien à votre directeur ou directrice." }, { status: 400 });
+  }
+  if (activeInvite?.email && activeInvite.email !== email) {
+    return NextResponse.json({ error: `Cette invitation est réservée à ${activeInvite.email}.` }, { status: 400 });
   }
 
   const existing = await prisma.user.findUnique({ where: { email }, select: { id: true } });

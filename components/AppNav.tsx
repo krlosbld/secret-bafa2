@@ -18,6 +18,9 @@ export default async function AppNav() {
     if (player?.role === "DIRECTEUR") adminHref = "/bafa?tab=admin";
   }
   const isGestionnaire = user?.platformRole === "GESTIONNAIRE" && !user.impersonatorId;
+  // Le super-admin (compte SUPERADMIN ou accès de secours du .env) n'a pas de session : ses onglets
+  // sont ceux de l'administration.
+  const isSuperAdmin = !!adminSession && (!user || (user.platformRole === "SUPERADMIN" && !user.impersonatorId));
 
   return (
     <header className="app-nav">
@@ -29,7 +32,7 @@ export default async function AppNav() {
           <span className="app-nav__brand-text">BafaPilot</span>
         </Link>
 
-        <NavTabs />
+        <NavTabs variant={isSuperAdmin ? "admin" : "member"} />
 
         <div className="app-nav__actions">
           {isGestionnaire && (
@@ -37,7 +40,7 @@ export default async function AppNav() {
               Gestion
             </Link>
           )}
-          {adminHref && (
+          {adminHref && !isSuperAdmin && (
             <Link href={adminHref} className="app-nav__action" title="Administration" aria-label="Administration">
               ⚙️
             </Link>

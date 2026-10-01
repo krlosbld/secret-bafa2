@@ -16,6 +16,7 @@ export async function GET(req: Request, { params }: { params: Promise<{ formatio
   const words = q.split(/\s+/).filter(Boolean).slice(0, 3);
   const users = await prisma.user.findMany({
     where: {
+      platformRole: { not: "SUPERADMIN" }, // le super-admin n'est jamais rattaché à une session
       AND: words.map((w) => ({
         OR: [
           { firstName: { contains: w, mode: "insensitive" as const } },

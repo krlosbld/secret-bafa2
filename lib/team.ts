@@ -38,11 +38,12 @@ export async function addMember(formationId: string, userId: string, role: strin
   if (!isMemberRole(role)) throw new TeamError("Rôle invalide.");
   const [formation, user, existing] = await Promise.all([
     prisma.formation.findUnique({ where: { id: formationId }, select: { id: true } }),
-    prisma.user.findUnique({ where: { id: userId }, select: { id: true, firstName: true, lastName: true } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { id: true, firstName: true, lastName: true, platformRole: true } }),
     prisma.formationMember.findUnique({ where: { formationId_userId: { formationId, userId } }, select: { id: true } }),
   ]);
   if (!formation) throw new TeamError("Session introuvable.");
   if (!user) throw new TeamError("Compte introuvable.");
+  if (user.platformRole === "SUPERADMIN") throw new TeamError("Le compte super-admin n'est rattaché à aucune session.");
   if (existing) throw new TeamError("Cette personne fait déjà partie de l'équipe de cette session.");
 
   let playerId: string;
@@ -91,7 +92,7 @@ export async function removeMember(memberId: string) {
 
 // Données du composant d'équipe (TeamManager) pour une formation.
 export async function loadTeam(formationId: string) {
-  const [rows, linkable] = await Promise.all([
+  const [rows, linkable, pending] = await Promise.all([
     prisma.formationMember.findMany({
       where: { formationId, role: { in: ["DIRECTEUR", "FORMATEUR"] } },
       select: {
@@ -103,6 +104,11 @@ export async function loadTeam(formationId: string) {
       orderBy: [{ role: "asc" }, { user: { lastName: "asc" } }],
     }),
     linkableStaffPlayers(formationId),
+    prisma.formationInvite.findMany({
+      where: { formationId, email: { not: null }, revokedAt: null, usedAt: null, expiresAt: { gt: new Date() } },
+      select: { id: true, email: true, role: true, expiresAt: true },
+      orderBy: { createdAt: "desc" },
+    }),
   ]);
   const members = rows.map((m) => ({
     id: m.id,
@@ -112,7 +118,8 @@ export async function loadTeam(formationId: string) {
     verified: !!m.user.emailVerifiedAt,
     playerName: m.player?.firstName ?? null,
   }));
-  return { members, linkable };
+  const invites = pending.map((i) => ({ id: i.id, email: i.email!, role: i.role, expiresAt: i.expiresAt!.toISOString() }));
+  return { members, linkable, invites };
 }
 
 // Fiche Player d'un membre, recréée si elle a disparu (ex. supprimée depuis l'ancien écran

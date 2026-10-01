@@ -205,6 +205,11 @@ model FormationInvite {
   createdByLabel String
   createdAt      DateTime  @default(now())
   revokedAt      DateTime?
+  // Invitation personnelle (équipe) : envoyée par email à une adresse précise, utilisable une seule
+  // fois par ce compte, avec une date d'expiration. Null = lien de session partagé (QR stagiaires).
+  email          String?
+  expiresAt      DateTime?
+  usedAt         DateTime?
   formation      Formation @relation(fields: [formationId], references: [id], onDelete: Cascade)
 
   @@index([formationId])

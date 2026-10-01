@@ -2,7 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getSuperAdminActor } from "@/lib/adminActor";
-import AdminNav from "../../AdminNav";
 import LogoutClient from "../../LogoutClient";
 
 export const dynamic = "force-dynamic";
@@ -69,7 +68,6 @@ export default async function UsersPage({ searchParams }: { searchParams: Promis
           </h1>
           <LogoutClient />
         </div>
-        <AdminNav active="utilisateurs" />
 
         <form method="get" style={{ display: "flex", gap: 8, marginBottom: 18, flexWrap: "wrap" }}>
           <input

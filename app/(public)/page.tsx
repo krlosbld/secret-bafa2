@@ -62,8 +62,11 @@ export default async function HomePage() {
         <p className="bp-hero__sub">Suivi des stagiaires, évaluations, planning et outils de session réunis dans un même espace.</p>
         <div className="bp-hero__actions">
           {user ? (
-            <Link href="/sessions" className="bp-btn bp-btn--primary bp-btn--lg">
-              Mes sessions
+            <Link
+              href={user.platformRole === "SUPERADMIN" && !user.impersonatorId ? "/admin" : "/sessions"}
+              className="bp-btn bp-btn--primary bp-btn--lg"
+            >
+              {user.platformRole === "SUPERADMIN" && !user.impersonatorId ? "Administration" : "Ma session"}
             </Link>
           ) : (
             <>

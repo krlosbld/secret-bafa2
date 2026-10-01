@@ -63,4 +63,6 @@ export const AUDIT_LABELS: Record<string, string> = {
   MEMBER_ADD: "Membre ajouté à l'équipe",
   MEMBER_ROLE_SET: "Rôle d'équipe modifié",
   MEMBER_REMOVE: "Membre retiré de l'équipe",
+  TEAM_INVITE_SENT: "Invitation d'équipe envoyée",
+  TEAM_INVITE_REVOKED: "Invitation d'équipe annulée",
 };

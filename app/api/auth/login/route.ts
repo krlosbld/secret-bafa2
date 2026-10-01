@@ -31,7 +31,7 @@ export async function POST(req: Request) {
 
   const user = await prisma.user.findUnique({
     where: { email },
-    select: { id: true, passwordHash: true, emailVerifiedAt: true },
+    select: { id: true, passwordHash: true, emailVerifiedAt: true, platformRole: true },
   });
 
   if (!user) {
@@ -55,7 +55,10 @@ export async function POST(req: Request) {
     );
   }
 
-  const res = NextResponse.json({ ok: true, next: safeNextPath(body.next) });
+  // Le super-admin n'a pas de session : il arrive directement dans l'administration.
+  const defaultNext = user.platformRole === "SUPERADMIN" ? "/admin" : "/sessions";
+  const requested = safeNextPath(body.next, defaultNext);
+  const res = NextResponse.json({ ok: true, next: user.platformRole === "SUPERADMIN" && requested === "/sessions" ? "/admin" : requested });
   // Anciens cookies de connexion par code éventuellement restés sur ce navigateur : effacés.
   clearLegacyLoginCookies(res);
   await createUserSession(res, user.id, req.headers.get("user-agent"));

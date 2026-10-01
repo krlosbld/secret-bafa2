@@ -2,7 +2,6 @@ import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getSuperAdminActor, AUDIT_LABELS } from "@/lib/adminActor";
-import AdminNav from "../../../AdminNav";
 import LogoutClient from "../../../LogoutClient";
 import UserActions from "./UserActions";
 
@@ -62,7 +61,6 @@ export default async function UserDetailPage({ params }: { params: Promise<{ id:
           </h1>
           <LogoutClient />
         </div>
-        <AdminNav active="utilisateurs" />
         <Link href="/admin/utilisateurs" className="btn btn-ghost" style={{ textDecoration: "none", display: "inline-block", marginBottom: 16 }}>
           ← Utilisateurs
         </Link>

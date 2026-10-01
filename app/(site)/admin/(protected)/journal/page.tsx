@@ -2,7 +2,6 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getSuperAdminActor, AUDIT_LABELS } from "@/lib/adminActor";
-import AdminNav from "../../AdminNav";
 import LogoutClient from "../../LogoutClient";
 
 export const dynamic = "force-dynamic";
@@ -28,7 +27,6 @@ export default async function JournalPage() {
           </h1>
           <LogoutClient />
         </div>
-        <AdminNav active="journal" />
         <p style={{ color: "#64748b", fontSize: 14, margin: "0 0 12px" }}>
           Connexions « en tant que », suppressions, mots de passe modifiés, niveaux et rattachements — 200 dernières actions.
         </p>

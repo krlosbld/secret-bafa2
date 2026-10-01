@@ -5,16 +5,18 @@ import Link from "next/link";
 import { PasswordInput, Alert, postJson, ResendVerification } from "../_components/ui";
 import { LegacyCodeField } from "../rejoindre/[token]/JoinButton";
 
+const ROLE_NAMES: Record<string, string> = { STAGIAIRE: "stagiaire", FORMATEUR: "formateur", DIRECTEUR: "directeur" };
+
 export default function RegisterForm({
   invite,
   inviteInvalid,
 }: {
-  invite: { token: string; sessionName: string } | null;
+  invite: { token: string; sessionName: string; email: string | null; role: string } | null;
   inviteInvalid: boolean;
 }) {
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
-  const [email, setEmail] = useState("");
+  const [email, setEmail] = useState(invite?.email ?? "");
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [legacyCode, setLegacyCode] = useState("");
@@ -61,7 +63,7 @@ export default function RegisterForm({
           <h1 className="bp-status__title">Confirmez votre adresse email</h1>
           {done.joinedSession && (
             <div className="bp-alert bp-alert--ok" style={{ marginBottom: 14, textAlign: "left" }}>
-              Vous êtes inscrit à la session <strong>{done.joinedSession}</strong> en tant que stagiaire
+              Vous êtes inscrit à la session <strong>{done.joinedSession}</strong> en tant que {ROLE_NAMES[invite?.role ?? "STAGIAIRE"] ?? "stagiaire"}
               {done.recoveredHistory ? ", avec votre historique récupéré" : ""}. Elle apparaîtra dans « Ma session » après confirmation de votre
               adresse.
             </div>
@@ -104,7 +106,7 @@ export default function RegisterForm({
       <p className="bp-auth__sub">Un seul compte pour retrouver toutes vos sessions BAFA.</p>
       {invite && (
         <div className="bp-alert bp-alert--info" style={{ marginBottom: 16 }}>
-          Vous rejoindrez la session <strong>{invite.sessionName}</strong> en tant que stagiaire.
+          Vous rejoindrez la session <strong>{invite.sessionName}</strong> en tant que {ROLE_NAMES[invite.role] ?? "stagiaire"}.
         </div>
       )}
       {inviteInvalid && (
@@ -127,7 +129,19 @@ export default function RegisterForm({
         </div>
         <label className="bp-field">
           <span className="bp-field__label">Email</span>
-          <input className="bp-input" type="email" value={email} onChange={(e) => setEmail(e.target.value)} autoComplete="email" inputMode="email" maxLength={254} required disabled={loading} />
+          <input
+            className="bp-input"
+            type="email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            autoComplete="email"
+            inputMode="email"
+            maxLength={254}
+            required
+            disabled={loading}
+            readOnly={!!invite?.email}
+            title={invite?.email ? "Adresse de l'invitation" : undefined}
+          />
         </label>
         <PasswordInput
           label="Mot de passe"
@@ -138,7 +152,7 @@ export default function RegisterForm({
           disabled={loading}
         />
         <PasswordInput label="Confirmation du mot de passe" value={confirm} onChange={setConfirm} autoComplete="new-password" disabled={loading} />
-        {invite && <LegacyCodeField value={legacyCode} onChange={setLegacyCode} disabled={loading} />}
+        {invite && !invite.email && invite.role === "STAGIAIRE" && <LegacyCodeField value={legacyCode} onChange={setLegacyCode} disabled={loading} />}
 
         {error && (
           <Alert kind="error">
