@@ -1,10 +1,9 @@
 import { prisma } from "@/lib/prisma";
-import { getFormationFromCookie, hasNotStartedYet } from "@/lib/formationSession";
+import { hasNotStartedYet } from "@/lib/formationSession";
+import { getGameFormation } from "@/lib/gameFormation";
 import { isSecretCurrentlyVisible } from "@/lib/secretVisibility";
 import { historyRevealCost } from "@/lib/buzzResolution";
 import SessionAccessGate from "@/components/SessionAccessGate";
-import { getPlayerSession } from "@/lib/playerAuth";
-import { getSession } from "@/lib/auth";
 import FakeSecretAnnouncement from "@/components/FakeSecretAnnouncement";
 import SecretsClient from "../SecretsClient";
 
@@ -15,9 +14,8 @@ export const revalidate = 0;
 
 export default async function HomePage() {
   // Tout passe par le compte : membre de la session ouverte (ou admin), sinon écran d'accès.
-  const formation = await getFormationFromCookie();
-  const allowed = formation && ((await getPlayerSession()) || (await getSession()));
-  if (!formation || !allowed) {
+  const formation = await getGameFormation();
+  if (!formation) {
     return <SessionAccessGate next="/jeu" title="Secret BAFA 🤫" />;
   }
 
