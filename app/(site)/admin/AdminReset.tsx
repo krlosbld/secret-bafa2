@@ -8,8 +8,8 @@ export default function AdminReset({ formationId, formationName }: { formationId
   const [loading, setLoading] = useState(false);
 
   async function reset() {
-    if (!confirm(`⚠️ Supprimer tous les joueurs, secrets et buzz de "${formationName}" ? Cette action est irréversible.`)) return;
-    if (!confirm(`Dernière confirmation — vraiment tout effacer pour "${formationName}" ?`)) return;
+    if (!confirm(`⚠️ Remettre le jeu Secret BAFA de "${formationName}" à zéro ? Tous les secrets, buzz et points seront effacés (les joueurs et la formation sont conservés). Cette action est irréversible.`)) return;
+    if (!confirm(`Dernière confirmation — vraiment effacer le jeu de "${formationName}" ?`)) return;
 
     setLoading(true);
     const res = await fetch(`/api/admin/formations/${formationId}/reset`, { method: "DELETE" });
@@ -31,10 +31,10 @@ export default function AdminReset({ formationId, formationName }: { formationId
         Zone dangereuse
       </div>
       <p style={{ margin: "0 0 14px", fontSize: 14, color: "#64748b" }}>
-        Supprime tous les joueurs, secrets et buzz de cette formation (les autres formations ne sont pas touchées). À utiliser uniquement pour repartir de zéro.
+        Efface les secrets, buzz et points du jeu de cette formation, et relance la partie (fin du jeu, pause des buzz). Les joueurs, le planning, les évaluations et les comptes ne sont pas touchés.
       </p>
       <button className="btn btn-danger" onClick={reset} disabled={loading}>
-        {loading ? "Suppression…" : "🗑️ Réinitialiser cette formation"}
+        {loading ? "Réinitialisation…" : "🗑️ Réinitialiser le jeu"}
       </button>
     </div>
   );

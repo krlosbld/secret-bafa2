@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname } from "next/navigation";
 
 const rules = [
   {
@@ -56,7 +57,11 @@ const rules = [
 ];
 
 export default function RulesModal() {
+  // Règles du Secret BAFA : seulement dans l'onglet Jeu (secrets, classement, gestion).
+  const pathname = usePathname() ?? "";
   const [open, setOpen] = useState(false);
+
+  if (!pathname.startsWith("/jeu") && !pathname.startsWith("/ranking")) return null;
 
   return (
     <>

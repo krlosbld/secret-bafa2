@@ -7,11 +7,11 @@ export type AdminFormationResolution =
   | { ok: false; reason: "none" | "ambiguous" };
 
 // Résout la formation visée par un admin/gestionnaire sans session joueur :
-// priorité au cookie de session (posé via le sélecteur ou le code de session),
-// sinon la formation active si elle est unique, sinon ambigu.
+// priorité à la session choisie (cookie signé : sélecteur, « Gérer le jeu de cette session »), même
+// inactive — c'est elle que montrent les pages —, sinon la formation active si elle est unique, sinon ambigu.
 export async function resolveAdminFormationId(): Promise<AdminFormationResolution> {
   const cookieFormation = await getFormationFromCookie();
-  if (cookieFormation?.active) return { ok: true, formationId: cookieFormation.id };
+  if (cookieFormation) return { ok: true, formationId: cookieFormation.id };
 
   const actives = await prisma.formation.findMany({ where: { active: true }, select: { id: true } });
   if (actives.length === 1) return { ok: true, formationId: actives[0].id };

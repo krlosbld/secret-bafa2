@@ -1,7 +1,5 @@
 import Link from "next/link";
-import { prisma } from "@/lib/prisma";
 import { getSession } from "@/lib/auth";
-import { getPlayerSession } from "@/lib/playerAuth";
 import { getVerifiedUser } from "@/lib/userSession";
 import NavTabs from "@/components/NavTabs";
 import LogoutButton from "@/components/LogoutButton";
@@ -9,14 +7,9 @@ import LogoutButton from "@/components/LogoutButton";
 // Barre du haut commune à tout BafaPilot : Accueil · Ma session · Formation · Jeu, puis les accès
 // selon les droits (Gestion, Administration) et « Se déconnecter » dès qu'on est connecté.
 export default async function AppNav() {
-  const [user, adminSession, playerSession] = await Promise.all([getVerifiedUser(), getSession(), getPlayerSession()]);
+  const [user, adminSession] = await Promise.all([getVerifiedUser(), getSession()]);
   const loggedIn = !!user || !!adminSession;
 
-  let adminHref: string | null = adminSession ? "/admin" : null;
-  if (!adminHref && playerSession) {
-    const player = await prisma.player.findUnique({ where: { id: playerSession.playerId }, select: { role: true } });
-    if (player?.role === "DIRECTEUR") adminHref = "/bafa?tab=admin";
-  }
   const isGestionnaire = user?.platformRole === "GESTIONNAIRE" && !user.impersonatorId;
   // Le super-admin (compte SUPERADMIN ou accès de secours du .env) n'a pas de session : ses onglets
   // sont ceux de l'administration.
@@ -38,11 +31,6 @@ export default async function AppNav() {
           {isGestionnaire && (
             <Link href="/gestion" className="app-nav__action">
               Gestion
-            </Link>
-          )}
-          {adminHref && !isSuperAdmin && (
-            <Link href={adminHref} className="app-nav__action" title="Administration" aria-label="Administration">
-              ⚙️
             </Link>
           )}
           {loggedIn ? (

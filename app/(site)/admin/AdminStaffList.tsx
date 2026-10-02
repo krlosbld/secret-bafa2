@@ -16,7 +16,9 @@ const ROLE_LABELS: Record<string, string> = {
   DIRECTEUR: "Directeur",
 };
 
-export default function AdminStaffList({ staff }: { staff: StaffMember[] }) {
+// mode "team" : fiches d'équipe (suppression), sans rien du jeu. mode "gameMaster" : uniquement la
+// bascule « maître de jeu » des formateurs (page Gestion du jeu).
+export default function AdminStaffList({ staff, mode = "team" }: { staff: StaffMember[]; mode?: "team" | "gameMaster" }) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
 
@@ -40,7 +42,7 @@ export default function AdminStaffList({ staff }: { staff: StaffMember[] }) {
   }
 
   if (staff.length === 0) {
-    return <p style={{ color: "#64748b", fontSize: 14 }}>Aucun formateur ni directeur pour cette formation.</p>;
+    return <p style={{ color: "#64748b", fontSize: 14 }}>{mode === "gameMaster" ? "Aucun formateur dans cette session." : "Aucun formateur ni directeur pour cette formation."}</p>;
   }
 
   return (
@@ -77,12 +79,9 @@ export default function AdminStaffList({ staff }: { staff: StaffMember[] }) {
                 🎭 Maître du jeu
               </span>
             )}
-            <span style={{ color: "#64748b", fontSize: 13, marginLeft: 10 }}>
-              {s.username ? `identifiant : ${s.username}` : "connexion par code"}
-            </span>
           </div>
           <div style={{ display: "flex", gap: 8 }}>
-            {s.role === "FORMATEUR" && (
+            {mode === "gameMaster" && s.role === "FORMATEUR" && (
               <button
                 className="btn btn-ghost"
                 disabled={loading === s.id}
@@ -91,9 +90,11 @@ export default function AdminStaffList({ staff }: { staff: StaffMember[] }) {
                 {s.isGameMaster ? "🎭 Retirer" : "🎭 Nommer maître de jeu"}
               </button>
             )}
-            <button className="btn btn-danger" disabled={loading === s.id} onClick={() => del(s.id, s.firstName)}>
-              Supprimer
-            </button>
+            {mode === "team" && (
+              <button className="btn btn-danger" disabled={loading === s.id} onClick={() => del(s.id, s.firstName)}>
+                Supprimer
+              </button>
+            )}
           </div>
         </div>
       ))}

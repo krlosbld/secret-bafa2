@@ -1,14 +1,37 @@
 import { prisma } from "@/lib/prisma";
-import { AdminSecretsPending, AdminSecretsPublished } from "../admin/AdminSecrets";
-import AdminBuzzPending from "../admin/AdminBuzzPending";
-import AdminPlayers from "../admin/AdminPlayers";
-import AdminStaffList from "../admin/AdminStaffList";
-import AdminCronControls from "../admin/AdminCronControls";
-import AdminEndGame from "../admin/AdminEndGame";
-import AdminGameRules from "../admin/AdminGameRules";
+import { AdminSecretsPending, AdminSecretsPublished } from "../../admin/AdminSecrets";
+import AdminBuzzPending from "../../admin/AdminBuzzPending";
+import AdminPlayers from "../../admin/AdminPlayers";
+import AdminStaffList from "../../admin/AdminStaffList";
+import AdminCronControls from "../../admin/AdminCronControls";
+import AdminEndGame from "../../admin/AdminEndGame";
+import AdminGameRules from "../../admin/AdminGameRules";
+import AdminReset from "../../admin/AdminReset";
 import { GAME_RULES } from "@/lib/gameRules";
 
-export default async function AdminTab({ formationId, secretsOnly = false }: { formationId: string; secretsOnly?: boolean }) {
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <section style={{ marginBottom: 40 }}>
+      <h2 style={{ fontSize: 20, fontWeight: 800, margin: "0 0 14px", color: "#0f172a" }}>{title}</h2>
+      {children}
+    </section>
+  );
+}
+
+// Gestion du jeu Secret BAFA d'une session (onglet Jeu → « Gestion du jeu ») : tout ce qui concerne
+// le jeu est ici. Maître de jeu (formateur délégué) : secrets et buzz seulement (secretsOnly).
+// Super-admin : en plus, la réinitialisation du jeu (canReset).
+export default async function GameAdminPanel({
+  formationId,
+  formationName,
+  secretsOnly = false,
+  canReset = false,
+}: {
+  formationId: string;
+  formationName: string;
+  secretsOnly?: boolean;
+  canReset?: boolean;
+}) {
   const [pendingSecrets, publishedSecrets, pendingBuzzes, players, staffRows, quotaConfig, lastNightlyRunConfig, gameEndedConfig, ruleRows, buzzPausedConfig] = await Promise.all([
     prisma.secret.findMany({
       where: { status: "PENDING", formationId },
@@ -89,15 +112,6 @@ export default async function AdminTab({ formationId, secretsOnly = false }: { f
     }
   }
 
-  function Section({ title, children }: { title: string; children: React.ReactNode }) {
-    return (
-      <section style={{ marginBottom: 40 }}>
-        <h2 style={{ fontSize: 20, fontWeight: 800, margin: "0 0 14px", color: "#0f172a" }}>{title}</h2>
-        {children}
-      </section>
-    );
-  }
-
   return (
     <div>
       {!secretsOnly && (
@@ -128,8 +142,11 @@ export default async function AdminTab({ formationId, secretsOnly = false }: { f
       {!secretsOnly && (
         <>
 
-          <Section title={`Équipe (${staff.length})`}>
-            <AdminStaffList staff={staff} />
+          <Section title="🎭 Maître de jeu">
+            <p style={{ margin: "0 0 12px", fontSize: 14, color: "#64748b" }}>
+              Un formateur nommé maître de jeu peut valider les secrets et les buzz (il ne peut plus buzzer lui-même).
+            </p>
+            <AdminStaffList staff={staff.filter((s) => s.role === "FORMATEUR")} mode="gameMaster" />
           </Section>
 
           <Section title={`Joueurs (${players.length})`}>
@@ -159,6 +176,12 @@ export default async function AdminTab({ formationId, secretsOnly = false }: { f
             </div>
           </Section>
         </>
+      )}
+
+      {canReset && (
+        <Section title="Réinitialiser le jeu">
+          <AdminReset formationId={formationId} formationName={formationName} />
+        </Section>
       )}
     </div>
   );

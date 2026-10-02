@@ -6,7 +6,8 @@ import { setFormationCookie } from "@/lib/formationSession";
 export const runtime = "nodejs";
 
 // Pose le cookie de contexte formation pour un admin/gestionnaire (session /admin) sans session joueur,
-// utilisé quand plusieurs formations sont actives en même temps et qu'il faut lever l'ambiguïté.
+// utilisé quand plusieurs formations sont actives en même temps, ou pour gérer le jeu d'une session
+// précise depuis sa fiche admin (« Gérer le jeu de cette session »), même inactive.
 export async function POST(req: Request) {
   const session = await getSession();
   if (!session) {
@@ -19,9 +20,9 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "formationId requis." }, { status: 400 });
   }
 
-  const formation = await prisma.formation.findUnique({ where: { id: formationId }, select: { id: true, active: true } });
-  if (!formation || !formation.active) {
-    return NextResponse.json({ error: "Formation introuvable ou inactive." }, { status: 404 });
+  const formation = await prisma.formation.findUnique({ where: { id: formationId }, select: { id: true } });
+  if (!formation) {
+    return NextResponse.json({ error: "Formation introuvable." }, { status: 404 });
   }
 
   const res = NextResponse.json({ ok: true });

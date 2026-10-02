@@ -2,13 +2,9 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { getSession, isSuperAdmin } from "@/lib/auth";
-import { AdminSecretsPending, AdminSecretsPublished } from "../../../AdminSecrets";
-import AdminBuzzPending from "../../../AdminBuzzPending";
-import AdminPlayers from "../../../AdminPlayers";
 import AdminStaffList from "../../../AdminStaffList";
 import AdminActivateFormation from "../../../AdminActivateFormation";
-import AdminReset from "../../../AdminReset";
-import AdminCronControls from "../../../AdminCronControls";
+import OpenGameManagement from "../../../OpenGameManagement";
 import LogoutClient from "../../../LogoutClient";
 import TeamManager from "@/components/TeamManager";
 import { loadTeam } from "@/lib/team";
@@ -38,58 +34,6 @@ export default async function FormationDetailPage({ params }: { params: Promise<
   const formation = await prisma.formation.findUnique({ where: { id: formationId } });
   if (!formation) notFound();
 
-  const [pendingSecrets, publishedSecrets, pendingBuzzes] = await Promise.all([
-    prisma.secret.findMany({
-      where: { status: "PENDING", formationId },
-      orderBy: { createdAt: "asc" },
-      include: {
-        player: { select: { firstName: true, code: true } },
-        foundBy: { select: { firstName: true } },
-      },
-    }),
-    prisma.secret.findMany({
-      where: { status: { in: ["PUBLISHED", "FOUND"] }, formationId },
-      orderBy: { createdAt: "desc" },
-      include: {
-        player: { select: { firstName: true, code: true } },
-        foundBy: { select: { firstName: true } },
-      },
-    }),
-    prisma.buzz.findMany({
-      where: { status: "PENDING", secret: { formationId } },
-      orderBy: { createdAt: "asc" },
-      include: {
-        fromPlayer: { select: { firstName: true, code: true } },
-        secret: {
-          select: {
-            content: true,
-            bonus: true,
-            player: { select: { firstName: true } },
-          },
-        },
-      },
-    }),
-  ]);
-
-  // "Joueurs" : stagiaires et tout le monde qui participe réellement au jeu (a un secret),
-  // même un formateur/directeur qui joue aussi.
-  const players = superAdmin
-    ? await prisma.player.findMany({
-        where: { formationId, OR: [{ role: "STAGIAIRE" }, { secret: { isNot: null } }] },
-        orderBy: { firstName: "asc" },
-        select: {
-          id: true,
-          firstName: true,
-          code: true,
-          role: true,
-          points: true,
-          buzzCount: true,
-          buzzQuotaOverride: true,
-          secret: { select: { status: true, content: true, bonus: true } },
-        },
-      })
-    : [];
-
   // "Équipe" : tous les comptes formateur/directeur, qu'ils jouent aussi au jeu ou non — un formateur
   // avec un secret reste un formateur, il apparaît alors dans les deux listes.
   const staffRows = superAdmin
@@ -101,29 +45,8 @@ export default async function FormationDetailPage({ params }: { params: Promise<
     : [];
   const staff = staffRows.map((s) => ({ id: s.id, firstName: s.firstName, role: s.role, isGameMaster: s.isGameMaster, username: s.directorAccount?.username ?? null }));
 
-
   const team = superAdmin ? await loadTeam(formationId) : null;
   const settings = superAdmin ? await getSessionSettings(formationId) : null;
-
-  const quotaConfig =
-    superAdmin && formation.active
-      ? await prisma.config.findUnique({ where: { formationId_key: { formationId, key: "buzzQuota" } } })
-      : null;
-  const quota = Number(quotaConfig?.value ?? 3);
-
-  let lastNightlyRun: { at: string; updated: number } | null = null;
-  if (superAdmin && formation.active) {
-    const lastNightlyRunConfig = await prisma.config.findUnique({
-      where: { formationId_key: { formationId, key: "lastNightlyRun" } },
-    });
-    if (lastNightlyRunConfig) {
-      try {
-        lastNightlyRun = JSON.parse(lastNightlyRunConfig.value);
-      } catch {
-        lastNightlyRun = null;
-      }
-    }
-  }
 
   return (
     <main className="page">
@@ -159,24 +82,8 @@ export default async function FormationDetailPage({ params }: { params: Promise<
           </Section>
         )}
 
-        <Section title={`Buzz à valider (${pendingBuzzes.length})`}>
-          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-          <AdminBuzzPending buzzes={pendingBuzzes as any} />
-        </Section>
-
-        <Section title={`Secrets en attente (${pendingSecrets.length})`}>
-          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-          <AdminSecretsPending secrets={pendingSecrets as any} />
-        </Section>
-
-        <Section title={`Secrets validés (${publishedSecrets.length})`}>
-          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-          <AdminSecretsPublished secrets={publishedSecrets as any} />
-        </Section>
-
         {superAdmin && (
           <>
-
             <Section title="Stagiaires — inscription par QR code">
               <InviteStagiaires formationId={formation.id} sessionName={formation.name} />
             </Section>
@@ -189,37 +96,13 @@ export default async function FormationDetailPage({ params }: { params: Promise<
               <AdminStaffList staff={staff} />
             </Section>
 
-            <Section title={`Joueurs (${players.length})`}>
-              {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-              <AdminPlayers players={players as any} quota={quota} showQuota={formation.active} />
-            </Section>
-
-            {formation.active && (
-              <Section title="Cron nocturne (reset buzz + points)">
-                <div className="card">
-                  {lastNightlyRun ? (
-                    <>
-                      <div className="row">
-                        <div className="label">Dernière exécution</div>
-                        <div className="value">
-                          {new Date(lastNightlyRun.at).toLocaleString("fr-FR", { timeZone: "Europe/Paris" })}
-                        </div>
-                      </div>
-                      <div className="row">
-                        <div className="label">Joueurs mis à jour</div>
-                        <div className="value">+1 pt pour {lastNightlyRun.updated} joueur(s)</div>
-                      </div>
-                    </>
-                  ) : (
-                    <p style={{ color: "#dc2626", fontWeight: 700 }}>Jamais exécuté depuis la mise en place de ce suivi.</p>
-                  )}
-                  <AdminCronControls formationId={formation.id} />
-                </div>
-              </Section>
-            )}
-
-            <Section title="Réinitialisation">
-              <AdminReset formationId={formation.id} formationName={formation.name} />
+            <Section title="Jeu Secret BAFA 🤫">
+              <div className="card" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
+                <p style={{ margin: 0, color: "#475569" }}>
+                  Buzz, secrets, joueurs, maître de jeu, cron et réinitialisation se gèrent dans l&apos;onglet Jeu.
+                </p>
+                <OpenGameManagement formationId={formation.id} />
+              </div>
             </Section>
           </>
         )}

@@ -20,7 +20,7 @@ export default async function AdminProtectedLayout({
         select: { role: true },
       });
       if (player?.role === "DIRECTEUR") {
-        redirect("/bafa?tab=admin");
+        redirect("/sessions");
       }
     }
     redirect("/admin/login");
