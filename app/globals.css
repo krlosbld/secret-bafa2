@@ -65,7 +65,7 @@ a {
   font-size: 0.92rem;
 }
 
-/* ================= BARRE COMMUNE (Accueil · Ma session · Formation · Jeu) ================= */
+/* ================= BARRE COMMUNE (Accueil · Mes sessions · Formation · Jeu) ================= */
 :root {
   --app-nav-h: 60px;
 }

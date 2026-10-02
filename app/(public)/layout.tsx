@@ -7,8 +7,8 @@ import "./public.css";
 
 export const dynamic = "force-dynamic";
 
-// Mise en page de l'espace public BafaPilot (accueil, compte, connexion, Ma session). Connecté —
-// de n'importe quelle façon — on retrouve la barre commune Accueil · Ma session · Formation · Jeu ;
+// Mise en page de l'espace public BafaPilot (accueil, compte, connexion, Mes sessions). Connecté —
+// de n'importe quelle façon — on retrouve la barre commune Accueil · Mes sessions · Formation · Jeu ;
 // sinon, un en-tête simple centré sur « Se connecter » / « Créer mon compte ».
 export default async function PublicLayout({ children }: { children: React.ReactNode }) {
   const loggedIn = !!(await getVerifiedUser()) || !!(await getSession());

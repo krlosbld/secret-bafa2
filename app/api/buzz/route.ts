@@ -44,7 +44,7 @@ export async function POST(req: Request) {
 
     const formation = await getFormationFromCookie();
     if (!formation) {
-      return NextResponse.json({ error: "Ouvre ta session depuis « Ma session » (connexion avec ton compte BafaPilot)." }, { status: 400 });
+      return NextResponse.json({ error: "Ouvre ta session depuis « Mes sessions » (connexion avec ton compte BafaPilot)." }, { status: 400 });
     }
     if (!formation.active) {
       return NextResponse.json(

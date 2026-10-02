@@ -5,10 +5,10 @@ import { usePathname } from "next/navigation";
 
 type Tab = { href: string; label: string; match: (p: string) => boolean };
 
-// Onglets d'un membre de session : Accueil · Ma session · Formation · Jeu.
+// Onglets d'un membre de session : Accueil · Mes sessions · Formation · Jeu.
 const MEMBER_TABS: Tab[] = [
   { href: "/", label: "Accueil", match: (p) => p === "/" },
-  { href: "/sessions", label: "Ma session", match: (p) => p.startsWith("/sessions") },
+  { href: "/sessions", label: "Mes sessions", match: (p) => p.startsWith("/sessions") },
   { href: "/bafa", label: "Formation", match: (p) => p.startsWith("/bafa") },
   { href: "/jeu", label: "Jeu", match: (p) => p.startsWith("/jeu") || p.startsWith("/ranking") },
 ];

@@ -64,7 +64,7 @@ export default function RegisterForm({
           {done.joinedSession && (
             <div className="bp-alert bp-alert--ok" style={{ marginBottom: 14, textAlign: "left" }}>
               Vous êtes inscrit à la session <strong>{done.joinedSession}</strong> en tant que {ROLE_NAMES[invite?.role ?? "STAGIAIRE"] ?? "stagiaire"}
-              {done.recoveredHistory ? ", avec votre historique récupéré" : ""}. Elle apparaîtra dans « Ma session » après confirmation de votre
+              {done.recoveredHistory ? ", avec votre historique récupéré" : ""}. Elle apparaîtra dans « Mes sessions » après confirmation de votre
               adresse.
             </div>
           )}

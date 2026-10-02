@@ -4,7 +4,7 @@ import { getVerifiedUser } from "@/lib/userSession";
 import NavTabs from "@/components/NavTabs";
 import LogoutButton from "@/components/LogoutButton";
 
-// Barre du haut commune à tout BafaPilot : Accueil · Ma session · Formation · Jeu, puis les accès
+// Barre du haut commune à tout BafaPilot : Accueil · Mes sessions · Formation · Jeu, puis les accès
 // selon les droits (Gestion, Administration) et « Se déconnecter » dès qu'on est connecté.
 export default async function AppNav() {
   const [user, adminSession] = await Promise.all([getVerifiedUser(), getSession()]);

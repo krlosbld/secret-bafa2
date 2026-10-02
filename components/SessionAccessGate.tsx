@@ -5,7 +5,7 @@ import { getFormationFromCookie } from "@/lib/formationSession";
 import { resolveSessionToOpen, openSessionPath } from "@/lib/mySessions";
 
 // Accès à une page de session (Formation, Jeu, Classement) sans session ouverte. Tout passe par le
-// compte : connecté → on rouvre sa session (ou on la choisit dans « Ma session ») ; sans session →
+// compte : connecté → on rouvre sa session (ou on la choisit dans « Mes sessions ») ; sans session →
 // il faut scanner le QR code de la session ; non connecté → se connecter ou créer son compte.
 export default async function SessionAccessGate({ next, title }: { next: string; title: string }) {
   const user = await getVerifiedUser();

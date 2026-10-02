@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { SESSION_TYPES, DEFAULT_SESSION_TYPE, todayISO } from "@/lib/planningConfig";
 
-// « Ma session » : les sessions auxquelles un compte est rattaché, réparties entre en cours / à
+// « Mes sessions » : les sessions auxquelles un compte est rattaché, réparties entre en cours / à
 // venir et archives, et le choix de la session à ouvrir dans l'onglet Formation.
 
 export type SessionCard = {
@@ -91,7 +91,7 @@ export async function getMySessionCards(userId: string): Promise<SessionCard[]> 
 
 // Onglet Formation pour un compte qui n'a pas encore de session ouverte : laquelle ouvrir ?
 // Priorité à la dernière session ouverte (cookie de formation) si le compte y est toujours
-// rattaché, sinon la seule session en cours s'il n'y en a qu'une, sinon choix dans « Ma session ».
+// rattaché, sinon la seule session en cours s'il n'y en a qu'une, sinon choix dans « Mes sessions ».
 export async function resolveSessionToOpen(
   userId: string,
   lastFormationId: string | null

@@ -4,7 +4,7 @@ import { getVerifiedUser } from "@/lib/userSession";
 import { getSession } from "@/lib/auth";
 import { getMySessionCards, openSessionPath, type SessionCard } from "@/lib/mySessions";
 
-export const metadata = { title: "Ma session — BafaPilot" };
+export const metadata = { title: "Mes sessions — BafaPilot" };
 export const dynamic = "force-dynamic";
 
 const ROLE_LABELS: Record<string, string> = { DIRECTEUR: "Directeur", FORMATEUR: "Formateur", STAGIAIRE: "Stagiaire" };
@@ -68,7 +68,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: Pro
   } else if (await getSession()) {
     return (
       <div className="bp-auth" style={{ maxWidth: 560 }}>
-        <h1 className="bp-auth__title">Ma session</h1>
+        <h1 className="bp-auth__title">Mes sessions</h1>
         <div className="bp-card bp-status">
           <p className="bp-status__text" style={{ margin: 0 }}>
             Vous êtes connecté en administrateur. Les sessions se gèrent depuis{" "}
@@ -89,7 +89,7 @@ export default async function SessionsPage({ searchParams }: { searchParams: Pro
 
   return (
     <div className="bp-sessions">
-      <h1 className="bp-auth__title">Ma session</h1>
+      <h1 className="bp-auth__title">Mes sessions</h1>
       {greeting && <p className="bp-auth__sub">Bonjour {greeting} !</p>}
 
       {erreur === "acces" && (

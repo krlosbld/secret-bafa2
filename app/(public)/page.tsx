@@ -66,7 +66,7 @@ export default async function HomePage() {
               href={user.platformRole === "SUPERADMIN" && !user.impersonatorId ? "/admin" : "/sessions"}
               className="bp-btn bp-btn--primary bp-btn--lg"
             >
-              {user.platformRole === "SUPERADMIN" && !user.impersonatorId ? "Administration" : "Ma session"}
+              {user.platformRole === "SUPERADMIN" && !user.impersonatorId ? "Administration" : "Mes sessions"}
             </Link>
           ) : (
             <>

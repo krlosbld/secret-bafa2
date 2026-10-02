@@ -51,7 +51,7 @@ export async function PATCH(req: Request) {
       create: { formationId, key: "planningStartDate", value: startDate },
     }),
   ]);
-  // Une seule vérité : les dates de la session (Ma session, admin, réglages) suivent le planning.
+  // Une seule vérité : les dates de la session (Mes sessions, admin, réglages) suivent le planning.
   await syncSessionDatesFromPlanning(formationId, sessionType, startDate);
 
   return NextResponse.json({ ok: true, sessionType, startDate });
