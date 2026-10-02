@@ -47,7 +47,7 @@ export default function InviteStagiaires({ formationId, sessionName }: { formati
     return (
       <div style={{ margin: "0 0 18px" }}>
         <button className="btn btn-main" onClick={() => load()} disabled={loading} style={{ fontSize: 14, padding: "9px 16px" }}>
-          {loading ? "Préparation…" : "➕ Ajouter les stagiaires à la session"}
+          {loading ? "Préparation…" : "+  Ajouter les stagiaires à la session"}
         </button>
         {error && <p style={{ color: "#dc2626", fontWeight: 700, fontSize: 14 }}>{error}</p>}
       </div>

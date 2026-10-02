@@ -43,26 +43,16 @@ function TabNav({
   showSettings: boolean;
   trainee?: boolean;
 }) {
-  const tabStyle = (isActive: boolean) => ({
-    background: isActive ? "#0f766e" : "transparent",
-    color: isActive ? "#fff" : "#0f766e",
-    border: "2px solid #0f766e",
-    borderRadius: 10,
-    padding: "6px 14px",
-    fontWeight: 800,
-    fontSize: 13,
-    textDecoration: "none",
-    display: "inline-block",
-  });
+  const tabClass = (isActive: boolean) => `fnav-tab${isActive ? " fnav-tab--active" : ""}`;
 
   // Stagiaire : sa formation s'ouvre sur le planning de la session, sa fiche est dans « Ma formation ».
   if (trainee) {
     return (
       <div className="tab-nav">
-        <Link href="/bafa" style={tabStyle(active === "planning")}>
+        <Link href="/bafa" className={tabClass(active === "planning")}>
           📅 Planning
         </Link>
-        <Link href="/bafa?tab=fiche" style={tabStyle(active === "espace")}>
+        <Link href="/bafa?tab=fiche" className={tabClass(active === "espace")}>
           Ma formation
         </Link>
       </div>
@@ -71,19 +61,19 @@ function TabNav({
 
   return (
     <div className="tab-nav">
-      <Link href="/bafa" style={tabStyle(active === "espace")}>
+      <Link href="/bafa" className={tabClass(active === "espace")}>
         Stagiaires
       </Link>
-      <Link href="/bafa?tab=planning" style={tabStyle(active === "planning")}>
+      <Link href="/bafa?tab=planning" className={tabClass(active === "planning")}>
         📅 Planning
       </Link>
       {showGroups && (
-        <Link href="/bafa?tab=groupes" style={tabStyle(active === "groupes")}>
+        <Link href="/bafa?tab=groupes" className={tabClass(active === "groupes")}>
           👥 Groupes
         </Link>
       )}
       {showSettings && (
-        <Link href="/bafa?tab=reglages" style={tabStyle(active === "reglages")}>
+        <Link href="/bafa?tab=reglages" className={tabClass(active === "reglages")}>
           ⚙️ Réglages
         </Link>
       )}
@@ -275,39 +265,18 @@ function scoreAngle(score: number): number {
   return 180 - t * 180;
 }
 
-function TrendArrow({ score, day, href }: { score: number | null; day: number; href?: string }) {
-  const label = `J${day + 1}`;
-  const color = score === null ? "#cbd5e1" : scoreColor(score);
-  const glyph = score === null ? "→" : "↑";
-  const transform = score === null ? undefined : `rotate(${scoreAngle(score)}deg)`;
-
-  const arrow = (
-    <span
-      style={{
-        display: "inline-block",
-        width: 24,
-        height: 24,
-        fontSize: 20,
-        lineHeight: "24px",
-        textAlign: "center",
-        fontWeight: 900,
-        color,
-        transform,
-      }}
-    >
-      {glyph}
-    </span>
+// Variante « cercle » (tableau Stagiaires) : pastille colorée selon la tendance, flèche blanche
+// orientée de la même façon. Même logique de couleur et d'angle que la flèche simple.
+function TrendCircle({ score, day, href }: { score: number | null; day: number; href: string }) {
+  const background = score === null ? "#d5dce5" : scoreColor(score);
+  const angle = score === null ? 90 : scoreAngle(score);
+  return (
+    <Link href={href} title={`J${day + 1}`} className="st-trend" style={{ background }}>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ transform: `rotate(${angle}deg)` }} aria-hidden>
+        <path d="M12 19V5M6 11l6-6 6 6" />
+      </svg>
+    </Link>
   );
-
-  if (href) {
-    return (
-      <Link href={href} title={label} style={{ display: "inline-block" }}>
-        {arrow}
-      </Link>
-    );
-  }
-
-  return <span title={label}>{arrow}</span>;
 }
 
 async function PersonalSpace({
@@ -450,6 +419,14 @@ type StagiaireRow = {
 
 // Vue « Stagiaires » du staff : tableau compact — stagiaire, colonnes configurables (réglages de
 // la session), puis une colonne par jour de la session avec la tendance du jour.
+// Teinte douce et stable de l'avatar, tirée du prénom.
+const AVATAR_TONES = 6;
+function avatarTone(name: string): number {
+  let h = 0;
+  for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return h % AVATAR_TONES;
+}
+
 function StagiaireTable({
   rows,
   columns,
@@ -473,7 +450,7 @@ function StagiaireTable({
 
   return (
     <>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center", marginBottom: 12 }}>
+      <div className="st-actions">
         <a className="btn btn-ghost" href="/api/players/pdf-all">
           📄 Tous les dossiers (PDF)
         </a>
@@ -483,7 +460,7 @@ function StagiaireTable({
       </div>
       {abandonedCount > 0 && (
         <p style={{ margin: "0 0 16px" }}>
-          <Link href="/bafa?abandoned=1" style={{ fontSize: 13, color: "#0f766e", fontWeight: 700 }}>
+          <Link href="/bafa?abandoned=1" className="st-abandon">
             🗂️ {abandonedCount} abandon{abandonedCount > 1 ? "s" : ""} — voir / réactiver
           </Link>
         </p>
@@ -527,29 +504,34 @@ function StagiaireTable({
               <StagiaireCardMenu key={r.id} playerId={r.id} firstName={r.name} className="st-row">
                 <div className="st-grid" style={{ gridTemplateColumns: template }}>
                   <Link href={`/bafa?as=${r.id}`} className="st-cell st-name">
-                    <span className="st-name__line">
-                      <span className="st-name__text">{r.name}</span>
-                      {r.hasComplementary && (
-                        <span className="st-ec" title="Entretien complémentaire">
-                          EC
+                    <span className={`st-avatar st-avatar--${avatarTone(r.name)}`} aria-hidden>
+                      {r.name.trim().charAt(0).toUpperCase() || "?"}
+                    </span>
+                    <span className="st-name__info">
+                      <span className="st-name__line">
+                        <span className="st-name__text">{r.name}</span>
+                        {r.hasComplementary && (
+                          <span className="st-ec" title="Entretien complémentaire">
+                            EC
+                          </span>
+                        )}
+                      </span>
+                      {r.groups.length > 0 && (
+                        <span className="st-name__groups">
+                          {r.groups.map((g) => (
+                            <span key={g} className="st-badge">
+                              {g}
+                            </span>
+                          ))}
                         </span>
                       )}
-                    </span>
-                    {r.groups.length > 0 && (
-                      <span className="st-name__groups">
-                        {r.groups.map((g) => (
-                          <span key={g} className="st-badge">
-                            {g}
+                      <span className="st-gauge" aria-hidden>
+                        {r.dayRatios.map((ratio, d) => (
+                          <span key={d} className="st-gauge__bar" title={`J${d + 1} : ${Math.round(ratio * 100)}% rempli`}>
+                            <span style={{ width: `${Math.round(ratio * 100)}%` }} />
                           </span>
                         ))}
                       </span>
-                    )}
-                    <span className="st-gauge" aria-hidden>
-                      {r.dayRatios.map((ratio, d) => (
-                        <span key={d} className="st-gauge__bar" title={`J${d + 1} : ${Math.round(ratio * 100)}% rempli`}>
-                          <span style={{ width: `${Math.round(ratio * 100)}%` }} />
-                        </span>
-                      ))}
                     </span>
                   </Link>
 
@@ -575,7 +557,7 @@ function StagiaireTable({
                   <div aria-hidden />
                   {days.map((d) => (
                     <div key={d} className="st-cell st-center">
-                      <TrendArrow day={d} score={r.trends[d]} href={`/bafa?as=${r.id}&day=${d}`} />
+                      <TrendCircle day={d} score={r.trends[d]} href={`/bafa?as=${r.id}&day=${d}`} />
                     </div>
                   ))}
                 </div>
@@ -936,7 +918,7 @@ export default async function BafaPage({
     }));
 
     return (
-      <main className="page">
+      <main className="page st-view">
         <div className="container">
           <TabNav active="espace" showGroups={isStaff} showSettings={canEditSettings} trainee={isTrainee} />
           {canEditSettings && <InviteStagiaires formationId={formationId} sessionName={sessionName} />}
