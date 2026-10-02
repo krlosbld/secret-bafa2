@@ -8,6 +8,10 @@ export type SessionCard = {
   formationId: string;
   name: string;
   typeLabel: string;
+  typeKey: string; // BAFA | APPRO | BAFD1 | BAFD3 (couleur d'accent de la carte)
+  typeShort: string; // « BAFA 1 »
+  category: string; // « Formation générale »
+  status: "en-cours" | "a-venir" | "archive";
   location: string | null;
   dates: string;
   role: string;
@@ -52,31 +56,45 @@ function isArchived(f: { endDate: Date | null; startDate: Date | null; active: b
   return !f.active && !!f.startDate && f.startDate.getTime() < today.getTime();
 }
 
-async function typeLabels(formationIds: string[]): Promise<Map<string, string>> {
+// En cours = commencée (date de début atteinte) et pas archivée ; sinon à venir.
+function statusOf(f: { endDate: Date | null; startDate: Date | null; active: boolean }): SessionCard["status"] {
+  if (isArchived(f)) return "archive";
+  if (f.active || (f.startDate && f.startDate.getTime() <= todayAsStoredMidnight().getTime())) return "en-cours";
+  return "a-venir";
+}
+
+async function sessionTypes(formationIds: string[]): Promise<Map<string, string>> {
   const rows = await prisma.config.findMany({
     where: { formationId: { in: formationIds }, key: "planningSessionType" },
     select: { formationId: true, value: true },
   });
   const byId = new Map(rows.map((r) => [r.formationId, r.value]));
-  return new Map(
-    formationIds.map((id) => [id, (SESSION_TYPES[byId.get(id) ?? DEFAULT_SESSION_TYPE] ?? SESSION_TYPES[DEFAULT_SESSION_TYPE]).label])
-  );
+  return new Map(formationIds.map((id) => [id, SESSION_TYPES[byId.get(id) ?? ""] ? byId.get(id)! : DEFAULT_SESSION_TYPE]));
 }
 
 type FormationRow = { id: string; name: string; location: string | null; startDate: Date | null; endDate: Date | null; active: boolean };
 
 export async function toCards(rows: { formation: FormationRow; role: string }[]): Promise<SessionCard[]> {
-  const labels = await typeLabels(rows.map((r) => r.formation.id));
-  return rows.map(({ formation: f, role }) => ({
-    formationId: f.id,
-    name: f.name,
-    typeLabel: labels.get(f.id)!,
-    location: f.location,
-    dates: formatDateRange(f.startDate, f.endDate),
-    role,
-    archived: isArchived(f),
-    sortKey: (f.startDate ?? f.endDate)?.getTime() ?? Number.MAX_SAFE_INTEGER,
-  }));
+  const types = await sessionTypes(rows.map((r) => r.formation.id));
+  return rows.map(({ formation: f, role }) => {
+    const typeKey = types.get(f.id)!;
+    const typeLabel = SESSION_TYPES[typeKey].label; // « BAFA 1 — Formation générale »
+    const [typeShort, category = ""] = typeLabel.split(" — ");
+    return {
+      formationId: f.id,
+      name: f.name,
+      typeLabel,
+      typeKey,
+      typeShort,
+      category,
+      status: statusOf(f),
+      location: f.location,
+      dates: formatDateRange(f.startDate, f.endDate),
+      role,
+      archived: isArchived(f),
+      sortKey: (f.startDate ?? f.endDate)?.getTime() ?? Number.MAX_SAFE_INTEGER,
+    };
+  });
 }
 
 const FORMATION_SELECT = { id: true, name: true, location: true, startDate: true, endDate: true, active: true } as const;
