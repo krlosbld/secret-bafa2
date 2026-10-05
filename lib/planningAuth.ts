@@ -5,6 +5,17 @@ import { resolveAdminFormationId } from "@/lib/formation";
 
 const STAFF_ROLES = ["FORMATEUR", "DIRECTEUR"];
 
+// Réglages communs à toutes les sessions (critères d'évaluation, états de notation, modification et
+// suppression des types de créneaux) : directeurs et admin seulement — ils sont dans l'onglet
+// ⚙️ Réglages. Un formateur peut toujours créer un nouveau temps de formation depuis le planning.
+export async function canEditEvaluationSettings(): Promise<boolean> {
+  if (await getSession()) return true;
+  const playerSession = await getPlayerSession();
+  if (!playerSession) return false;
+  const player = await prisma.player.findUnique({ where: { id: playerSession.playerId }, select: { role: true } });
+  return player?.role === "DIRECTEUR";
+}
+
 export async function canEditPlanning(): Promise<boolean> {
   const adminSession = await getSession();
   if (adminSession) return true;

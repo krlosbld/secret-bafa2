@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { getPlayerSession } from "@/lib/playerAuth";
 import { getSession } from "@/lib/auth";
 import PlanningTab from "./PlanningTab";
+import PlanningSettings from "./PlanningSettings";
 import PlanningHoursTable from "./PlanningHoursTable";
 import PersonalSpaceBody from "./PersonalSpaceBody";
 import GroupGenerator from "./GroupGenerator";
@@ -69,6 +70,20 @@ function TabNav({
           ⚙️ Réglages
         </Link>
       )}
+    </div>
+  );
+}
+
+// Sous-onglets de ⚙️ Réglages.
+function SettingsSections({ active }: { active: "session" | "planning" }) {
+  return (
+    <div className="set-sections" role="tablist">
+      <Link href="/bafa?tab=reglages" className={`set-section${active === "session" ? " set-section--active" : ""}`}>
+        Session
+      </Link>
+      <Link href="/bafa?tab=reglages&section=planning" className={`set-section${active === "planning" ? " set-section--active" : ""}`}>
+        Planning et évaluations
+      </Link>
     </div>
   );
 }
@@ -565,9 +580,9 @@ function StagiaireTable({
 export default async function BafaPage({
   searchParams,
 }: {
-  searchParams: Promise<{ as?: string; tab?: string; day?: string; abandoned?: string }>;
+  searchParams: Promise<{ as?: string; tab?: string; day?: string; abandoned?: string; section?: string }>;
 }) {
-  const { as, tab, day, abandoned } = await searchParams;
+  const { as, tab, day, abandoned, section } = await searchParams;
   const showPlanning = tab === "planning";
   const requestedDay = day !== undefined ? Number(day) : undefined;
   const showGroups = tab === "groupes";
@@ -614,6 +629,31 @@ export default async function BafaPage({
   // Réglages de la session (nom, type, dates, lieu) : directeurs de la session et admin.
   const canEditSettings = await canEditSessionSettings(formationId);
 
+  // Réglages en deux écrans : la session (nom, type, dates, colonnes du tableau) et « Planning et
+  // évaluations » (types de créneaux, critères, états de notation — communs à toutes les sessions).
+  if (tab === "reglages" && canEditSettings && section === "planning") {
+    const [postes, criteria, criterionStates, typeRow] = await Promise.all([
+      prisma.posteType.findMany({ orderBy: { order: "asc" } }),
+      prisma.criterion.findMany({ orderBy: { order: "asc" } }),
+      prisma.criterionState.findMany({ orderBy: { order: "asc" } }),
+      prisma.config.findUnique({ where: { formationId_key: { formationId, key: "planningSessionType" } } }),
+    ]);
+    return (
+      <main className="page">
+        <div className="container">
+          <TabNav active="reglages" showGroups={isStaff} showSettings={canEditSettings} trainee={isTrainee} />
+          <SettingsSections active="planning" />
+          <PlanningSettings
+            initialPostes={postes}
+            initialCriteria={criteria}
+            initialCriterionStates={criterionStates}
+            sessionType={typeRow?.value ?? DEFAULT_SESSION_TYPE}
+          />
+        </div>
+      </main>
+    );
+  }
+
   if (tab === "reglages" && canEditSettings) {
     const [settings, columns, postes] = await Promise.all([
       getSessionSettings(formationId),
@@ -624,6 +664,7 @@ export default async function BafaPage({
       <main className="page">
         <div className="container">
           <TabNav active="reglages" showGroups={isStaff} showSettings={canEditSettings} trainee={isTrainee} />
+          <SettingsSections active="session" />
           <div className="set-grid">
             <SessionSettingsForm formationId={formationId} initial={settings!} />
             <StagiaireColumnsForm formationId={formationId} initial={columns} postes={postes} />
@@ -704,7 +745,7 @@ export default async function BafaPage({
   }
 
   if (showPlanning) {
-    const [blocks, configRows, postes, criteria, criterionStates, staff, groups] = await Promise.all([
+    const [blocks, configRows, postes, staff, groups] = await Promise.all([
       prisma.planningBlock.findMany({
         where: { formationId },
         orderBy: { startMin: "asc" },
@@ -714,8 +755,6 @@ export default async function BafaPage({
         where: { formationId, key: { in: ["planningSessionType", "planningStartDate", "planningHoursTablePos"] } },
       }),
       prisma.posteType.findMany({ orderBy: { order: "asc" } }),
-      prisma.criterion.findMany({ orderBy: { order: "asc" } }),
-      prisma.criterionState.findMany({ orderBy: { order: "asc" } }),
       prisma.player.findMany({
         where: { formationId, role: { in: ["FORMATEUR", "DIRECTEUR"] } },
         orderBy: { firstName: "asc" },
@@ -773,8 +812,6 @@ export default async function BafaPage({
           <PlanningTab
             initialBlocks={blocksWithStaffIds}
             initialPostes={postes}
-            initialCriteria={criteria}
-            initialCriterionStates={criterionStates}
             canEdit={isStaff}
             sessionType={sessionType}
             startDate={startDate}

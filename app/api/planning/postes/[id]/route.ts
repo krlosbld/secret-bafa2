@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { canEditPlanning } from "@/lib/planningAuth";
+import { canEditEvaluationSettings } from "@/lib/planningAuth";
 import { isValidPosteCategory } from "@/lib/planningConfig";
 
 export const runtime = "nodejs";
@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 type Params = { params: Promise<{ id: string }> };
 
 export async function PATCH(req: Request, { params }: Params) {
-  if (!(await canEditPlanning())) {
+  if (!(await canEditEvaluationSettings())) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 
@@ -44,7 +44,7 @@ export async function PATCH(req: Request, { params }: Params) {
 }
 
 export async function DELETE(_req: Request, { params }: Params) {
-  if (!(await canEditPlanning())) {
+  if (!(await canEditEvaluationSettings())) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 
