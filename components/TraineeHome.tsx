@@ -71,7 +71,13 @@ export default function TraineeHome({ firstName, data }: { firstName: string; da
 
   let dayTitle = "Aujourd'hui";
   let dayIntro: React.ReactNode = null;
-  if (status === "during") {
+  if (status === "during" && data.test) {
+    dayIntro = (
+      <>
+        🧪 Session test · journée rejouée : Jour {dayIndex + 1} sur {dayCount} (prévu le {dateLabel})
+      </>
+    );
+  } else if (status === "during") {
     dayIntro = (
       <>
         Jour {dayIndex + 1} sur {dayCount} · <span className="th-cap">{dateLabel}</span>

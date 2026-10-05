@@ -74,7 +74,7 @@ function CurrentCard({ s, href }: { s: SessionCard; href: string }) {
           <p className="bp-scard__type">{s.typeShort}</p>
           <h3 className="bp-scard__name">{s.name}</h3>
           {s.category && <p className="bp-scard__category">{s.category}</p>}
-          <span className={`bp-sbadge bp-sbadge--${s.status}`}>{STATUS_LABELS[s.status]}</span>
+          <span className={`bp-sbadge bp-sbadge--${s.status}`}>{s.test ? "Session test · toujours ouverte" : STATUS_LABELS[s.status]}</span>
         </div>
       </div>
       <dl className="bp-scard__facts">

@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { DEFAULT_SESSION_TYPE, daysForType, todayISO } from "@/lib/planningConfig";
+import { TEST_SESSION_KEY } from "@/lib/testSession";
 
 // Accueil du stagiaire : le programme du jour, heure par heure, et sa dernière évaluation.
 // Le planning complet est dans l'onglet Planning, la fiche dans « Ma formation ».
@@ -31,6 +32,7 @@ export type TraineeHomeData = {
   sessionName: string;
   // nodate : dates pas encore fixées ; before / during / after : par rapport à aujourd'hui (Paris).
   status: "nodate" | "before" | "during" | "after";
+  test: boolean; // session test : la journée affichée est rejouée (J1, J2… en boucle)
   dayIndex: number; // jour affiché (aujourd'hui pendant la session, J1 avant)
   dayCount: number;
   dateLabel: string | null; // « lundi 26 octobre »
@@ -94,7 +96,7 @@ function layout<T extends { startMin: number; endMin: number }>(items: T[]): (T 
 export async function loadTraineeHome(playerId: string, formationId: string): Promise<TraineeHomeData> {
   const [formation, configRows, postes, memberships, assignments, evaluations] = await Promise.all([
     prisma.formation.findUnique({ where: { id: formationId }, select: { name: true } }),
-    prisma.config.findMany({ where: { formationId, key: { in: ["planningSessionType", "planningStartDate"] } } }),
+    prisma.config.findMany({ where: { formationId, key: { in: ["planningSessionType", "planningStartDate", TEST_SESSION_KEY] } } }),
     prisma.posteType.findMany({ select: { id: true, label: true, color: true } }),
     prisma.groupMember.findMany({ where: { playerId }, select: { groupId: true } }),
     prisma.blockAssignment.findMany({ where: { playerId }, select: { blockId: true } }),
@@ -107,13 +109,17 @@ export async function loadTraineeHome(playerId: string, formationId: string): Pr
   const sessionType = configRows.find((r) => r.key === "planningSessionType")?.value ?? DEFAULT_SESSION_TYPE;
   const startISO = configRows.find((r) => r.key === "planningStartDate")?.value ?? null;
   const dayCount = daysForType(sessionType);
+  const test = configRows.some((r) => r.key === TEST_SESSION_KEY && r.value === "true");
   const posteById = new Map(postes.map((p) => [p.id, p]));
 
   let status: TraineeHomeData["status"] = "nodate";
   let dayIndex = 0;
   if (startISO) {
     const diff = Math.round((dayDate(todayISO(), 0).getTime() - dayDate(startISO, 0).getTime()) / 86400000);
-    if (diff < 0) status = "before";
+    if (test) {
+      status = "during";
+      dayIndex = ((diff % dayCount) + dayCount) % dayCount;
+    } else if (diff < 0) status = "before";
     else if (diff >= dayCount) status = "after";
     else {
       status = "during";
@@ -156,6 +162,7 @@ export async function loadTraineeHome(playerId: string, formationId: string): Pr
   return {
     sessionName: formation?.name ?? "",
     status,
+    test,
     dayIndex,
     dayCount,
     dateLabel: startISO && status !== "after" ? longDate(dayDate(startISO, dayIndex)) : null,

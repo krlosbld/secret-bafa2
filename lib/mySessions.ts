@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { SESSION_TYPES, DEFAULT_SESSION_TYPE, todayISO } from "@/lib/planningConfig";
+import { testSessionIds } from "@/lib/testSession";
 
 // « Mes sessions » : les sessions auxquelles un compte est rattaché, réparties entre en cours / à
 // venir et archives, et le choix de la session à ouvrir dans l'onglet Formation.
@@ -12,6 +13,7 @@ export type SessionCard = {
   typeShort: string; // « BAFA 1 »
   category: string; // « Formation générale »
   status: "en-cours" | "a-venir" | "archive";
+  test: boolean; // session test, toujours ouverte
   location: string | null;
   dates: string;
   role: string;
@@ -50,14 +52,19 @@ function todayAsStoredMidnight(): Date {
 
 // Une session est archivée une fois sa date de fin passée (jour de Paris) ; sans date de fin, elle
 // reste « en cours et à venir » tant qu'elle n'a pas été désactivée après avoir commencé.
-function isArchived(f: { endDate: Date | null; startDate: Date | null; active: boolean }): boolean {
+// Une session test n'est jamais archivée.
+type DatedFormation = { endDate: Date | null; startDate: Date | null; active: boolean; test?: boolean };
+
+function isArchived(f: DatedFormation): boolean {
+  if (f.test) return false;
   const today = todayAsStoredMidnight();
   if (f.endDate) return f.endDate.getTime() < today.getTime();
   return !f.active && !!f.startDate && f.startDate.getTime() < today.getTime();
 }
 
 // En cours = commencée (date de début atteinte) et pas archivée ; sinon à venir.
-function statusOf(f: { endDate: Date | null; startDate: Date | null; active: boolean }): SessionCard["status"] {
+function statusOf(f: DatedFormation): SessionCard["status"] {
+  if (f.test) return "en-cours";
   if (isArchived(f)) return "archive";
   if (f.active || (f.startDate && f.startDate.getTime() <= todayAsStoredMidnight().getTime())) return "en-cours";
   return "a-venir";
@@ -75,8 +82,10 @@ async function sessionTypes(formationIds: string[]): Promise<Map<string, string>
 type FormationRow = { id: string; name: string; location: string | null; startDate: Date | null; endDate: Date | null; active: boolean };
 
 export async function toCards(rows: { formation: FormationRow; role: string }[]): Promise<SessionCard[]> {
-  const types = await sessionTypes(rows.map((r) => r.formation.id));
-  return rows.map(({ formation: f, role }) => {
+  const ids = rows.map((r) => r.formation.id);
+  const [types, tests] = await Promise.all([sessionTypes(ids), testSessionIds(ids)]);
+  return rows.map(({ formation, role }) => {
+    const f = { ...formation, test: tests.has(formation.id) };
     const typeKey = types.get(f.id)!;
     const typeLabel = SESSION_TYPES[typeKey].label; // « BAFA 1 — Formation générale »
     const [typeShort, category = ""] = typeLabel.split(" — ");
@@ -88,6 +97,7 @@ export async function toCards(rows: { formation: FormationRow; role: string }[])
       typeShort,
       category,
       status: statusOf(f),
+      test: f.test,
       location: f.location,
       dates: formatDateRange(f.startDate, f.endDate),
       role,
@@ -119,9 +129,10 @@ export async function resolveSessionToOpen(
     select: { formation: { select: FORMATION_SELECT } },
   });
   if (memberships.length === 0) return { kind: "none" };
+  const tests = await testSessionIds(memberships.map((m) => m.formation.id));
   if (lastFormationId && memberships.some((m) => m.formation.id === lastFormationId)) return { kind: "open", formationId: lastFormationId };
 
-  const current = memberships.filter((m) => !isArchived(m.formation));
+  const current = memberships.filter((m) => !isArchived({ ...m.formation, test: tests.has(m.formation.id) }));
   const candidates = current.length > 0 ? current : memberships;
   return candidates.length === 1 ? { kind: "open", formationId: candidates[0].formation.id } : { kind: "choose" };
 }
