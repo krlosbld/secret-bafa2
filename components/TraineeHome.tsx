@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { HomeBlock, TraineeHomeData } from "@/lib/traineeHome";
+import TimelineScroller from "@/components/TimelineScroller";
 
 // Accueil du stagiaire : programme du jour heure par heure (à gauche), dernière évaluation (à droite).
 
@@ -32,62 +33,100 @@ function Block({ b, startHour }: { b: HomeBlock; startHour: number }) {
         {hm(b.startMin)} – {hm(b.endMin)}
       </span>
       <span className="th-block__label">{b.label}</span>
-      {!compact && !short && b.posteLabel && b.posteLabel !== b.label && <span className="th-block__poste">{b.posteLabel}</span>}
+      {!compact && !short && b.posteLabel && b.posteLabel !== b.label && (
+        <span className="th-block__poste">{b.posteLabel}</span>
+      )}
       {b.mine && <span className="th-block__mine">Vous êtes en charge</span>}
     </div>
   );
 }
 
-function DayTimeline({ blocks, nowMin }: { blocks: HomeBlock[]; nowMin: number | null }) {
-  if (blocks.length === 0) return <p className="th-empty">Rien n&apos;est prévu au planning pour cette journée.</p>;
+function DayTimeline({
+  blocks,
+  nowMin,
+}: {
+  blocks: HomeBlock[];
+  nowMin: number | null;
+}) {
+  if (blocks.length === 0)
+    return (
+      <p className="th-empty">
+        Rien n&apos;est prévu au planning pour cette journée.
+      </p>
+    );
   const startHour = Math.floor(Math.min(...blocks.map((b) => b.startMin)) / 60);
   const endHour = Math.ceil(Math.max(...blocks.map((b) => b.endMin)) / 60);
-  const hours = Array.from({ length: endHour - startHour }, (_, i) => startHour + i);
-  const showNow = nowMin !== null && nowMin >= startHour * 60 && nowMin <= endHour * 60;
+  const hours = Array.from(
+    { length: endHour - startHour },
+    (_, i) => startHour + i,
+  );
+  const showNow =
+    nowMin !== null && nowMin >= startHour * 60 && nowMin <= endHour * 60;
+  const nowTop = showNow ? ((nowMin! - startHour * 60) / 60) * HOUR_PX : 0;
 
   return (
-    <div className="th-timeline" style={{ height: hours.length * HOUR_PX }}>
-      {hours.map((h, i) => (
-        <div key={h} className="th-hour" style={{ top: i * HOUR_PX }}>
-          <span className="th-hour__label">{h}h</span>
-        </div>
-      ))}
-      <div className="th-lane">
-        {blocks.map((b) => (
-          <Block key={b.id} b={b} startHour={startHour} />
+    <TimelineScroller initialTop={nowTop}>
+      <div className="th-timeline" style={{ height: hours.length * HOUR_PX }}>
+        {hours.map((h, i) => (
+          <div key={h} className="th-hour" style={{ top: i * HOUR_PX }}>
+            <span className="th-hour__label">{h}h</span>
+          </div>
         ))}
-      </div>
-      {showNow && (
-        <div className="th-now" style={{ top: ((nowMin! - startHour * 60) / 60) * HOUR_PX }}>
-          <span>{hm(nowMin!)}</span>
+        <div className="th-lane">
+          {blocks.map((b) => (
+            <Block key={b.id} b={b} startHour={startHour} />
+          ))}
         </div>
-      )}
-    </div>
+        {showNow && (
+          <div className="th-now" style={{ top: nowTop }}>
+            <span>{hm(nowMin!)}</span>
+          </div>
+        )}
+      </div>
+    </TimelineScroller>
   );
 }
 
-export default function TraineeHome({ firstName, data }: { firstName: string; data: TraineeHomeData }) {
-  const { status, dayIndex, dayCount, dateLabel, startLabel, blocks, nowMin, lastEvaluation: ev } = data;
+export default function TraineeHome({
+  firstName,
+  data,
+}: {
+  firstName: string;
+  data: TraineeHomeData;
+}) {
+  const {
+    status,
+    dayIndex,
+    dayCount,
+    dateLabel,
+    startLabel,
+    blocks,
+    nowMin,
+    lastEvaluation: ev,
+  } = data;
 
   let dayTitle = "Aujourd'hui";
   let dayIntro: React.ReactNode = null;
   if (status === "during" && data.test) {
     dayIntro = (
       <>
-        🧪 Session test · journée rejouée : Jour {dayIndex + 1} sur {dayCount} (prévu le {dateLabel})
+        🧪 Session test · journée rejouée : Jour {dayIndex + 1} sur {dayCount}{" "}
+        (prévu le {dateLabel})
       </>
     );
   } else if (status === "during") {
     dayIntro = (
       <>
-        Jour {dayIndex + 1} sur {dayCount} · <span className="th-cap">{dateLabel}</span>
+        Jour {dayIndex + 1} sur {dayCount} ·{" "}
+        <span className="th-cap">{dateLabel}</span>
       </>
     );
   } else if (status === "before") {
     dayTitle = "Premier jour";
     dayIntro = (
       <>
-        La session commence le <span className="th-cap">{startLabel}</span>. Voici le programme du premier jour.
+        La session commence le <span className="th-cap">{startLabel}</span>.
+        Voici le programme du premier jour.
       </>
     );
   }
@@ -110,9 +149,20 @@ export default function TraineeHome({ firstName, data }: { firstName: string; da
               Planning complet →
             </Link>
           </div>
-          {status === "nodate" && <p className="th-empty">Les dates de la session ne sont pas encore fixées.</p>}
-          {status === "after" && <p className="th-empty">La session est terminée. Le planning complet reste consultable dans l&apos;onglet Planning.</p>}
-          {(status === "during" || status === "before") && <DayTimeline blocks={blocks} nowMin={nowMin} />}
+          {status === "nodate" && (
+            <p className="th-empty">
+              Les dates de la session ne sont pas encore fixées.
+            </p>
+          )}
+          {status === "after" && (
+            <p className="th-empty">
+              La session est terminée. Le planning complet reste consultable
+              dans l&apos;onglet Planning.
+            </p>
+          )}
+          {(status === "during" || status === "before") && (
+            <DayTimeline blocks={blocks} nowMin={nowMin} />
+          )}
         </section>
 
         <section className="th-card th-card--eval">
@@ -121,7 +171,10 @@ export default function TraineeHome({ firstName, data }: { firstName: string; da
           </div>
           {ev ? (
             <>
-              <div className="th-eval__meta" style={{ ["--c" as string]: ev.color }}>
+              <div
+                className="th-eval__meta"
+                style={{ ["--c" as string]: ev.color }}
+              >
                 <span className="th-eval__dot" aria-hidden />
                 <div>
                   <p className="th-eval__label">{ev.label}</p>
@@ -143,7 +196,10 @@ export default function TraineeHome({ firstName, data }: { firstName: string; da
               </Link>
             </>
           ) : (
-            <p className="th-empty">Pas encore d&apos;évaluation. Les retours de vos formateurs apparaîtront ici.</p>
+            <p className="th-empty">
+              Pas encore d&apos;évaluation. Les retours de vos formateurs
+              apparaîtront ici.
+            </p>
           )}
         </section>
       </div>

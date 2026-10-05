@@ -1131,7 +1131,7 @@ a {
 }
 
 .th-head {
-  margin: 4px 0 24px;
+  margin: 0 0 18px;
 }
 
 .th-title {
@@ -1208,7 +1208,18 @@ a {
   line-height: 1.5;
 }
 
-/* Journée heure par heure : une ligne par heure, les créneaux posés à leur place. */
+/* Journée heure par heure : une ligne par heure, les créneaux posés à leur place. L'emploi du
+   temps défile dans sa carte ; la page, elle, tient dans l'écran. */
+.th-scroll {
+  max-height: max(300px, calc(100vh - var(--app-nav-h) - 240px));
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  margin: 0 -8px 0 0;
+  padding: 12px 8px 12px 0;
+  border-top: 1px solid #edf1f5;
+  border-bottom: 1px solid #edf1f5;
+}
+
 .th-timeline {
   position: relative;
   margin-left: 46px;
@@ -1388,6 +1399,10 @@ a {
 @media (max-width: 600px) {
   .th-title {
     font-size: 1.5rem;
+  }
+
+  .th-scroll {
+    max-height: 62vh;
   }
 
   .th-card {
