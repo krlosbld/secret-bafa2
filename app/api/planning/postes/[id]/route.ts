@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { canEditEvaluationSettings } from "@/lib/planningAuth";
+import { getPlanningAuth } from "@/lib/planningAuth";
+import { libraryOwnerId } from "@/lib/posteLibrary";
 import { isValidPosteCategory } from "@/lib/planningConfig";
 
 export const runtime = "nodejs";
@@ -8,12 +9,25 @@ export const dynamic = "force-dynamic";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function PATCH(req: Request, { params }: Params) {
-  if (!(await canEditEvaluationSettings())) {
-    return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+// Un temps de formation ne se modifie ou ne se supprime que dans la liste de son propriétaire.
+async function ownPoste(id: string): Promise<{ ok: true } | { ok: false; res: NextResponse }> {
+  const auth = await getPlanningAuth();
+  if (!auth.ok) return { ok: false, res: NextResponse.json({ error: "Non autorisé." }, { status: 401 }) };
+  const [poste, ownerId] = await Promise.all([
+    prisma.posteType.findUnique({ where: { id }, select: { ownerUserId: true, isTemplate: true } }),
+    libraryOwnerId(auth.formationId),
+  ]);
+  if (!poste) return { ok: false, res: NextResponse.json({ error: "Introuvable." }, { status: 404 }) };
+  if (poste.isTemplate || !ownerId || poste.ownerUserId !== ownerId) {
+    return { ok: false, res: NextResponse.json({ error: "Ce temps de formation appartient à un autre compte." }, { status: 403 }) };
   }
+  return { ok: true };
+}
 
+export async function PATCH(req: Request, { params }: Params) {
   const { id } = await params;
+  const own = await ownPoste(id);
+  if (!own.ok) return own.res;
   const body = await req.json().catch(() => ({}));
   const data: Record<string, unknown> = {};
 
@@ -44,23 +58,16 @@ export async function PATCH(req: Request, { params }: Params) {
 }
 
 export async function DELETE(_req: Request, { params }: Params) {
-  if (!(await canEditEvaluationSettings())) {
-    return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
-  }
-
   const { id } = await params;
+  const own = await ownPoste(id);
+  if (!own.ok) return own.res;
 
   const inUse = await prisma.planningBlock.count({ where: { type: id } });
   if (inUse > 0) {
     return NextResponse.json(
-      { error: `Ce type est utilisé par ${inUse} créneau(x). Supprime-les d'abord.` },
+      { error: `Ce temps de formation est utilisé par ${inUse} créneau(x) du planning. Supprime-les d'abord.` },
       { status: 409 }
     );
-  }
-
-  const total = await prisma.posteType.count();
-  if (total <= 1) {
-    return NextResponse.json({ error: "Il doit rester au moins un type." }, { status: 400 });
   }
 
   await prisma.posteType.delete({ where: { id } }).catch(() => null);

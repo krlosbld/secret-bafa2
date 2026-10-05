@@ -100,7 +100,7 @@ function CurrentCard({ s, href }: { s: SessionCard; href: string }) {
           </div>
         </div>
       </dl>
-      <Link href={href} className="bp-btn bp-btn--primary bp-scard__open">
+      <Link href={href} prefetch={false} className="bp-btn bp-btn--primary bp-scard__open">
         Ouvrir la session <Icon name="arrow" />
       </Link>
     </article>
@@ -129,7 +129,7 @@ function ArchiveCard({ s, href }: { s: SessionCard; href: string }) {
           </span>
         </p>
       </div>
-      <Link href={href} className="bp-acard__open" aria-label={`Ouvrir ${s.name}`}>
+      <Link href={href} prefetch={false} className="bp-acard__open" aria-label={`Ouvrir ${s.name}`}>
         <Icon name="chevron" />
       </Link>
     </article>

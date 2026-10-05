@@ -36,6 +36,7 @@ export type Poste = {
   evaluable: boolean;
   category: string;
   countedInHours: boolean;
+  mine?: boolean; // dans la liste du compte connecté (palette) ; sinon posé par quelqu'un d'autre
 };
 
 export type Criterion = {
@@ -158,9 +159,12 @@ export default function PlanningTab({
 }) {
   const [blocks, setBlocks] = useState<Block[]>(initialBlocks);
   const [postes, setPostes] = useState<Poste[]>(initialPostes);
-  const [selectedPoste, setSelectedPoste] = useState<string>(initialPostes[0]?.id ?? "");
+  // Palette : seulement la liste du compte (les créneaux posés par d'autres restent affichés).
+  const palette = postes.filter((p) => p.mine !== false);
+  const firstMine = initialPostes.find((p) => p.mine !== false);
+  const [selectedPoste, setSelectedPoste] = useState<string>(firstMine?.id ?? "");
   const [expandedPosteCategory, setExpandedPosteCategory] = useState<string | null>(
-    initialPostes[0] ? pickerGroupOf(initialPostes[0].category) : null
+    firstMine ? pickerGroupOf(firstMine.category) : null
   );
   const [eraser, setEraser] = useState(false);
   const [drag, setDrag] = useState<DragState | null>(null);
@@ -391,7 +395,7 @@ export default function PlanningTab({
         <div style={{ marginBottom: 16 }}>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 8 }}>
             {Object.entries(posteCategories).map(([catKey, catLabel]) => {
-              const postesInCat = postes.filter((p) => pickerGroupOf(p.category) === catKey);
+              const postesInCat = palette.filter((p) => pickerGroupOf(p.category) === catKey);
               if (postesInCat.length === 0) return null;
               const isOpen = expandedPosteCategory === catKey;
               return (
@@ -465,7 +469,7 @@ export default function PlanningTab({
 
           {expandedPosteCategory && (
             <div style={{ display: "flex", gap: 8, flexWrap: "wrap", padding: 10, background: "#f8fafc", borderRadius: 10 }}>
-              {postes
+              {palette
                 .filter((p) => pickerGroupOf(p.category) === expandedPosteCategory)
                 .map((p) => (
                   <button
@@ -767,8 +771,8 @@ export default function PlanningTab({
               <button className="sb-x" onClick={() => setShowNewPoste(false)}>✕</button>
             </div>
             <p style={{ fontSize: 13, color: "#64748b", margin: "0 0 12px" }}>
-              Nouveau type de créneau, à poser ensuite sur la grille. Modifier ou supprimer les types existants, les critères
-              d&apos;évaluation et leurs états : onglet ⚙️ Réglages.
+              Il rejoint votre liste personnelle et se pose ensuite sur la grille. Modifier ou supprimer vos temps de formation, les
+              critères d&apos;évaluation et leurs états : onglet ⚙️ Réglages.
             </p>
             <NewPosteForm categories={posteCategories} onAdd={addPoste} />
           </div>
@@ -934,11 +938,13 @@ function EditBlockForm({
       <label className="sb-field">
         <span>Type</span>
         <select value={type} onChange={(e) => setType(e.target.value)} style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #ddd" }}>
-          {postes.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.label}
-            </option>
-          ))}
+          {postes
+            .filter((p) => p.mine !== false || p.id === block.type)
+            .map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.label}
+              </option>
+            ))}
         </select>
       </label>
 

@@ -4,9 +4,9 @@ import { useState } from "react";
 import type { Poste, Criterion, CriterionStateDef } from "./PlanningTab";
 import { DEFAULT_POSTE_CATEGORY, categoriesForSessionType } from "@/lib/planningConfig";
 
-// Réglages « Planning et évaluations » (onglet ⚙️ Réglages, directeurs et admin) : types de
-// créneaux, critères d'évaluation quotidiens et leurs états. Ces listes sont communes à toutes
-// les sessions. Depuis le planning, on peut seulement créer un nouveau temps de formation.
+// Réglages « Planning et évaluations » (onglet ⚙️ Réglages, directeurs et admin) : les temps de
+// formation du compte (sa liste BAFA ou BAFD, selon la session), et les critères d'évaluation
+// quotidiens et leurs états (communs). Depuis le planning, on peut aussi créer un temps de formation.
 
 type PostePatch = { label?: string; color?: string; evaluable?: boolean; category?: string; countedInHours?: boolean };
 type AddPoste = (label: string, color: string, evaluable: boolean, category: string, countedInHours: boolean) => Promise<void>;
@@ -74,11 +74,15 @@ export function NewPosteForm({ categories, onAdd }: { categories: Record<string,
 
 export default function PlanningSettings({
   initialPostes,
+  family,
+  hasOwner,
   initialCriteria,
   initialCriterionStates,
   sessionType,
 }: {
   initialPostes: Poste[];
+  family: "BAFA" | "BAFD";
+  hasOwner: boolean;
   initialCriteria: Criterion[];
   initialCriterionStates: CriterionStateDef[];
   sessionType: string;
@@ -191,10 +195,17 @@ export default function PlanningSettings({
     <div className="set-grid set-grid--planning">
       <section className="set-card">
         <div className="set-card__head">
-          <h2 className="set-card__title">Types de créneaux</h2>
-          <p className="set-card__sub">Les temps de formation qu&apos;on pose sur le planning. Communs à toutes les sessions.</p>
+          <h2 className="set-card__title">Temps de formation</h2>
+          <p className="set-card__sub">
+            Votre liste personnelle pour les sessions {family === "BAFD" ? "BAFD (BAFD 1, BAFD 3)" : "BAFA (BAFA 1, BAFA 3)"} : ce que vous
+            ajoutez ou modifiez ici ne change rien pour les autres comptes.
+          </p>
         </div>
-        <PosteManager postes={postes} categories={posteCategories} onAdd={addPoste} onUpdate={updatePoste} onRemove={removePoste} />
+        {hasOwner ? (
+          <PosteManager postes={postes} categories={posteCategories} onAdd={addPoste} onUpdate={updatePoste} onRemove={removePoste} />
+        ) : (
+          <p className="set-card__sub">Aucun directeur n&apos;est rattaché à cette session : les temps de formation appartiennent à un compte.</p>
+        )}
       </section>
       <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
         <section className="set-card">
@@ -249,6 +260,9 @@ function PosteManager({
       <p style={{ fontSize: 12, color: "#64748b", marginTop: 0, marginBottom: 10 }}>
         Coche « Évaluable » pour qu&apos;une case d&apos;évaluation par stagiaire apparaisse automatiquement sur chaque créneau de ce type.
       </p>
+      {postes.length === 0 && (
+        <p style={{ fontSize: 13, color: "#64748b", margin: "0 0 12px" }}>Aucun temps de formation pour l&apos;instant : créez le premier ci-dessous.</p>
+      )}
       <div className="set-postes">
         {postes.map((p) => (
           <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
@@ -303,7 +317,7 @@ function PosteManager({
       </div>
       {postes.length > 7 && (
         <p style={{ fontSize: 12, color: "#94a3b8", margin: "-4px 0 12px" }}>
-          {postes.length} types · faites défiler la liste pour voir les autres
+          {postes.length} temps de formation · faites défiler la liste pour voir les autres
         </p>
       )}
 

@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { prisma } from "@/lib/prisma";
+import { getSessionPostes } from "@/lib/posteLibrary";
 import { normalize } from "@/lib/fuzzy";
 
 // Colonnes configurables de la vue « Stagiaires » (tableau), propres à chaque session et rangées
@@ -86,21 +87,24 @@ function sanitize(raw: unknown, posteTypeIds: Set<string>): StagiaireColumn[] {
 export async function getStagiaireColumns(formationId: string): Promise<StagiaireColumn[]> {
   const [row, posteTypes] = await Promise.all([
     prisma.config.findUnique({ where: { formationId_key: { formationId, key: CONFIG_KEY } } }),
-    prisma.posteType.findMany({ select: { id: true, label: true } }),
+    prisma.posteType.findMany({ where: { isTemplate: false }, select: { id: true } }),
   ]);
-  if (!row) return defaultColumns(posteTypes);
+  // Colonnes par défaut : reconnues parmi les temps de formation de la session (ceux du compte et
+  // ceux posés au planning), jamais parmi les modèles ou les listes d'autres comptes.
+  const sessionPostes = async () => (await getSessionPostes(formationId)).postes.map((p) => ({ id: p.id, label: p.label }));
+  if (!row) return defaultColumns(await sessionPostes());
   try {
     // Un type de créneau supprimé depuis : sa colonne disparaît simplement.
     const ids = new Set(posteTypes.map((p) => p.id));
     const parsed = JSON.parse(row.value) as unknown[];
     return sanitize(Array.isArray(parsed) ? parsed.filter((c) => (c as { kind?: string })?.kind !== "poste" || ids.has((c as { posteTypeId?: string }).posteTypeId ?? "")) : parsed, ids);
   } catch {
-    return defaultColumns(posteTypes);
+    return defaultColumns(await sessionPostes());
   }
 }
 
 export async function saveStagiaireColumns(formationId: string, raw: unknown): Promise<StagiaireColumn[]> {
-  const posteTypes = await prisma.posteType.findMany({ select: { id: true } });
+  const posteTypes = await prisma.posteType.findMany({ where: { isTemplate: false }, select: { id: true } });
   const columns = sanitize(raw, new Set(posteTypes.map((p) => p.id)));
   const value = JSON.stringify(columns);
   await prisma.config.upsert({

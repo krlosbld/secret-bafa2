@@ -58,7 +58,7 @@ export default async function JoinPage({ params }: { params: Promise<{ token: st
           already ? (
             <div className="bp-stack">
               <div className="bp-alert bp-alert--info">Vous faites déjà partie de cette session.</div>
-              <Link href={openSessionPath(f.id)} className="bp-btn bp-btn--primary bp-btn--block bp-btn--lg">
+              <Link href={openSessionPath(f.id)} prefetch={false} className="bp-btn bp-btn--primary bp-btn--block bp-btn--lg">
                 Ouvrir la session
               </Link>
             </div>

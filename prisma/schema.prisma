@@ -170,10 +170,13 @@ model User {
   createdAt       DateTime  @default(now())
   updatedAt       DateTime  @updatedAt
 
-  memberships       FormationMember[]
-  managedFormations ManagerFormation[]
-  sessions          UserSession[]
-  authTokens        AuthToken[]
+  memberships         FormationMember[]
+  managedFormations   ManagerFormation[]
+  sessions            UserSession[]
+  authTokens          AuthToken[]
+  posteTypes          PosteType[]
+  // Familles (BAFA, BAFD) dont la liste de temps de formation a déjà été initialisée pour ce compte.
+  seededPosteFamilies String[]           @default([])
 }
 
 // Rattachement d'un compte à une formation, avec son rôle dans CETTE formation.
@@ -381,6 +384,10 @@ model BlockAssignment {
   @@index([blockId])
 }
 
+// Temps de formation (type de créneau du planning). Chaque compte a sa propre liste, une pour les
+// sessions BAFA (BAFA 1, BAFA 3) et une pour les sessions BAFD : ses ajouts et modifications ne
+// changent rien pour les autres comptes. Les modèles (isTemplate) ne sont jamais affichés ni posés
+// au planning : ils servent à remplir la liste BAFA d'un compte la première fois qu'il en a besoin.
 model PosteType {
   id             String   @id @default(cuid())
   label          String
@@ -389,7 +396,13 @@ model PosteType {
   evaluable      Boolean  @default(false)
   category       String   @default("AUTRE") // THEORIE | ANIMATION | AUTRE | THEMATIQUE | RETOUR_STAGE
   countedInHours Boolean  @default(true)
+  ownerUserId    String? // compte propriétaire (null : modèle, ou compte supprimé — le créneau reste affichable)
+  family         String   @default("BAFA") // BAFA | BAFD
+  isTemplate     Boolean  @default(false)
   createdAt      DateTime @default(now())
+  owner          User?    @relation(fields: [ownerUserId], references: [id], onDelete: SetNull)
+
+  @@index([ownerUserId, family])
 }
 
 model Evaluation {

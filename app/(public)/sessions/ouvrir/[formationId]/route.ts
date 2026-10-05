@@ -11,6 +11,12 @@ export const runtime = "nodejs";
 // session), puis on entre dans le BAFA Manager existant avec la fiche Player du membre.
 // L'identifiant dans l'URL ne donne rien à lui seul : sans rattachement, pas d'ouverture.
 export async function GET(req: Request, { params }: { params: Promise<{ formationId: string }> }) {
+  // Un préchargement (lien affiché à l'écran) ne doit jamais changer la session ouverte : seul un
+  // vrai clic ouvre une session.
+  if (req.headers.get("next-router-prefetch") || /prefetch/i.test(req.headers.get("sec-purpose") ?? req.headers.get("purpose") ?? "")) {
+    return new NextResponse(null, { status: 204 });
+  }
+
   const { formationId } = await params;
   const url = new URL(req.url);
   const origin = `${req.headers.get("x-forwarded-proto") ?? url.protocol.replace(":", "")}://${req.headers.get("host") ?? url.host}`;
