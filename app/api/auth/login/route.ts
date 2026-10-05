@@ -5,6 +5,8 @@ import { createUserSession } from "@/lib/userSession";
 import { clearLegacyLoginCookies } from "@/lib/playerAuth";
 import { normalizeEmail } from "@/lib/access";
 import { readJsonBody, str, limited, safeNextPath } from "@/lib/requestGuard";
+import { homePathFor } from "@/lib/mySessions";
+import { getFormationFromCookie } from "@/lib/formationSession";
 
 export const runtime = "nodejs";
 
@@ -55,8 +57,10 @@ export async function POST(req: Request) {
     );
   }
 
-  // Le super-admin n'a pas de session : il arrive directement dans l'administration.
-  const defaultNext = user.platformRole === "SUPERADMIN" ? "/admin" : "/sessions";
+  // Le super-admin n'a pas de session : il arrive directement dans l'administration. Un stagiaire
+  // arrive sur l'accueil de sa session ; l'équipe sur « Mes sessions ».
+  const defaultNext =
+    user.platformRole === "SUPERADMIN" ? "/admin" : await homePathFor(user.id, (await getFormationFromCookie())?.id ?? null);
   const requested = safeNextPath(body.next, defaultNext);
   const res = NextResponse.json({ ok: true, next: user.platformRole === "SUPERADMIN" && requested === "/sessions" ? "/admin" : requested });
   // Anciens cookies de connexion par code éventuellement restés sur ce navigateur : effacés.

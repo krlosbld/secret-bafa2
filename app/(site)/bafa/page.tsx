@@ -14,6 +14,9 @@ import { getPlayerNotes } from "@/lib/playerNotes";
 import { resolveAuthorNames } from "@/lib/authorNames";
 import { resolveAdminFormationId } from "@/lib/formation";
 import SessionAccessGate from "@/components/SessionAccessGate";
+import TraineeHome from "@/components/TraineeHome";
+import { loadTraineeHome } from "@/lib/traineeHome";
+import { getVerifiedUser } from "@/lib/userSession";
 import AdminFormationPicker from "./AdminFormationPicker";
 import { canEditSessionSettings, getSessionSettings } from "@/lib/sessionSettings";
 import SessionSettingsForm from "@/components/SessionSettingsForm";
@@ -45,19 +48,8 @@ function TabNav({
 }) {
   const tabClass = (isActive: boolean) => `fnav-tab${isActive ? " fnav-tab--active" : ""}`;
 
-  // Stagiaire : sa formation s'ouvre sur le planning de la session, sa fiche est dans « Ma formation ».
-  if (trainee) {
-    return (
-      <div className="tab-nav">
-        <Link href="/bafa" className={tabClass(active === "planning")}>
-          📅 Planning
-        </Link>
-        <Link href="/bafa?tab=fiche" className={tabClass(active === "espace")}>
-          Ma formation
-        </Link>
-      </div>
-    );
-  }
+  // Stagiaire : Accueil · Planning · Ma formation sont dans la barre du haut, pas de sous-onglets.
+  if (trainee) return null;
 
   return (
     <div className="tab-nav">
@@ -698,8 +690,20 @@ export default async function BafaPage({
   if (showAdminTab) redirect("/jeu/gestion");
 
 
-  // Le stagiaire arrive sur le planning ; sa fiche est dans l'onglet « Ma formation » (?tab=fiche).
-  if (showPlanning || (isTrainee && tab !== "fiche")) {
+  // Le stagiaire arrive sur son accueil : programme du jour heure par heure et dernière évaluation.
+  // Le planning complet est dans l'onglet Planning (?tab=planning), sa fiche dans « Ma formation » (?tab=fiche).
+  if (isTrainee && !tab) {
+    const [home, account] = await Promise.all([loadTraineeHome(playerSession!.playerId, formationId), getVerifiedUser()]);
+    return (
+      <main className="page th-view">
+        <div className="container">
+          <TraineeHome firstName={account?.firstName ?? player!.firstName} data={home} />
+        </div>
+      </main>
+    );
+  }
+
+  if (showPlanning) {
     const [blocks, configRows, postes, criteria, criterionStates, staff, groups] = await Promise.all([
       prisma.planningBlock.findMany({
         where: { formationId },

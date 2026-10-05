@@ -1120,6 +1120,286 @@ a {
   }
 }
 
+/* ================= ACCUEIL DU STAGIAIRE (programme du jour + dernière évaluation) ================= */
+.th-view {
+  background: #f4f6f9;
+}
+
+.th {
+  max-width: 1080px;
+  margin: 0 auto;
+}
+
+.th-head {
+  margin: 4px 0 24px;
+}
+
+.th-title {
+  margin: 0 0 4px;
+  font-size: 1.9rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  color: #0f1f35;
+}
+
+.th-sub {
+  margin: 0;
+  color: #64748b;
+  font-size: 1rem;
+}
+
+.th-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1.6fr) minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.th-card {
+  background: #fff;
+  border: 1px solid #e3e8ef;
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.03), 0 6px 20px rgba(15, 23, 42, 0.04);
+  padding: 20px 22px 22px;
+}
+
+.th-card__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.th-card__title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #0f1f35;
+}
+
+.th-card__sub {
+  margin: 4px 0 0;
+  font-size: 0.92rem;
+  color: #64748b;
+}
+
+.th-cap::first-letter {
+  text-transform: uppercase;
+}
+
+.th-link {
+  flex: none;
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: #2c5d94;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.th-link:hover {
+  text-decoration: underline;
+}
+
+.th-empty {
+  margin: 0;
+  color: #64748b;
+  font-size: 0.95rem;
+  line-height: 1.5;
+}
+
+/* Journée heure par heure : une ligne par heure, les créneaux posés à leur place. */
+.th-timeline {
+  position: relative;
+  margin-left: 46px;
+}
+
+.th-hour {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px solid #edf1f5;
+}
+
+.th-hour__label {
+  position: absolute;
+  left: -46px;
+  top: -8px;
+  width: 38px;
+  text-align: right;
+  font-size: 12px;
+  font-weight: 600;
+  color: #94a3b8;
+}
+
+.th-lane {
+  position: absolute;
+  inset: 0 0 0 4px;
+}
+
+.th-block {
+  position: absolute;
+  box-sizing: border-box;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 10px;
+  border-radius: 10px;
+  border: 1px solid color-mix(in srgb, var(--c) 28%, #fff);
+  border-left: 4px solid var(--c);
+  background: color-mix(in srgb, var(--c) 10%, #fff);
+  color: #0f1f35;
+}
+
+.th-block--compact {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 10px;
+}
+
+.th-block--mine {
+  box-shadow: 0 0 0 2px #1e3a5f;
+}
+
+.th-block__time {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #475569;
+  white-space: nowrap;
+}
+
+.th-block__label {
+  font-size: 13.5px;
+  font-weight: 700;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.th-block--compact .th-block__label,
+.th-block--short .th-block__label {
+  white-space: nowrap;
+}
+
+.th-block__poste {
+  font-size: 11.5px;
+  color: #64748b;
+}
+
+.th-block__mine {
+  align-self: flex-start;
+  margin-top: 2px;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #fff;
+  background: #1e3a5f;
+  padding: 1px 7px;
+  border-radius: 6px;
+}
+
+.th-block--compact .th-block__mine {
+  margin-top: 0;
+  align-self: center;
+}
+
+/* Heure actuelle */
+.th-now {
+  position: absolute;
+  left: -6px;
+  right: 0;
+  border-top: 2px solid #dc2626;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.th-now::before {
+  content: "";
+  position: absolute;
+  left: -4px;
+  top: -6px;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #dc2626;
+}
+
+.th-now span {
+  position: absolute;
+  right: 0;
+  top: -20px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #dc2626;
+  background: #fff;
+  padding: 0 4px;
+  border-radius: 4px;
+}
+
+/* Dernière évaluation */
+.th-eval__meta {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.th-eval__dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  margin-top: 6px;
+  border-radius: 50%;
+  background: var(--c);
+}
+
+.th-eval__label {
+  margin: 0;
+  font-weight: 800;
+  font-size: 1rem;
+  color: #0f1f35;
+}
+
+.th-eval__when {
+  margin: 2px 0 0;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.th-eval__note {
+  margin: 0 0 16px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: #f6f8fb;
+  border: 1px solid #edf1f5;
+  white-space: pre-wrap;
+  line-height: 1.55;
+  font-size: 0.95rem;
+  color: #1e293b;
+}
+
+@media (max-width: 860px) {
+  .th-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .th-title {
+    font-size: 1.5rem;
+  }
+
+  .th-card {
+    padding: 16px 14px 18px;
+  }
+
+  .th-card__head {
+    flex-direction: column;
+    gap: 6px;
+  }
+}
+
 /* ================= RÉGLAGES DE LA SESSION (cartes côte à côte, compactes) ================= */
 .set-grid {
   display: grid;

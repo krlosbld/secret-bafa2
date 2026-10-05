@@ -126,6 +126,16 @@ export async function resolveSessionToOpen(
   return candidates.length === 1 ? { kind: "open", formationId: candidates[0].formation.id } : { kind: "choose" };
 }
 
+// Où arrive un compte après connexion. Un compte qui n'est que stagiaire va droit à l'accueil de sa
+// session (programme du jour) ; sans session, il arrive sur « Mes sessions », qui propose d'en
+// rejoindre une ; l'équipe (directeurs, formateurs) choisit sa session dans « Mes sessions ».
+export async function homePathFor(userId: string, lastFormationId: string | null): Promise<string> {
+  const roles = await prisma.formationMember.findMany({ where: { userId }, select: { role: true } });
+  if (roles.length === 0 || roles.some((r) => r.role !== "STAGIAIRE")) return "/sessions";
+  const target = await resolveSessionToOpen(userId, lastFormationId);
+  return target.kind === "open" ? openSessionPath(target.formationId) : "/sessions";
+}
+
 export function openSessionPath(formationId: string, next = "/bafa"): string {
   return `/sessions/ouvrir/${formationId}?next=${encodeURIComponent(next)}`;
 }

@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import { getVerifiedUser } from "@/lib/userSession";
 import { getSession } from "@/lib/auth";
 import { getMySessionCards, openSessionPath, type SessionCard } from "@/lib/mySessions";
+import JoinByLink from "@/components/JoinByLink";
 
 export const metadata = { title: "Mes sessions — BafaPilot" };
 export const dynamic = "force-dynamic";
@@ -206,11 +207,14 @@ export default async function SessionsPage({ searchParams }: { searchParams: Pro
       {cards.length === 0 ? (
         <div className="bp-card bp-status" style={{ maxWidth: 560 }}>
           <p className="bp-status__text" style={{ marginBottom: 6 }}>
-            <strong>Aucune session ne vous est encore attribuée.</strong>
+            <strong>Vous n&apos;êtes rattaché à aucune session.</strong>
           </p>
-          <p className="bp-status__text" style={{ fontSize: "0.9rem", marginBottom: 0 }}>
-            Stagiaire : scannez le QR code de votre session pour la rejoindre.
-            <br />
+          <p className="bp-status__text" style={{ fontSize: "0.92rem", marginBottom: 0 }}>
+            Stagiaire : scannez le QR code de votre session avec l&apos;appareil photo de votre téléphone, ou collez ci-dessous le lien
+            d&apos;invitation reçu.
+          </p>
+          <JoinByLink />
+          <p className="bp-status__text" style={{ fontSize: "0.85rem", margin: "16px 0 0" }}>
             Équipe : un responsable ou gestionnaire doit vous rattacher à une session.
           </p>
         </div>
