@@ -249,7 +249,7 @@ function PosteManager({
       <p style={{ fontSize: 12, color: "#64748b", marginTop: 0, marginBottom: 10 }}>
         Coche « Évaluable » pour qu&apos;une case d&apos;évaluation par stagiaire apparaisse automatiquement sur chaque créneau de ce type.
       </p>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
+      <div className="set-postes">
         {postes.map((p) => (
           <div key={p.id} style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <input
@@ -301,6 +301,11 @@ function PosteManager({
           </div>
         ))}
       </div>
+      {postes.length > 7 && (
+        <p style={{ fontSize: 12, color: "#94a3b8", margin: "-4px 0 12px" }}>
+          {postes.length} types · faites défiler la liste pour voir les autres
+        </p>
+      )}
 
       {error && (
         <div style={{ background: "#fef2f2", border: "1px solid #fecaca", borderRadius: 10, padding: 10, color: "#dc2626", fontWeight: 600, fontSize: 13, marginBottom: 10 }}>
