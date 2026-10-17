@@ -330,8 +330,8 @@ async function PersonalSpace({
   }
 
   const groupAssignment = await getGroupAssignment(formationId);
-  // Les groupes ne sont visibles que pour le staff (formateur/directeur), jamais pour le stagiaire lui-même.
-  const groupNames = canEditEvaluations ? groupAssignment.groupsByPlayerId[playerId] : undefined;
+  // Groupe(s) du stagiaire : visibles par l'équipe et par le stagiaire lui-même (« Groupe REPA »).
+  const groupNames = groupAssignment.groupsByPlayerId[playerId];
 
   const initialDay =
     requestedDay !== undefined && Number.isInteger(requestedDay) && requestedDay >= 0 && requestedDay < dayCount
@@ -392,7 +392,7 @@ async function PersonalSpace({
               borderRadius: 999,
             }}
           >
-            {name}
+            {canEditEvaluations ? name : `Groupe ${name}`}
           </span>
         ))}
       </p>

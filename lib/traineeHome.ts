@@ -30,6 +30,7 @@ export type LastEvaluation = {
 
 export type TraineeHomeData = {
   sessionName: string;
+  groups: string[]; // groupe(s) du stagiaire dans la session
   // nodate : dates pas encore fixées ; before / during / after : par rapport à aujourd'hui (Paris).
   status: "nodate" | "before" | "during" | "after";
   test: boolean; // session test : la journée affichée est rejouée (J1, J2… en boucle)
@@ -98,7 +99,7 @@ export async function loadTraineeHome(playerId: string, formationId: string): Pr
     prisma.formation.findUnique({ where: { id: formationId }, select: { name: true } }),
     prisma.config.findMany({ where: { formationId, key: { in: ["planningSessionType", "planningStartDate", TEST_SESSION_KEY] } } }),
     prisma.posteType.findMany({ select: { id: true, label: true, color: true } }),
-    prisma.groupMember.findMany({ where: { playerId }, select: { groupId: true } }),
+    prisma.groupMember.findMany({ where: { playerId, group: { formationId } }, select: { groupId: true, group: { select: { name: true } } } }),
     prisma.blockAssignment.findMany({ where: { playerId }, select: { blockId: true } }),
     prisma.evaluation.findMany({
       where: { playerId, note: { not: "" }, block: { formationId } },
@@ -161,6 +162,7 @@ export async function loadTraineeHome(playerId: string, formationId: string): Pr
 
   return {
     sessionName: formation?.name ?? "",
+    groups: memberships.map((m) => m.group.name),
     status,
     test,
     dayIndex,

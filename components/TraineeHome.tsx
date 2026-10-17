@@ -135,7 +135,14 @@ export default function TraineeHome({
     <div className="th">
       <header className="th-head">
         <h1 className="th-title">Bonjour {firstName} 👋</h1>
-        <p className="th-sub">{data.sessionName}</p>
+        <p className="th-sub">
+          {data.sessionName}
+          {data.groups.map((g) => (
+            <span key={g} className="th-group">
+              Groupe {g}
+            </span>
+          ))}
+        </p>
       </header>
 
       <div className="th-grid">
