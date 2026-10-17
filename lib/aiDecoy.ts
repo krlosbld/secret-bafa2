@@ -19,7 +19,7 @@ export async function generateAiDecoy(realSecrets: string[], existingNames: stri
 
   const prompt = `Tu inventes un faux secret pour un jeu d'animateurs BAFA ("BafaPilot") : les joueurs lisent des secrets anonymes et devinent à qui ils appartiennent, sauf que celui-ci est entièrement inventé, personne n'est derrière.
 
-Voici des exemples de vrais secrets déjà publiés dans cette formation, pour que tu calques le ton, le registre et la longueur :
+Voici des exemples de vrais secrets (de cette formation et d'anciennes formations), pour que tu calques le ton, le registre et la longueur. Inspire-t'en, mais n'en recopie ni n'en paraphrase aucun : invente une situation nouvelle.
 ${examples}
 
 Prénoms déjà utilisés dans cette formation (n'en propose aucun) : ${names}

@@ -4,6 +4,7 @@ import { getSecretsAdminAuth } from "@/lib/gameAdminAuth";
 import { resolveAdminFormationId } from "@/lib/formation";
 import { generateUniquePlayerCode } from "@/lib/playerCode";
 import { findNameCollision, nameCollisionError } from "@/lib/nameCollision";
+import { tooCloseToRealSecret } from "@/lib/secretArchive";
 
 export const runtime = "nodejs";
 
@@ -31,6 +32,13 @@ export async function POST(req: Request) {
   }
   if (!Number.isInteger(points) || points < 1 || points > 20) {
     return NextResponse.json({ error: "Le nombre de points doit être entre 1 et 20." }, { status: 400 });
+  }
+
+  if (await tooCloseToRealSecret(content)) {
+    return NextResponse.json(
+      { error: "Ce texte est trop proche d'un vrai secret : reformule-le (change des mots et des détails) pour qu'on ne reconnaisse pas son auteur." },
+      { status: 400 }
+    );
   }
 
   const collision = await findNameCollision(formationId, firstName);

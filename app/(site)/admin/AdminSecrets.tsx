@@ -1,5 +1,6 @@
 "use client";
 
+import { similarity, TOO_CLOSE } from "@/lib/textSimilarity";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { isSecretCurrentlyVisible } from "@/lib/secretVisibility";
@@ -28,7 +29,7 @@ export function AdminSecretsPending({ secrets }: { secrets: Secret[] }) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
   const [showDecoyForm, setShowDecoyForm] = useState(false);
-  const [decoyProposal, setDecoyProposal] = useState<{ firstName: string; content: string; source?: string } | null>(null);
+  const [decoyProposal, setDecoyProposal] = useState<{ firstName: string; content: string; source?: string; original?: string } | null>(null);
   const [decoyPoints, setDecoyPoints] = useState(3);
   const [decoyError, setDecoyError] = useState("");
   const [generatingDecoy, setGeneratingDecoy] = useState(false);
@@ -52,6 +53,25 @@ export function AdminSecretsPending({ secrets }: { secrets: Secret[] }) {
     }
   }
 
+  // « Partir d'un ancien secret » : un vrai secret d'une ancienne session, à reformuler avant création.
+  async function fromArchive() {
+    setDecoyError("");
+    setGeneratingDecoy(true);
+    try {
+      const res = await fetch("/api/admin/secrets/decoy/archive", { method: "POST" });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setDecoyError(data?.error || "Erreur.");
+        return;
+      }
+      setDecoyProposal({ firstName: data.firstName, content: data.content, source: "archive", original: data.original });
+    } catch {
+      setDecoyError("Erreur réseau.");
+    } finally {
+      setGeneratingDecoy(false);
+    }
+  }
+
   function openDecoyForm() {
     setShowDecoyForm(true);
     setDecoyProposal(null);
@@ -59,6 +79,8 @@ export function AdminSecretsPending({ secrets }: { secrets: Secret[] }) {
     setDecoyError("");
     void generateDecoy();
   }
+
+  const tooClose = !!decoyProposal?.original && similarity(decoyProposal.original, decoyProposal.content) >= TOO_CLOSE;
 
   async function createDecoy() {
     if (!decoyProposal) return;
@@ -136,6 +158,12 @@ export function AdminSecretsPending({ secrets }: { secrets: Secret[] }) {
             <p style={{ color: "#64748b", fontSize: 14 }}>Génération…</p>
           ) : (
             <>
+              {decoyProposal.source === "archive" && (
+                <div style={{ background: "#eef2ff", border: "1px solid #c7d2fe", borderRadius: 10, padding: 10, color: "#3730a3", fontWeight: 600, fontSize: 13, marginBottom: 10 }}>
+                  📚 Ancien vrai secret d&apos;une de tes sessions. <strong>Reformule-le</strong> (mots, détails, contexte) pour qu&apos;on ne
+                  puisse pas reconnaître son auteur : il ne pourra pas être créé tel quel.
+                </div>
+              )}
               {decoyProposal.source === "fallback" && (
                 <div style={{ background: "#fffbeb", border: "1px solid #fde68a", borderRadius: 10, padding: 10, color: "#92400e", fontWeight: 600, fontSize: 13, marginBottom: 10 }}>
                   ⚠️ Génération IA indisponible — secret de secours proposé, modifie-le si besoin.
@@ -160,9 +188,19 @@ export function AdminSecretsPending({ secrets }: { secrets: Secret[] }) {
                   style={{ resize: "vertical" }}
                 />
               </label>
-              <button className="btn btn-ghost" onClick={generateDecoy} disabled={creatingDecoy} style={{ marginTop: 6, marginBottom: 6 }}>
-                🎲 Regénérer
-              </button>
+              {tooClose && (
+                <p style={{ margin: "4px 0 0", fontSize: 13, fontWeight: 700, color: "#b45309" }}>
+                  ✍️ Encore trop proche de l&apos;original : continue à le reformuler.
+                </p>
+              )}
+              <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 6, marginBottom: 6 }}>
+                <button className="btn btn-ghost" onClick={generateDecoy} disabled={creatingDecoy}>
+                  🎲 Nouveau faux secret (IA)
+                </button>
+                <button className="btn btn-ghost" onClick={fromArchive} disabled={creatingDecoy}>
+                  📚 Partir d&apos;un ancien secret
+                </button>
+              </div>
             </>
           )}
           <label className="sb-field">
@@ -186,7 +224,7 @@ export function AdminSecretsPending({ secrets }: { secrets: Secret[] }) {
             <button className="btn btn-ghost" onClick={() => setShowDecoyForm(false)} disabled={creatingDecoy}>
               Annuler
             </button>
-            <button className="btn btn-main" onClick={createDecoy} disabled={creatingDecoy || !decoyProposal}>
+            <button className="btn btn-main" onClick={createDecoy} disabled={creatingDecoy || !decoyProposal || tooClose}>
               {creatingDecoy ? "Création…" : "Créer"}
             </button>
           </div>

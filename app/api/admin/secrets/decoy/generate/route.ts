@@ -5,6 +5,7 @@ import { resolveAdminFormationId } from "@/lib/formation";
 import { findNameCollision } from "@/lib/nameCollision";
 import { generateAiDecoy } from "@/lib/aiDecoy";
 import { randomDecoy } from "@/lib/decoySecrets";
+import { archiveSecretContents, tooCloseToRealSecret } from "@/lib/secretArchive";
 
 export const runtime = "nodejs";
 
@@ -26,7 +27,9 @@ export async function POST() {
     }),
     prisma.player.findMany({ where: { formationId }, select: { firstName: true } }),
   ]);
-  const realContents = realSecrets.map((s) => s.content);
+  // Exemples : les secrets validés de la session, complétés par ceux des anciennes sessions (mélangés).
+  const archive = (await archiveSecretContents(formationId)).sort(() => Math.random() - 0.5);
+  const realContents = [...realSecrets.map((s) => s.content), ...archive].slice(0, 25);
   const existingNames = players.map((p) => p.firstName);
 
   // Deux essais IA (au cas où le prénom proposé collisionne malgré la liste déjà fournie), puis
@@ -36,7 +39,7 @@ export async function POST() {
     const proposal = await generateAiDecoy(realContents, existingNames);
     if (!proposal) break;
     const collision = await findNameCollision(formationId, proposal.firstName);
-    if (!collision) {
+    if (!collision && !(await tooCloseToRealSecret(proposal.content))) {
       return NextResponse.json({ ok: true, ...proposal, source: "ai" });
     }
   }
