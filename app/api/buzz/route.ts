@@ -5,6 +5,7 @@ import { resolveWinningBuzz, CLAIM_FAKE_GUESS_LABEL } from "@/lib/buzzResolution
 import { isSecretCurrentlyVisible } from "@/lib/secretVisibility";
 import { getFormationFromCookie, hasNotStartedYet } from "@/lib/formationSession";
 import { getPlayerSession } from "@/lib/playerAuth";
+import { gameClosedForCurrentPlayer } from "@/lib/gameAccess";
 
 export const runtime = "nodejs";
 
@@ -24,6 +25,9 @@ function isWithinBuzzHours(): boolean {
 }
 
 export async function POST(req: Request) {
+  if (await gameClosedForCurrentPlayer()) {
+    return NextResponse.json({ ok: false, error: "Le jeu n'est pas ouvert aux stagiaires pour cette session.", message: "Le jeu n'est pas ouvert aux stagiaires pour cette session." }, { status: 403 });
+  }
   try {
     if (!isWithinBuzzHours()) {
       return NextResponse.json(

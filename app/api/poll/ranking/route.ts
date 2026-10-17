@@ -1,13 +1,14 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getGameFormation } from "@/lib/gameFormation";
+import { gameClosedForCurrentPlayer } from "@/lib/gameAccess";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
 
 export async function GET() {
   const formation = await getGameFormation();
-  if (!formation) return NextResponse.json({ players: [] });
+  if (!formation || (await gameClosedForCurrentPlayer())) return NextResponse.json({ players: [] });
 
   // Tous les joueurs qui ont un secret validé (PUBLISHED ou FOUND), formation du cookie uniquement
   const players = await prisma.player.findMany({

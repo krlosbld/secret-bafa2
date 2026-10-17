@@ -1,4 +1,6 @@
 import { prisma } from "@/lib/prisma";
+import AdminTraineeGameAccess from "../../admin/AdminTraineeGameAccess";
+import { isGameOpenToTrainees } from "@/lib/gameAccess";
 import { AdminSecretsPending, AdminSecretsPublished } from "../../admin/AdminSecrets";
 import AdminBuzzPending from "../../admin/AdminBuzzPending";
 import AdminPlayers from "../../admin/AdminPlayers";
@@ -114,6 +116,12 @@ export default async function GameAdminPanel({
 
   return (
     <div>
+      {!secretsOnly && (
+        <Section title="Accès des stagiaires">
+          <AdminTraineeGameAccess initialOpen={await isGameOpenToTrainees(formationId)} />
+        </Section>
+      )}
+
       {!secretsOnly && (
         <Section title="Fin du jeu">
           <AdminEndGame formationId={formationId} gameEnded={gameEnded} initialBuzzPaused={buzzPaused} />

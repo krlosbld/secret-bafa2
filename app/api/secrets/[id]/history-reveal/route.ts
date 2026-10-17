@@ -3,12 +3,16 @@ import { prisma } from "@/lib/prisma";
 import { CLAIM_FAKE_GUESS_LABEL, historyRevealCost } from "@/lib/buzzResolution";
 import { getFormationFromCookie, hasNotStartedYet } from "@/lib/formationSession";
 import { getPlayerSession } from "@/lib/playerAuth";
+import { gameClosedForCurrentPlayer } from "@/lib/gameAccess";
 
 export const runtime = "nodejs";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function POST(_req: Request, { params }: Params) {
+  if (await gameClosedForCurrentPlayer()) {
+    return NextResponse.json({ ok: false, error: "Le jeu n'est pas ouvert aux stagiaires pour cette session.", message: "Le jeu n'est pas ouvert aux stagiaires pour cette session." }, { status: 403 });
+  }
   const { id: secretId } = await params;
   const formation = await getFormationFromCookie();
   if (!formation) {

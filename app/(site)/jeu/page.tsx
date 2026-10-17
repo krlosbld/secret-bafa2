@@ -6,6 +6,8 @@ import { historyRevealCost } from "@/lib/buzzResolution";
 import SessionAccessGate from "@/components/SessionAccessGate";
 import FakeSecretAnnouncement from "@/components/FakeSecretAnnouncement";
 import SecretsClient from "../SecretsClient";
+import { redirect } from "next/navigation";
+import { gameClosedForCurrentPlayer } from "@/lib/gameAccess";
 
 export const metadata = { title: "BafaPilot 🤫" };
 
@@ -18,6 +20,7 @@ export default async function HomePage() {
   if (!formation) {
     return <SessionAccessGate next="/jeu" title="Secret BAFA 🤫" />;
   }
+  if (await gameClosedForCurrentPlayer()) redirect("/bafa");
 
   const [allSecrets, historyRevealConfig] = await Promise.all([
     prisma.secret.findMany({

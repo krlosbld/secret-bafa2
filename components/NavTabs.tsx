@@ -5,7 +5,7 @@ import { usePathname, useSearchParams } from "next/navigation";
 
 type Tab = { href: string; label: string; match: (p: string, tab: string | null) => boolean };
 type Variant = "member" | "admin" | "trainee";
-type Props = { variant?: Variant; manySessions?: boolean };
+type Props = { variant?: Variant; manySessions?: boolean; hideGame?: boolean };
 
 // Onglets d'un membre de session : Accueil · Mes sessions · Formation · Jeu.
 const MEMBER_TABS: Tab[] = [
@@ -33,9 +33,12 @@ const ADMIN_TABS: Tab[] = [
   { href: "/admin/journal", label: "Journal", match: (p) => p.startsWith("/admin/journal") },
 ];
 
-function tabsFor(variant: Variant, manySessions: boolean): Tab[] {
+function tabsFor(variant: Variant, manySessions: boolean, hideGame: boolean): Tab[] {
   if (variant === "admin") return ADMIN_TABS;
-  if (variant === "trainee") return manySessions ? [...TRAINEE_TABS, SESSIONS_TAB] : TRAINEE_TABS;
+  if (variant === "trainee") {
+    const tabs = hideGame ? TRAINEE_TABS.filter((t) => t.href !== "/jeu") : TRAINEE_TABS;
+    return manySessions ? [...tabs, SESSIONS_TAB] : tabs;
+  }
   return MEMBER_TABS;
 }
 
@@ -56,11 +59,11 @@ function TabList({ tabs, tabParam }: { tabs: Tab[]; tabParam: string | null }) {
 }
 
 // Lit ?tab= (onglets du stagiaire) : à placer dans un <Suspense>, avec NavTabsStatic en secours.
-export default function NavTabs({ variant = "member", manySessions = false }: Props) {
+export default function NavTabs({ variant = "member", manySessions = false, hideGame = false }: Props) {
   const tabParam = useSearchParams().get("tab");
-  return <TabList tabs={tabsFor(variant, manySessions)} tabParam={tabParam} />;
+  return <TabList tabs={tabsFor(variant, manySessions, hideGame)} tabParam={tabParam} />;
 }
 
-export function NavTabsStatic({ variant = "member", manySessions = false }: Props) {
-  return <TabList tabs={tabsFor(variant, manySessions)} tabParam={null} />;
+export function NavTabsStatic({ variant = "member", manySessions = false, hideGame = false }: Props) {
+  return <TabList tabs={tabsFor(variant, manySessions, hideGame)} tabParam={null} />;
 }

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getGameAdminAuth } from "@/lib/gameAdminAuth";
 import { resolveAdminFormationId } from "@/lib/formation";
+import { TRAINEE_GAME_KEY } from "@/lib/gameAccess";
 
 export const runtime = "nodejs";
 
@@ -47,6 +48,9 @@ export async function PATCH(req: Request) {
   }
   if (typeof body.buzzPaused === "boolean") {
     updates.push({ key: "buzzPaused", value: String(body.buzzPaused) });
+  }
+  if (typeof body.gameOpenToTrainees === "boolean") {
+    updates.push({ key: TRAINEE_GAME_KEY, value: String(body.gameOpenToTrainees) });
   }
 
   if (updates.length === 0) {

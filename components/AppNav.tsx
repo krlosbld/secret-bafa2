@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import { getSession } from "@/lib/auth";
 import { getPlayerSession } from "@/lib/playerAuth";
 import { prisma } from "@/lib/prisma";
+import { isGameOpenToTrainees } from "@/lib/gameAccess";
 import { getVerifiedUser } from "@/lib/userSession";
 import NavTabs, { NavTabsStatic } from "@/components/NavTabs";
 import LogoutButton from "@/components/LogoutButton";
@@ -23,14 +24,16 @@ export default async function AppNav() {
 
   let trainee = false;
   let manySessions = false;
+  let gameOpen = true; // un stagiaire ne voit l'onglet Jeu que si le directeur l'a ouvert
   if (user && !isSuperAdmin) {
     const playerSession = await getPlayerSession();
     const [player, sessionCount] = await Promise.all([
-      playerSession ? prisma.player.findUnique({ where: { id: playerSession.playerId }, select: { role: true } }) : null,
+      playerSession ? prisma.player.findUnique({ where: { id: playerSession.playerId }, select: { role: true, formationId: true } }) : null,
       prisma.formationMember.count({ where: { userId: user.id } }),
     ]);
     trainee = player?.role === "STAGIAIRE";
     manySessions = sessionCount > 1;
+    if (trainee && player) gameOpen = await isGameOpenToTrainees(player.formationId);
   }
   const variant = isSuperAdmin ? "admin" : trainee ? "trainee" : "member";
 
@@ -45,8 +48,8 @@ export default async function AppNav() {
         </Link>
 
         {/* Les onglets du stagiaire dépendent de ?tab= : lu côté client, d'où le Suspense. */}
-        <Suspense fallback={<NavTabsStatic variant={variant} manySessions={manySessions} />}>
-          <NavTabs variant={variant} manySessions={manySessions} />
+        <Suspense fallback={<NavTabsStatic variant={variant} manySessions={manySessions} hideGame={!gameOpen} />}>
+          <NavTabs variant={variant} manySessions={manySessions} hideGame={!gameOpen} />
         </Suspense>
 
         <div className="app-nav__actions">

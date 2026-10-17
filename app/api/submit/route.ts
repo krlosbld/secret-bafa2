@@ -3,12 +3,16 @@ import { prisma } from "@/lib/prisma";
 import { isFlagged } from "@/lib/contentFilter";
 import { getFormationFromCookie, hasNotStartedYet } from "@/lib/formationSession";
 import { getPlayerSession } from "@/lib/playerAuth";
+import { gameClosedForCurrentPlayer } from "@/lib/gameAccess";
 
 export const runtime = "nodejs";
 
 // Ajouter son secret : il est rattaché à la fiche du compte connecté dans la session ouverte.
 // Plus de prénom à saisir ni de code à noter, et plus aucune fiche créée depuis le jeu.
 export async function POST(req: Request) {
+  if (await gameClosedForCurrentPlayer()) {
+    return NextResponse.json({ ok: false, error: "Le jeu n'est pas ouvert aux stagiaires pour cette session.", message: "Le jeu n'est pas ouvert aux stagiaires pour cette session." }, { status: 403 });
+  }
   try {
     const body = await req.json();
     const content = String(body.content ?? "").trim();
