@@ -27,6 +27,7 @@ model Formation {
   planningSnapshots PlanningSnapshot[]
   textEditHistory   TextEditHistory[]
   groups            Group[]
+  criteria          Criterion[]
 }
 
 // Un groupe persistant de stagiaires (+ formateurs rattachés). Plusieurs groupes coexistent en
@@ -419,12 +420,20 @@ model Evaluation {
   @@unique([playerId, blockId])
 }
 
+// Critère d'évaluation quotidien, propre à une session (formationId). Les modèles (isTemplate,
+// sans session) servent à remplir les critères d'une nouvelle session BAFA ; une session BAFD
+// démarre sans critère.
 model Criterion {
-  id        String            @id @default(cuid())
-  label     String
-  order     Int               @default(0)
-  createdAt DateTime          @default(now())
-  ratings   CriterionRating[]
+  id          String            @id @default(cuid())
+  label       String
+  order       Int               @default(0)
+  formationId String?
+  isTemplate  Boolean           @default(false)
+  createdAt   DateTime          @default(now())
+  ratings     CriterionRating[]
+  formation   Formation?        @relation(fields: [formationId], references: [id], onDelete: Cascade)
+
+  @@index([formationId])
 }
 
 model CriterionRating {

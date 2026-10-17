@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { getSessionCriteria } from "@/lib/sessionCriteria";
 import { DEFAULT_SESSION_TYPE, todayISO, daysForType, dateForDayIndex, formatDayHeader } from "@/lib/planningConfig";
 
 export type DayReport = {
@@ -41,7 +42,7 @@ export async function buildPlayerReport(playerId: string, formationId: string): 
       prisma.planningBlock.findMany({ where: { formationId }, orderBy: [{ day: "asc" }, { startMin: "asc" }] }),
       prisma.config.findMany({ where: { formationId, key: { in: ["planningSessionType", "planningStartDate"] } } }),
       prisma.posteType.findMany({ orderBy: { order: "asc" } }),
-      prisma.criterion.findMany({ orderBy: { order: "asc" } }),
+      getSessionCriteria(formationId),
       prisma.criterionState.findMany({ orderBy: { order: "asc" } }),
       prisma.evaluation.findMany({ where: { playerId } }),
       prisma.criterionRating.findMany({ where: { playerId } }),

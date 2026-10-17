@@ -6,6 +6,7 @@ import { getSession } from "@/lib/auth";
 import PlanningTab from "./PlanningTab";
 import PlanningSettings from "./PlanningSettings";
 import { getSessionPostes } from "@/lib/posteLibrary";
+import { getSessionCriteria } from "@/lib/sessionCriteria";
 import { loadTeam } from "@/lib/team";
 import { getManagerActor } from "@/lib/adminActor";
 import { InviteByEmail } from "@/components/TeamManager";
@@ -100,7 +101,7 @@ async function getEvaluationData(playerId: string, formationId: string, staff: b
     prisma.planningBlock.findMany({ where: { formationId }, orderBy: [{ day: "asc" }, { startMin: "asc" }] }),
     prisma.config.findMany({ where: { formationId, key: { in: ["planningSessionType", "planningStartDate"] } } }),
     prisma.posteType.findMany({ orderBy: { order: "asc" } }),
-    prisma.criterion.findMany({ orderBy: { order: "asc" } }),
+    getSessionCriteria(formationId),
     prisma.criterionState.findMany({ orderBy: { order: "asc" } }),
     prisma.evaluation.findMany({ where: { playerId } }),
     prisma.criterionRating.findMany({ where: { playerId } }),
@@ -684,7 +685,7 @@ export default async function BafaPage({
   if (tab === "reglages" && canEditSettings && section === "planning") {
     const [sessionPostes, criteria, criterionStates, typeRow] = await Promise.all([
       getSessionPostes(formationId),
-      prisma.criterion.findMany({ orderBy: { order: "asc" } }),
+      getSessionCriteria(formationId),
       prisma.criterionState.findMany({ orderBy: { order: "asc" } }),
       prisma.config.findUnique({ where: { formationId_key: { formationId, key: "planningSessionType" } } }),
     ]);

@@ -53,7 +53,7 @@ export async function POST(req: Request) {
     prisma.criterion.findUnique({ where: { id: criterionId } }),
     prisma.criterionState.findUnique({ where: { id: value } }),
   ]);
-  if (!player || !criterion || player.formationId !== auth.formationId) {
+  if (!player || !criterion || player.formationId !== auth.formationId || criterion.formationId !== auth.formationId) {
     return NextResponse.json({ error: "Introuvable." }, { status: 404 });
   }
   if (!state) {

@@ -5,8 +5,9 @@ import type { Poste, Criterion, CriterionStateDef } from "./PlanningTab";
 import { DEFAULT_POSTE_CATEGORY, categoriesForSessionType } from "@/lib/planningConfig";
 
 // Réglages « Planning et évaluations » (onglet ⚙️ Réglages, directeurs et admin) : les temps de
-// formation du compte (sa liste BAFA ou BAFD, selon la session), et les critères d'évaluation
-// quotidiens et leurs états (communs). Depuis le planning, on peut aussi créer un temps de formation.
+// formation du compte (sa liste BAFA ou BAFD, selon la session), les critères d'évaluation
+// quotidiens (propres à la session) et leurs états (communs). Depuis le planning, on peut aussi
+// créer un temps de formation.
 
 type PostePatch = { label?: string; color?: string; evaluable?: boolean; category?: string; countedInHours?: boolean };
 type AddPoste = (label: string, color: string, evaluable: boolean, category: string, countedInHours: boolean) => Promise<void>;
@@ -211,7 +212,7 @@ export default function PlanningSettings({
         <section className="set-card">
           <div className="set-card__head">
             <h2 className="set-card__title">Critères d&apos;évaluation quotidiens</h2>
-            <p className="set-card__sub">Notés chaque jour sur la fiche de chaque stagiaire. Communs à toutes les sessions.</p>
+            <p className="set-card__sub">Notés chaque jour sur la fiche de chaque stagiaire. Propres à cette session.</p>
           </div>
           <CriteriaManager criteria={criteria} onAdd={addCriterion} onRename={renameCriterion} onRemove={removeCriterion} />
         </section>
