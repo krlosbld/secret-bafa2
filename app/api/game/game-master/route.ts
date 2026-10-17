@@ -19,7 +19,7 @@ export async function POST(req: Request) {
 
   if (!(await isGameLaunched(formationId))) return NextResponse.json({ error: "Le jeu n'est pas encore lancé." }, { status: 409 });
   const master = await eligibleGameMaster(formationId, String(body.playerId ?? ""));
-  if (!master) return NextResponse.json({ error: "Choisis le maître du jeu parmi l'équipe de la session." }, { status: 400 });
+  if (!master) return NextResponse.json({ error: "Choisis le maître du jeu parmi l'équipe de la session, hors participants à la partie." }, { status: 400 });
 
   const previous = await prisma.player.findFirst({ where: { formationId, isGameMaster: true }, select: { firstName: true } });
   await prisma.$transaction([

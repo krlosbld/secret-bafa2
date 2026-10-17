@@ -75,8 +75,8 @@ export default async function GameAdminPanel({
         isGameMaster: false,
         NOT: { secret: { is: { isDecoy: true } } },
         OR: [
-          { role: "STAGIAIRE", active: true, gameParticipation: "ACCEPTED" },
-          { role: { not: "STAGIAIRE" }, secret: { isNot: null } },
+          { active: true, gameParticipation: "ACCEPTED" }, // stagiaires et équipe qui ont accepté
+          { gameParticipation: null, role: { not: "STAGIAIRE" }, secret: { is: { status: { in: ["PUBLISHED", "FOUND"] } } } }, // anciennes parties
         ],
       },
       orderBy: { firstName: "asc" },

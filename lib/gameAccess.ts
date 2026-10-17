@@ -11,12 +11,15 @@ import { getPlayerSession } from "@/lib/playerAuth";
 //   termine                → résultats définitifs, classement et auteurs consultables.
 //
 // Participants (Player.gameParticipation) : null = invité, ACCEPTED, DECLINED, EXCLUDED, EXPIRED.
-// Seuls les stagiaires qui ont accepté jouent. Un participant qui n'a envoyé aucune proposition dans
-// les 24 h suivant son acceptation perd sa participation (EXPIRED) ; c'est vérifié à chaque accès au
-// jeu et par un traitement serveur régulier (/api/cron/game-expiry).
+// Tout membre de la session sauf le maître du jeu est invité — stagiaires, formateurs, et le
+// directeur s'il a confié le rôle à quelqu'un d'autre — et ne joue que s'il accepte. Un participant
+// qui n'a envoyé aucune proposition dans les 24 h suivant son acceptation perd sa participation
+// (EXPIRED) ; c'est vérifié à chaque accès au jeu et par un traitement serveur régulier
+// (/api/cron/game-expiry).
 //
 // Le directeur lance les inscriptions et désigne / remplace l'unique maître du jeu
-// (Player.isGameMaster), qui administre le jeu. L'équipe peut consulter le jeu mais ne joue pas.
+// (Player.isGameMaster), qui administre le jeu et ne joue pas. Un stagiaire qui ne participe pas n'a
+// aucun accès au jeu ; un membre de l'équipe qui ne participe pas peut le consulter.
 export const GAME_LAUNCHED_KEY = "gameLaunchedAt";
 export const GAME_LAUNCHED_BY_KEY = "gameLaunchedBy";
 export const GAME_STARTED_KEY = "gameStartedAt";
@@ -73,7 +76,6 @@ export async function expireOverdueParticipants(formationId?: string): Promise<n
   const done = await prisma.player.updateMany({
     where: {
       ...(formationId ? { formationId } : {}),
-      role: "STAGIAIRE",
       gameParticipation: "ACCEPTED",
       gameParticipationAt: { lt: new Date(Date.now() - PROPOSAL_DELAY_MS) },
       secret: { is: null },
@@ -85,9 +87,9 @@ export async function expireOverdueParticipants(formationId?: string): Promise<n
 
 type GamePlayer = { id: string; role: string; formationId: string; isGameMaster: boolean; gameParticipation: string | null };
 
-// Participation réelle d'un stagiaire, délai de 24 h compris (appliqué et enregistré au passage).
-export async function effectiveParticipation(player: { id: string; role: string; gameParticipation: string | null }): Promise<string | null> {
-  if (player.role !== "STAGIAIRE" || player.gameParticipation !== "ACCEPTED") return player.gameParticipation;
+// Participation réelle d'un membre de la session, délai de 24 h compris (appliqué et enregistré au passage).
+export async function effectiveParticipation(player: { id: string; gameParticipation: string | null }): Promise<string | null> {
+  if (player.gameParticipation !== "ACCEPTED") return player.gameParticipation;
   const row = await prisma.player.findUnique({ where: { id: player.id }, select: { gameParticipationAt: true, secret: { select: { id: true } } } });
   const overdue = !row?.secret && !!row?.gameParticipationAt && row.gameParticipationAt.getTime() < Date.now() - PROPOSAL_DELAY_MS;
   if (!overdue) return "ACCEPTED";
@@ -122,11 +124,10 @@ export async function gameClosedForCurrentPlayer(): Promise<boolean> {
   return !(await traineeHasGameAccess(player));
 }
 
-// Joueur actif de la partie : stagiaire participant (accepté, dans les délais). L'équipe et le
-// maître du jeu ne jouent pas.
+// Joueur actif de la partie : membre participant (accepté, dans les délais), jamais le maître du jeu.
 export async function currentActivePlayer(): Promise<(GamePlayer & { participation: string | null }) | null> {
   const player = await currentPlayer();
-  if (!player || player.role !== "STAGIAIRE") return null;
+  if (!player || player.isGameMaster) return null;
   const participation = await effectiveParticipation(player);
   return participation === "ACCEPTED" ? { ...player, participation } : null;
 }

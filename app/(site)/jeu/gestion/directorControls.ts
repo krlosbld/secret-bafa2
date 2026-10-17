@@ -8,7 +8,8 @@ import type { GameState } from "@/lib/gameAccess";
 export async function loadDirectorControls(formationId: string, state: GameState, selfPlayerId: string | null) {
   const [staff, configRows] = await Promise.all([
     prisma.formationMember.findMany({
-      where: { formationId, role: { in: ["DIRECTEUR", "FORMATEUR"] }, playerId: { not: null } },
+      // Hors participants : un joueur ne peut pas devenir maître du jeu.
+      where: { formationId, role: { in: ["DIRECTEUR", "FORMATEUR"] }, playerId: { not: null }, player: { OR: [{ gameParticipation: null }, { gameParticipation: { not: "ACCEPTED" } }] } },
       select: { playerId: true, role: true, user: { select: { firstName: true, lastName: true } } },
       orderBy: [{ role: "asc" }, { user: { firstName: "asc" } }],
     }),

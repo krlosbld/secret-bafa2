@@ -6,7 +6,7 @@ import { getGameStatus } from "@/lib/gameAccess";
 
 export const runtime = "nodejs";
 
-// Réponse d'un stagiaire à l'invitation au Jeu des secrets de sa session. Définitive : un second
+// Réponse d'un membre de la session (stagiaire, formateur, directeur non maître du jeu) à l'invitation au Jeu des secrets de sa session. Définitive : un second
 // choix est refusé (un refus ne peut pas être contourné, une participation ne se retire pas ici).
 export async function POST(req: Request) {
   const body = await readJsonBody(req);
@@ -16,9 +16,10 @@ export async function POST(req: Request) {
 
   const playerSession = await getPlayerSession();
   const player = playerSession
-    ? await prisma.player.findUnique({ where: { id: playerSession.playerId }, select: { id: true, role: true, formationId: true, gameParticipation: true } })
+    ? await prisma.player.findUnique({ where: { id: playerSession.playerId }, select: { id: true, role: true, isGameMaster: true, formationId: true, gameParticipation: true } })
     : null;
-  if (!player || player.role !== "STAGIAIRE") return NextResponse.json({ error: "Réservé aux stagiaires de la session." }, { status: 403 });
+  if (!player) return NextResponse.json({ error: "Réservé aux membres de la session." }, { status: 403 });
+  if (player.isGameMaster) return NextResponse.json({ error: "Le maître du jeu ne participe pas à la partie." }, { status: 409 });
 
   const status = await getGameStatus(player.formationId);
   if (status === "en_cours") return NextResponse.json({ error: "La partie est déjà en cours. Tu ne peux plus la rejoindre." }, { status: 409 });

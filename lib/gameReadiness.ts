@@ -2,9 +2,9 @@ import { prisma } from "@/lib/prisma";
 import { PROPOSAL_DELAY_MS, expireOverdueParticipants } from "@/lib/gameAccess";
 
 // Où en sont les inscriptions d'une session : qui est prêt (secret validé), ce qui attend une
-// décision, ce qui bloque le démarrage. Les stagiaires qui ont refusé, été exclus ou expirés ne
-// bloquent jamais ; un stagiaire qui n'a pas répondu à l'invitation non plus (il ne pourra plus
-// rejoindre une fois la partie commencée).
+// décision, ce qui bloque le démarrage. Participants potentiels : les stagiaires et les membres de
+// l'équipe avec un compte, sauf le maître du jeu. Ceux qui ont refusé, été exclus ou expirés ne
+// bloquent jamais ; ceux qui n'ont pas répondu non plus (ils ne pourront plus rejoindre la partie).
 export type ParticipantRow = {
   id: string;
   firstName: string;
@@ -20,11 +20,12 @@ export type ParticipantRow = {
 export async function loadReadiness(formationId: string) {
   await expireOverdueParticipants(formationId);
   const rows = await prisma.player.findMany({
-    where: { formationId, role: "STAGIAIRE", active: true },
+    where: { formationId, active: true, isGameMaster: false, OR: [{ role: "STAGIAIRE" }, { member: { isNot: null } }] },
     orderBy: { firstName: "asc" },
     select: {
       id: true,
       firstName: true,
+      role: true,
       gameParticipation: true,
       gameParticipationAt: true,
       gameExitAt: true,
@@ -34,7 +35,7 @@ export async function loadReadiness(formationId: string) {
   });
   const participants: ParticipantRow[] = rows.map((p) => ({
     id: p.id,
-    firstName: p.firstName,
+    firstName: p.role === "STAGIAIRE" ? p.firstName : `${p.firstName} (${p.role === "DIRECTEUR" ? "directeur" : "formateur"})`,
     participation: p.gameParticipation,
     secretStatus: p.secret?.status ?? null,
     acceptedAt: p.gameParticipation === "ACCEPTED" ? p.gameParticipationAt?.toISOString() ?? null : null,

@@ -19,11 +19,13 @@ export async function requireGameDirector(): Promise<{ formationId: string; acto
   return { formationId, actor };
 }
 
-// Le maître du jeu se choisit parmi les directeurs et formateurs rattachés (avec compte) à la session.
+// Le maître du jeu se choisit parmi les directeurs et formateurs rattachés (avec compte) à la session,
+// sauf quelqu'un qui participe à la partie : il verrait tous les secrets en jouant.
 export async function eligibleGameMaster(formationId: string, playerId: string) {
   const member = await prisma.formationMember.findFirst({
     where: { formationId, playerId, role: { in: ["DIRECTEUR", "FORMATEUR"] } },
-    select: { player: { select: { id: true, firstName: true } } },
+    select: { player: { select: { id: true, firstName: true, gameParticipation: true } } },
   });
-  return member?.player ?? null;
+  if (!member?.player || member.player.gameParticipation === "ACCEPTED") return null;
+  return { id: member.player.id, firstName: member.player.firstName };
 }

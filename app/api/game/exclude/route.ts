@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "L'exclusion n'est possible que pendant les inscriptions." }, { status: 409 });
   }
   const player = await prisma.player.findFirst({
-    where: { id: String(body.playerId ?? ""), formationId, role: "STAGIAIRE" },
+    where: { id: String(body.playerId ?? ""), formationId, isGameMaster: false },
     select: { id: true, firstName: true, gameParticipation: true },
   });
   if (!player) return NextResponse.json({ error: "Participant introuvable dans cette session." }, { status: 404 });

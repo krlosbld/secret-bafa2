@@ -21,7 +21,7 @@ export async function GET() {
       isGameMaster: false,
       NOT: { secret: { is: { isDecoy: true } } },
       OR: [
-        { role: "STAGIAIRE", active: true, gameParticipation: "ACCEPTED" },
+        { active: true, gameParticipation: "ACCEPTED" },
         { secret: { is: { status: { in: ["PUBLISHED", "FOUND"] } } } },
       ],
     },

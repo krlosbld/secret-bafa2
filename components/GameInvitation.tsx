@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 
 // Fenêtre « Le Jeu des secrets a été lancé… ». Elle attend qu'aucune autre fenêtre ne soit ouverte
 // (info personnelle, rappels) pour ne pas s'empiler. Un refus demande une confirmation : il est définitif.
-export default function GameInvitation() {
+export default function GameInvitation({ byDirector = true }: { byDirector?: boolean }) {
   const router = useRouter();
   const [visible, setVisible] = useState(false);
   const [step, setStep] = useState<"ask" | "confirmDecline">("ask");
@@ -56,7 +56,7 @@ export default function GameInvitation() {
               🤫
             </div>
             <h2 id="game-invite-title" style={{ textAlign: "center", margin: "12px 0 8px", fontSize: 20 }}>
-              Le Jeu des secrets a été lancé par le directeur !
+              {byDirector ? "Le Jeu des secrets a été lancé par le directeur !" : "Le Jeu des secrets est lancé !"}
             </h2>
             <p style={{ textAlign: "center", margin: "0 0 20px", color: "#475569", fontSize: 15 }}>Souhaites-tu y participer ?</p>
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>

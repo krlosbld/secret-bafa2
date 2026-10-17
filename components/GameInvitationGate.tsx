@@ -10,9 +10,10 @@ export default async function GameInvitationGate() {
   if (!session) return null;
   const player = await prisma.player.findUnique({
     where: { id: session.playerId },
-    select: { role: true, active: true, formationId: true, gameParticipation: true },
+    select: { role: true, active: true, isGameMaster: true, formationId: true, gameParticipation: true },
   });
-  if (!player || player.role !== "STAGIAIRE" || !player.active || player.gameParticipation) return null;
+  // Tout membre sauf le maître du jeu : stagiaires, formateurs, directeur qui a confié le rôle.
+  if (!player || player.isGameMaster || !player.active || player.gameParticipation) return null;
   if ((await getGameStatus(player.formationId)) !== "inscriptions_ouvertes") return null;
-  return <GameInvitation />;
+  return <GameInvitation byDirector={player.role !== "DIRECTEUR"} />;
 }
