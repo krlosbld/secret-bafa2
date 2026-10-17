@@ -110,7 +110,11 @@ model Player {
   points                Int               @default(0)
   buzzCount             Int               @default(0)
   buzzQuotaOverride     Int? // null = utilise le quota de la formation
-  isGameMaster          Boolean           @default(false) // formateur délégué par le directeur : accès admin aux secrets, ne peut pas buzzer
+  isGameMaster          Boolean           @default(false) // maître du jeu de la session (un seul, désigné par le directeur) : administre le jeu, ne peut pas buzzer
+  // Participation d'un stagiaire au Jeu des secrets de cette session, demandée après le lancement :
+  // null = pas encore répondu, ACCEPTED, DECLINED (refus définitif pour cette session).
+  gameParticipation     String?
+  gameParticipationAt   DateTime?
   createdAt             DateTime          @default(now())
   formation             Formation         @relation(fields: [formationId], references: [id], onDelete: Cascade)
   directorAccount       DirectorAccount?  @relation(fields: [directorAccountId], references: [id])
@@ -285,26 +289,41 @@ model AuthToken {
 }
 
 model Secret {
-  id                       String    @id @default(cuid())
+  id                       String            @id @default(cuid())
   formationId              String
-  playerId                 String    @unique
+  playerId                 String            @unique
   content                  String
-  bonus                    Int       @default(1)
-  status                   String    @default("PENDING") // PENDING | PUBLISHED | FOUND
-  flagged                  Boolean   @default(false)
-  isDecoy                  Boolean   @default(false) // faux secret créé par l'admin, sans vrai joueur derrière
-  limitedVisibility        Boolean   @default(false)
+  bonus                    Int               @default(1)
+  status                   String            @default("PENDING") // PENDING | PUBLISHED (validé) | FOUND | REJECTED (refusé : le joueur en propose un autre)
+  flagged                  Boolean           @default(false)
+  isDecoy                  Boolean           @default(false) // faux secret créé par l'admin, sans vrai joueur derrière
+  limitedVisibility        Boolean           @default(false)
   limitedVisibilitySince   DateTime? // instant d'activation — ancre le cycle horaire
-  limitedVisibilityMinutes Int       @default(5) // durée visible par heure, choisie par l'admin
+  limitedVisibilityMinutes Int               @default(5) // durée visible par heure, choisie par l'admin
   foundByPlayerId          String?
-  createdAt                DateTime  @default(now())
-  updatedAt                DateTime  @updatedAt
-  formation                Formation @relation(fields: [formationId], references: [id], onDelete: Cascade)
-  player                   Player    @relation(fields: [playerId], references: [id], onDelete: Cascade)
-  foundBy                  Player?   @relation("FoundBy", fields: [foundByPlayerId], references: [id])
+  createdAt                DateTime          @default(now())
+  updatedAt                DateTime          @updatedAt
+  formation                Formation         @relation(fields: [formationId], references: [id], onDelete: Cascade)
+  player                   Player            @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  foundBy                  Player?           @relation("FoundBy", fields: [foundByPlayerId], references: [id])
   buzzes                   Buzz[]
+  rejections               SecretRejection[]
 
   @@index([formationId])
+}
+
+// Trace durable de chaque proposition de secret refusée par le maître du jeu (le secret, lui, est
+// réutilisé pour la proposition suivante : un seul secret par joueur).
+model SecretRejection {
+  id         String   @id @default(cuid())
+  secretId   String
+  content    String
+  bonus      Int
+  rejectedBy String? // libellé de la personne qui a refusé
+  rejectedAt DateTime @default(now())
+  secret     Secret   @relation(fields: [secretId], references: [id], onDelete: Cascade)
+
+  @@index([secretId])
 }
 
 model Buzz {

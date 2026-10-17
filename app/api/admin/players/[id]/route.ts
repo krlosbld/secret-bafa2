@@ -3,11 +3,19 @@ import { prisma } from "@/lib/prisma";
 import { getSession, isSuperAdmin } from "@/lib/auth";
 import { getPlayerSession } from "@/lib/playerAuth";
 import { findNameCollision, nameCollisionError } from "@/lib/nameCollision";
+import { getGameMasterAuth } from "@/lib/gameAccess";
 
 export const runtime = "nodejs";
 
 type Params = { params: Promise<{ id: string }> };
 
+// Points, buzz et quota d'un joueur : le maître du jeu de cette session (ou le super-admin).
+async function canManageGamePlayer(targetFormationId: string): Promise<boolean> {
+  const auth = await getGameMasterAuth();
+  return auth.ok && (auth.formationId === null || auth.formationId === targetFormationId);
+}
+
+// Prénom, rôle, suppression de la fiche : le directeur de la session (ou le super-admin).
 async function canManagePlayer(targetFormationId: string): Promise<boolean> {
   const session = await getSession();
   if (isSuperAdmin(session)) return true;
@@ -26,12 +34,20 @@ export async function PATCH(req: Request, { params }: Params) {
   const { id } = await params;
   const target = await prisma.player.findUnique({ where: { id }, select: { formationId: true } });
   if (!target) return NextResponse.json({ error: "Introuvable." }, { status: 404 });
-  if (!(await canManagePlayer(target.formationId))) {
-    return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
-  }
 
   const body = await req.json().catch(() => ({}));
   const data: Record<string, unknown> = {};
+  const touchesGame = body.points !== undefined || body.resetBuzz !== undefined || body.buzzQuotaOverride !== undefined;
+  const touchesIdentity = body.firstName !== undefined || body.role !== undefined;
+  if (body.isGameMaster !== undefined) {
+    return NextResponse.json({ error: "Le maître du jeu se change depuis Jeu → Gestion du jeu (directeur)." }, { status: 400 });
+  }
+  if (touchesGame && !(await canManageGamePlayer(target.formationId))) {
+    return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+  }
+  if (touchesIdentity && !(await canManagePlayer(target.formationId))) {
+    return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+  }
 
   if (typeof body.points === "number" && Number.isFinite(body.points)) {
     data.points = Math.max(0, body.points);
@@ -55,10 +71,6 @@ export async function PATCH(req: Request, { params }: Params) {
   if (body.role === "STAGIAIRE" || body.role === "FORMATEUR" || body.role === "DIRECTEUR") {
     data.role = body.role;
   }
-  if (typeof body.isGameMaster === "boolean") {
-    data.isGameMaster = body.isGameMaster;
-  }
-
   if (Object.keys(data).length === 0) {
     return NextResponse.json({ error: "Aucun champ valide." }, { status: 400 });
   }

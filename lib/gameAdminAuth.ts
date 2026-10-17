@@ -1,44 +1,17 @@
-import { getSession } from "@/lib/auth";
-import { getPlayerSession } from "@/lib/playerAuth";
-import { prisma } from "@/lib/prisma";
+import { getGameMasterAuth } from "@/lib/gameAccess";
 
-// formationId: null = super-admin/gestionnaire (n'importe quelle formation)
-// formationId: string = DIRECTEUR (restreint à sa propre formation)
+// Administration du Jeu des secrets : réservée au maître du jeu désigné de la session (et au
+// super-admin / gestionnaire). Le directeur lance le jeu et choisit le maître du jeu, mais n'a pas
+// accès aux secrets ni aux réglages s'il n'est pas lui-même maître du jeu (voir lib/gameAccess).
+// formationId: null = super-admin/gestionnaire (formation résolue ensuite) ; sinon la session du maître du jeu.
 export type GameAdminAuth = { ok: true; formationId: string | null } | { ok: false };
 
-export async function getGameAdminAuth(): Promise<GameAdminAuth> {
-  const session = await getSession();
-  if (session) return { ok: true, formationId: null };
-
-  const playerSession = await getPlayerSession();
-  if (!playerSession) return { ok: false };
-
-  const player = await prisma.player.findUnique({
-    where: { id: playerSession.playerId },
-    select: { role: true, formationId: true },
-  });
-  if (player?.role === "DIRECTEUR") return { ok: true, formationId: player.formationId };
-
-  return { ok: false };
+async function gameMasterOnly(): Promise<GameAdminAuth> {
+  const auth = await getGameMasterAuth();
+  return auth.ok ? { ok: true, formationId: auth.formationId } : { ok: false };
 }
 
-// Comme getGameAdminAuth(), mais autorise aussi un formateur nommé "maître de jeu" par le directeur
-// (Player.isGameMaster) — à utiliser uniquement sur les routes strictement liées aux secrets/buzz/
-// règles, jamais sur reset-buzz/award-points/end-game/config qui restent réservées au directeur.
-export async function getSecretsAdminAuth(): Promise<GameAdminAuth> {
-  const session = await getSession();
-  if (session) return { ok: true, formationId: null };
-
-  const playerSession = await getPlayerSession();
-  if (!playerSession) return { ok: false };
-
-  const player = await prisma.player.findUnique({
-    where: { id: playerSession.playerId },
-    select: { role: true, formationId: true, isGameMaster: true },
-  });
-  if (player && (player.role === "DIRECTEUR" || player.isGameMaster)) {
-    return { ok: true, formationId: player.formationId };
-  }
-
-  return { ok: false };
-}
+// Réglages, fin du jeu, buzz, points…
+export const getGameAdminAuth = gameMasterOnly;
+// Secrets, leurres, règles, validation des buzz.
+export const getSecretsAdminAuth = gameMasterOnly;

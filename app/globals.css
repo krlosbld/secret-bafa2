@@ -1148,6 +1148,21 @@ a {
   font-size: 1rem;
 }
 
+.th-game {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: -6px 0 18px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: #fff;
+  border: 1px solid #e3e8ef;
+  font-size: 0.95rem;
+  color: #1e293b;
+}
+
 .th-group {
   display: inline-block;
   margin-left: 10px;

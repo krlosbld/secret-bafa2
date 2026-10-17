@@ -24,10 +24,12 @@ export default function AdminPlayers({
   players,
   quota,
   showQuota = true,
+  canManageIdentity = true,
 }: {
   players: Player[];
   quota: number;
   showQuota?: boolean;
+  canManageIdentity?: boolean; // renommer / supprimer une fiche : directeur ou super-admin seulement
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
@@ -136,7 +138,9 @@ export default function AdminPlayers({
                 ) : (
                   <>
                     {p.firstName}
-                    <button className="btn btn-ghost" style={{ padding: "1px 8px", fontSize: 12 }} onClick={() => { setEditingName(p.id); setNameValue(p.firstName); }}>✏️</button>
+                    {canManageIdentity && (
+                      <button className="btn btn-ghost" style={{ padding: "1px 8px", fontSize: 12 }} onClick={() => { setEditingName(p.id); setNameValue(p.firstName); }}>✏️</button>
+                    )}
                   </>
                 )}
               </div>
@@ -234,13 +238,15 @@ export default function AdminPlayers({
               >
                 🔄 Reset buzz
               </button>
-              <button
-                className="btn btn-danger"
-                disabled={loading === p.id}
-                onClick={() => deletePlayer(p.id, p.firstName)}
-              >
-                Supprimer
-              </button>
+              {canManageIdentity && (
+                <button
+                  className="btn btn-danger"
+                  disabled={loading === p.id}
+                  onClick={() => deletePlayer(p.id, p.firstName)}
+                >
+                  Supprimer
+                </button>
+              )}
             </div>
           </div>
         ))}

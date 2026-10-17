@@ -26,11 +26,14 @@ export async function GET() {
       player: { select: { firstName: true } },
       foundBy: { select: { firstName: true } },
     },
-    orderBy: { player: { firstName: "asc" } },
+    orderBy: { createdAt: "asc" },
   });
   // isDecoy ne doit jamais atteindre le client — on ne garde que le coût déjà calculé.
-  const secrets = allSecrets.filter(isSecretCurrentlyVisible).map(({ isDecoy, ...s }) => ({
+  // L'auteur n'est envoyé qu'une fois le secret trouvé : sinon n'importe quel joueur le lirait dans
+  // les données reçues par son navigateur.
+  const secrets = allSecrets.filter(isSecretCurrentlyVisible).map(({ isDecoy, player, ...s }) => ({
     ...s,
+    player: s.status === "FOUND" ? player : null,
     revealCost: historyRevealCost({ bonus: s.bonus, isDecoy }),
   }));
 

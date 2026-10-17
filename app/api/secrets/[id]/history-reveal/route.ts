@@ -11,7 +11,7 @@ type Params = { params: Promise<{ id: string }> };
 
 export async function POST(_req: Request, { params }: Params) {
   if (await gameClosedForCurrentPlayer()) {
-    return NextResponse.json({ ok: false, error: "Le jeu n'est pas ouvert aux stagiaires pour cette session.", message: "Le jeu n'est pas ouvert aux stagiaires pour cette session." }, { status: 403 });
+    return NextResponse.json({ ok: false, error: "Tu ne participes pas au Jeu des secrets de cette session." }, { status: 403 });
   }
   const { id: secretId } = await params;
   const formation = await getFormationFromCookie();

@@ -27,8 +27,12 @@ export async function DELETE(_req: Request, { params }: Params) {
     prisma.buzz.deleteMany({ where: { OR: [{ secret: { formationId } }, { fromPlayer: { formationId } }] } }),
     prisma.secret.deleteMany({ where: { formationId } }),
     prisma.player.deleteMany({ where: { id: { in: decoyIds } } }),
-    prisma.player.updateMany({ where: { formationId }, data: { points: 0, buzzCount: 0, buzzQuotaOverride: null } }),
-    prisma.config.deleteMany({ where: { formationId, key: { in: ["gameEnded", "buzzPaused", "lastNightlyRun"] } } }),
+    prisma.player.updateMany({
+      where: { formationId },
+      data: { points: 0, buzzCount: 0, buzzQuotaOverride: null, isGameMaster: false, gameParticipation: null, gameParticipationAt: null },
+    }),
+    // Le jeu redevient « non lancé » : le directeur pourra le relancer et les stagiaires seront réinvités.
+    prisma.config.deleteMany({ where: { formationId, key: { in: ["gameEnded", "buzzPaused", "lastNightlyRun", "gameLaunchedAt", "gameLaunchedBy"] } } }),
   ]);
 
   return NextResponse.json({ ok: true });

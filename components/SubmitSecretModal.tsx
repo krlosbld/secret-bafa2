@@ -73,7 +73,8 @@ export default function SubmitSecretModal({
         ) : (
           <>
             <p className="sb-help">
-              Ton secret est rattaché à ton compte : seul l&apos;admin voit qu&apos;il est à toi, la page publique reste anonyme.
+              Ton secret est rattaché à ton compte : seul le maître du jeu voit qu&apos;il est à toi, et il le valide avant qu&apos;il entre
+              dans le jeu.
             </p>
             <div className="sb-form">
               <label className="sb-field">

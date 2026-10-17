@@ -7,6 +7,7 @@ import PlanningTab from "./PlanningTab";
 import PlanningSettings from "./PlanningSettings";
 import { getSessionPostes } from "@/lib/posteLibrary";
 import { getSessionCriteria } from "@/lib/sessionCriteria";
+import { getGameState } from "@/lib/gameAccess";
 import { loadTeam } from "@/lib/team";
 import { getManagerActor } from "@/lib/adminActor";
 import { InviteByEmail } from "@/components/TeamManager";
@@ -789,11 +790,19 @@ export default async function BafaPage({
   // Le stagiaire arrive sur son accueil : programme du jour heure par heure et dernière évaluation.
   // Le planning complet est dans l'onglet Planning (?tab=planning), sa fiche dans « Ma formation » (?tab=fiche).
   if (isTrainee && !tab) {
-    const [home, account] = await Promise.all([loadTraineeHome(playerSession!.playerId, formationId), getVerifiedUser()]);
+    const [home, account, gameState, me] = await Promise.all([
+      loadTraineeHome(playerSession!.playerId, formationId),
+      getVerifiedUser(),
+      getGameState(formationId),
+      prisma.player.findUnique({ where: { id: playerSession!.playerId }, select: { gameParticipation: true, secret: { select: { status: true } } } }),
+    ]);
+    // Jeu des secrets : l'état de son secret, seulement s'il participe au jeu en cours.
+    const gameStatus =
+      gameState.launched && !gameState.ended && me?.gameParticipation === "ACCEPTED" ? me.secret?.status ?? "NONE" : null;
     return (
       <main className="page th-view">
         <div className="container">
-          <TraineeHome firstName={account?.firstName ?? player!.firstName} data={home} />
+          <TraineeHome firstName={account?.firstName ?? player!.firstName} data={home} gameStatus={gameStatus} />
         </div>
       </main>
     );

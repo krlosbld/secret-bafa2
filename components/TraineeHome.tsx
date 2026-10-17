@@ -87,12 +87,22 @@ function DayTimeline({
   );
 }
 
+const GAME_LINE: Record<string, { text: string; cta?: string }> = {
+  NONE: { text: "✍️ Tu n'as pas encore proposé ton secret.", cta: "Proposer mon secret" },
+  PENDING: { text: "⏳ Ton secret est en attente de validation par le maître du jeu." },
+  PUBLISHED: { text: "✅ Ton secret a été validé : il est en jeu." },
+  FOUND: { text: "🎯 Ton secret a été trouvé." },
+  REJECTED: { text: "❌ Ton précédent secret n'a pas été accepté : propose-en un autre.", cta: "Proposer un autre secret" },
+};
+
 export default function TraineeHome({
   firstName,
   data,
+  gameStatus = null,
 }: {
   firstName: string;
   data: TraineeHomeData;
+  gameStatus?: string | null; // Jeu des secrets : état de son secret s'il participe
 }) {
   const {
     status,
@@ -144,6 +154,17 @@ export default function TraineeHome({
           ))}
         </p>
       </header>
+
+      {gameStatus && GAME_LINE[gameStatus] && (
+        <div className="th-game">
+          <span>
+            <strong>Jeu des secrets</strong> · {GAME_LINE[gameStatus].text}
+          </span>
+          <Link href={GAME_LINE[gameStatus].cta ? "/jeu?proposer=1" : "/jeu"} className="th-link">
+            {GAME_LINE[gameStatus].cta ?? "Voir le jeu"} →
+          </Link>
+        </div>
+      )}
 
       <div className="th-grid">
         <section className="th-card">

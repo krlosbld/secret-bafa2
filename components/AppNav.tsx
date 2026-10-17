@@ -3,7 +3,7 @@ import { Suspense } from "react";
 import { getSession } from "@/lib/auth";
 import { getPlayerSession } from "@/lib/playerAuth";
 import { prisma } from "@/lib/prisma";
-import { isGameOpenToTrainees } from "@/lib/gameAccess";
+import { traineeHasGameAccess } from "@/lib/gameAccess";
 import { getVerifiedUser } from "@/lib/userSession";
 import NavTabs, { NavTabsStatic } from "@/components/NavTabs";
 import LogoutButton from "@/components/LogoutButton";
@@ -24,16 +24,16 @@ export default async function AppNav() {
 
   let trainee = false;
   let manySessions = false;
-  let gameOpen = true; // un stagiaire ne voit l'onglet Jeu que si le directeur l'a ouvert
+  let gameOpen = true; // un stagiaire ne voit l'onglet Jeu que s'il participe au jeu lancé de sa session
   if (user && !isSuperAdmin) {
     const playerSession = await getPlayerSession();
     const [player, sessionCount] = await Promise.all([
-      playerSession ? prisma.player.findUnique({ where: { id: playerSession.playerId }, select: { role: true, formationId: true } }) : null,
+      playerSession ? prisma.player.findUnique({ where: { id: playerSession.playerId }, select: { role: true, formationId: true, gameParticipation: true } }) : null,
       prisma.formationMember.count({ where: { userId: user.id } }),
     ]);
     trainee = player?.role === "STAGIAIRE";
     manySessions = sessionCount > 1;
-    if (trainee && player) gameOpen = await isGameOpenToTrainees(player.formationId);
+    if (trainee && player) gameOpen = await traineeHasGameAccess(player);
   }
   const variant = isSuperAdmin ? "admin" : trainee ? "trainee" : "member";
 

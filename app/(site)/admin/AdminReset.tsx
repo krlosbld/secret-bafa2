@@ -31,7 +31,7 @@ export default function AdminReset({ formationId, formationName }: { formationId
         Zone dangereuse
       </div>
       <p style={{ margin: "0 0 14px", fontSize: 14, color: "#64748b" }}>
-        Efface les secrets, buzz et points du jeu de cette formation, et relance la partie (fin du jeu, pause des buzz). Les joueurs, le planning, les évaluations et les comptes ne sont pas touchés.
+        Efface les secrets, buzz et points du jeu de cette formation, et le remet à l&apos;état « non lancé » (maître du jeu, participations des stagiaires, fin du jeu, pause des buzz). Les joueurs, le planning, les évaluations et les comptes ne sont pas touchés.
       </p>
       <button className="btn btn-danger" onClick={reset} disabled={loading}>
         {loading ? "Réinitialisation…" : "🗑️ Réinitialiser le jeu"}

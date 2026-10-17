@@ -3,15 +3,18 @@ import { prisma } from "@/lib/prisma";
 import { isFlagged } from "@/lib/contentFilter";
 import { getFormationFromCookie, hasNotStartedYet } from "@/lib/formationSession";
 import { getPlayerSession } from "@/lib/playerAuth";
-import { gameClosedForCurrentPlayer } from "@/lib/gameAccess";
+import { gameClosedForCurrentPlayer, isGameLaunched } from "@/lib/gameAccess";
 
 export const runtime = "nodejs";
 
-// Ajouter son secret : il est rattaché à la fiche du compte connecté dans la session ouverte.
-// Plus de prénom à saisir ni de code à noter, et plus aucune fiche créée depuis le jeu.
+// Proposer son secret : il est rattaché à la fiche du compte connecté dans la session ouverte, et
+// attend la décision du maître du jeu. Un seul secret actif par personne ; après un refus, la
+// nouvelle proposition remplace l'ancienne (gardée dans SecretRejection) et repart en attente.
+// Un stagiaire doit avoir accepté de participer au jeu lancé de sa session.
 export async function POST(req: Request) {
   if (await gameClosedForCurrentPlayer()) {
-    return NextResponse.json({ ok: false, error: "Le jeu n'est pas ouvert aux stagiaires pour cette session.", message: "Le jeu n'est pas ouvert aux stagiaires pour cette session." }, { status: 403 });
+    const message = "Tu ne participes pas au Jeu des secrets de cette session.";
+    return NextResponse.json({ ok: false, error: message, message }, { status: 403 });
   }
   try {
     const body = await req.json();
@@ -36,6 +39,9 @@ export async function POST(req: Request) {
     if (!formation || !player || player.formationId !== formation.id) {
       return NextResponse.json({ ok: false, message: "Connecte-toi avec ton compte BafaPilot pour ajouter ton secret." }, { status: 401 });
     }
+    if (!(await isGameLaunched(formation.id))) {
+      return NextResponse.json({ ok: false, message: "Le jeu n'a pas encore été lancé par le directeur." }, { status: 403 });
+    }
     if (!formation.active) {
       return NextResponse.json(
         {
@@ -48,14 +54,28 @@ export async function POST(req: Request) {
       );
     }
 
-    const existingSecret = await prisma.secret.findUnique({ where: { playerId: player.id } });
-    if (existingSecret) {
-      return NextResponse.json({ ok: false, message: "Tu as déjà ajouté ton secret." }, { status: 409 });
+    const existingSecret = await prisma.secret.findUnique({ where: { playerId: player.id }, select: { id: true, status: true } });
+    if (existingSecret && existingSecret.status !== "REJECTED") {
+      const message =
+        existingSecret.status === "PENDING"
+          ? "Ton secret est déjà en attente de validation."
+          : "Ton secret a déjà été validé : il est en jeu.";
+      return NextResponse.json({ ok: false, message }, { status: 409 });
     }
 
-    await prisma.secret.create({
-      data: { playerId: player.id, formationId: formation.id, content, bonus, status: "PENDING", flagged: isFlagged(content) },
-    });
+    if (existingSecret) {
+      // Nouvelle proposition après un refus : mise à jour conditionnelle (un seul envoi gagne).
+      const done = await prisma.secret.updateMany({
+        where: { id: existingSecret.id, status: "REJECTED" },
+        data: { content, bonus, status: "PENDING", flagged: isFlagged(content), createdAt: new Date() },
+      });
+      if (done.count === 0) return NextResponse.json({ ok: false, message: "Ton secret est déjà en attente de validation." }, { status: 409 });
+    } else {
+      const created = await prisma.secret
+        .create({ data: { playerId: player.id, formationId: formation.id, content, bonus, status: "PENDING", flagged: isFlagged(content) } })
+        .catch(() => null); // envoi simultané : la contrainte « un secret par joueur » a déjà tranché
+      if (!created) return NextResponse.json({ ok: false, message: "Ton secret est déjà en attente de validation." }, { status: 409 });
+    }
     return NextResponse.json({ ok: true });
   } catch (e) {
     console.error("API SUBMIT ERROR:", e);

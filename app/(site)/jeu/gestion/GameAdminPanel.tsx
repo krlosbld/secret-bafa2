@@ -1,10 +1,7 @@
 import { prisma } from "@/lib/prisma";
-import AdminTraineeGameAccess from "../../admin/AdminTraineeGameAccess";
-import { isGameOpenToTrainees } from "@/lib/gameAccess";
 import { AdminSecretsPending, AdminSecretsPublished } from "../../admin/AdminSecrets";
 import AdminBuzzPending from "../../admin/AdminBuzzPending";
 import AdminPlayers from "../../admin/AdminPlayers";
-import AdminStaffList from "../../admin/AdminStaffList";
 import AdminCronControls from "../../admin/AdminCronControls";
 import AdminEndGame from "../../admin/AdminEndGame";
 import AdminGameRules from "../../admin/AdminGameRules";
@@ -20,27 +17,29 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   );
 }
 
-// Gestion du jeu Secret BAFA d'une session (onglet Jeu → « Gestion du jeu ») : tout ce qui concerne
-// le jeu est ici. Maître de jeu (formateur délégué) : secrets et buzz seulement (secretsOnly).
-// Super-admin : en plus, la réinitialisation du jeu (canReset).
+// Administration du Jeu des secrets d'une session (Jeu → « Gestion du jeu ») : réservée au maître du
+// jeu désigné (et au super-admin). Réglages, participation des stagiaires, validation ou refus des
+// secrets, buzz, joueurs, cron, fin du jeu. Super-admin : en plus, la réinitialisation (canReset).
+// canManageIdentity : renommer / supprimer une fiche reste un droit du directeur (et du super-admin).
 export default async function GameAdminPanel({
   formationId,
   formationName,
-  secretsOnly = false,
   canReset = false,
+  canManageIdentity = false,
 }: {
   formationId: string;
   formationName: string;
-  secretsOnly?: boolean;
   canReset?: boolean;
+  canManageIdentity?: boolean;
 }) {
-  const [pendingSecrets, publishedSecrets, pendingBuzzes, players, staffRows, quotaConfig, lastNightlyRunConfig, gameEndedConfig, ruleRows, buzzPausedConfig] = await Promise.all([
+  const [pendingSecrets, publishedSecrets, pendingBuzzes, players, trainees, quotaConfig, lastNightlyRunConfig, gameEndedConfig, ruleRows, buzzPausedConfig] = await Promise.all([
     prisma.secret.findMany({
       where: { status: "PENDING", formationId },
       orderBy: { createdAt: "asc" },
       include: {
         player: { select: { firstName: true, code: true } },
         foundBy: { select: { firstName: true } },
+        _count: { select: { rejections: true } },
       },
     }),
     prisma.secret.findMany({
@@ -80,9 +79,9 @@ export default async function GameAdminPanel({
       },
     }),
     prisma.player.findMany({
-      where: { formationId, role: { in: ["FORMATEUR", "DIRECTEUR"] } },
+      where: { formationId, role: "STAGIAIRE", active: true }, // les leurres sont des fiches inactives
       orderBy: { firstName: "asc" },
-      select: { id: true, firstName: true, role: true, isGameMaster: true, directorAccount: { select: { username: true } } },
+      select: { firstName: true, gameParticipation: true, secret: { select: { status: true } } },
     }),
     prisma.config.findUnique({ where: { formationId_key: { formationId, key: "buzzQuota" } } }),
     prisma.config.findUnique({ where: { formationId_key: { formationId, key: "lastNightlyRun" } } }),
@@ -91,13 +90,10 @@ export default async function GameAdminPanel({
     prisma.config.findUnique({ where: { formationId_key: { formationId, key: "buzzPaused" } } }),
   ]);
 
-  const staff = staffRows.map((s) => ({
-    id: s.id,
-    firstName: s.firstName,
-    role: s.role,
-    username: s.directorAccount?.username ?? null,
-    isGameMaster: s.isGameMaster,
-  }));
+  const participating = trainees.filter((t) => t.gameParticipation === "ACCEPTED");
+  const declined = trainees.filter((t) => t.gameParticipation === "DECLINED");
+  const undecided = trainees.filter((t) => !t.gameParticipation);
+  const withoutSecret = participating.filter((t) => !t.secret || t.secret.status === "REJECTED");
 
   const quota = Number(quotaConfig?.value ?? 3);
   const gameEnded = gameEndedConfig?.value === "true";
@@ -116,17 +112,31 @@ export default async function GameAdminPanel({
 
   return (
     <div>
-      {!secretsOnly && (
-        <Section title="Accès des stagiaires">
-          <AdminTraineeGameAccess initialOpen={await isGameOpenToTrainees(formationId)} />
-        </Section>
-      )}
+      <Section title="Participation des stagiaires">
+        <div className="card" style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 14 }}>
+          <div>
+            <strong>✅ {participating.length} participe{participating.length > 1 ? "nt" : ""}</strong>
+            {participating.length > 0 && <span style={{ color: "#64748b" }}> — {participating.map((t) => t.firstName).join(", ")}</span>}
+          </div>
+          {withoutSecret.length > 0 && (
+            <div style={{ color: "#92400e" }}>
+              ✍️ Pas encore de secret (ou secret refusé) : {withoutSecret.map((t) => t.firstName).join(", ")}
+            </div>
+          )}
+          <div>
+            <strong>🚫 {declined.length} {declined.length > 1 ? "ont" : "a"} refusé</strong>
+            {declined.length > 0 && <span style={{ color: "#64748b" }}> — {declined.map((t) => t.firstName).join(", ")}</span>}
+          </div>
+          <div>
+            <strong>⏳ {undecided.length} sans réponse</strong>
+            {undecided.length > 0 && <span style={{ color: "#64748b" }}> — {undecided.map((t) => t.firstName).join(", ")}</span>}
+          </div>
+        </div>
+      </Section>
 
-      {!secretsOnly && (
-        <Section title="Fin du jeu">
-          <AdminEndGame formationId={formationId} gameEnded={gameEnded} initialBuzzPaused={buzzPaused} />
-        </Section>
-      )}
+      <Section title="Fin du jeu">
+        <AdminEndGame formationId={formationId} gameEnded={gameEnded} initialBuzzPaused={buzzPaused} />
+      </Section>
 
       <Section title="⚙️ Règles du jeu">
         <AdminGameRules initialRules={initialRules} />
@@ -147,19 +157,10 @@ export default async function GameAdminPanel({
         <AdminSecretsPublished secrets={publishedSecrets as any} />
       </Section>
 
-      {!secretsOnly && (
-        <>
-
-          <Section title="🎭 Maître de jeu">
-            <p style={{ margin: "0 0 12px", fontSize: 14, color: "#64748b" }}>
-              Un formateur nommé maître de jeu peut valider les secrets et les buzz (il ne peut plus buzzer lui-même).
-            </p>
-            <AdminStaffList staff={staff.filter((s) => s.role === "FORMATEUR")} mode="gameMaster" />
-          </Section>
-
+      <>
           <Section title={`Joueurs (${players.length})`}>
             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-            <AdminPlayers players={players as any} quota={quota} />
+            <AdminPlayers players={players as any} quota={quota} canManageIdentity={canManageIdentity} />
           </Section>
 
           <Section title="Cron nocturne (reset buzz + points)">
@@ -183,8 +184,7 @@ export default async function GameAdminPanel({
               <AdminCronControls formationId={formationId} />
             </div>
           </Section>
-        </>
-      )}
+      </>
 
       {canReset && (
         <Section title="Réinitialiser le jeu">

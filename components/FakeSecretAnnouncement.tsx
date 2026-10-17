@@ -22,6 +22,7 @@ export default function FakeSecretAnnouncement() {
 
   return (
     <div
+      data-modal
       onClick={close}
       style={{
         position: "fixed",

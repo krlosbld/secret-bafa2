@@ -26,7 +26,7 @@ function isWithinBuzzHours(): boolean {
 
 export async function POST(req: Request) {
   if (await gameClosedForCurrentPlayer()) {
-    return NextResponse.json({ ok: false, error: "Le jeu n'est pas ouvert aux stagiaires pour cette session.", message: "Le jeu n'est pas ouvert aux stagiaires pour cette session." }, { status: 403 });
+    return NextResponse.json({ ok: false, error: "Tu ne participes pas au Jeu des secrets de cette session." }, { status: 403 });
   }
   try {
     if (!isWithinBuzzHours()) {

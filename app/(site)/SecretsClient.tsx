@@ -10,7 +10,7 @@ type SecretItem = {
   status: string;
   bonus: number;
   revealCost: number;
-  player: { firstName: string };
+  player: { firstName: string } | null; // auteur : envoyé seulement une fois le secret trouvé
   foundBy: { firstName: string } | null;
 };
 
@@ -138,7 +138,7 @@ export default function SecretsClient({ initial, historyRevealEnabled }: { initi
               <div className="row">
                 <div className="label">Auteur</div>
                 <div className="value" style={{ color: "#16a34a", fontWeight: 900 }}>
-                  {s.player.firstName} ✅
+                  {s.player?.firstName ?? "?"} ✅
                 </div>
               </div>
               {s.foundBy && (

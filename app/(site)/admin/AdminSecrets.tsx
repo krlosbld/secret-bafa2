@@ -18,6 +18,7 @@ type Secret = {
   createdAt: string;
   player: { firstName: string; code: string };
   foundBy: { firstName: string } | null;
+  _count?: { rejections: number }; // propositions déjà refusées pour ce joueur
 };
 
 export function AdminSecretsPending({ secrets }: { secrets: Secret[] }) {
@@ -208,6 +209,11 @@ export function AdminSecretsPending({ secrets }: { secrets: Secret[] }) {
               ⚠️ Contenu à vérifier
             </div>
           )}
+          {(s._count?.rejections ?? 0) > 0 && (
+            <div style={{ background: "#e0e7ff", color: "#3730a3", fontWeight: 800, fontSize: 12, borderRadius: 6, padding: "3px 10px", marginBottom: 8, marginLeft: 6, display: "inline-block" }}>
+              🔁 Nouvelle proposition ({s._count!.rejections} refus avant)
+            </div>
+          )}
           <div className="row">
             <div className="label">Auteur</div>
             <div className="value">{s.player.firstName}</div>
@@ -265,9 +271,11 @@ export function AdminSecretsPending({ secrets }: { secrets: Secret[] }) {
             <button
               className="btn btn-danger"
               disabled={loading === s.id}
-              onClick={() => patch(s.id, { status: "PENDING" })}
+              onClick={() => {
+                if (confirm(s.isDecoy ? "Refuser ce faux secret ?" : `Refuser le secret de ${s.player.firstName} ? Il devra en proposer un autre.`)) patch(s.id, { status: "REJECTED" });
+              }}
             >
-              🗑️ Rejeter
+              ❌ Refuser
             </button>
             <SecretHistoryButton secretId={s.id} />
           </div>
