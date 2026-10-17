@@ -53,7 +53,7 @@ async function runNightlyJob(req: Request) {
     const unpublished = gameEnded
       ? []
       : await prisma.secret.findMany({
-          where: { status: "PUBLISHED", formationId },
+          where: { status: "PUBLISHED", formationId, isDecoy: false }, // pas de points pour un faux secret
           select: { playerId: true },
         });
 

@@ -21,7 +21,7 @@ export async function POST(_req: Request, { params }: Params) {
   }
 
   const unfound = await prisma.secret.findMany({
-    where: { status: "PUBLISHED", formationId },
+    where: { status: "PUBLISHED", formationId, isDecoy: false }, // un faux secret n'a pas d'auteur à récompenser
     select: { playerId: true, bonus: true },
   });
 

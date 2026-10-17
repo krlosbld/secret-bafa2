@@ -10,11 +10,18 @@ export async function GET() {
   const formation = await getGameFormation();
   if (!formation || (await gameClosedForCurrentPlayer())) return NextResponse.json({ players: [] });
 
-  // Tous les joueurs qui ont un secret validé (PUBLISHED ou FOUND), formation du cookie uniquement
+  // Participants de la session : stagiaires qui ont accepté de jouer, et membres de l'équipe qui
+  // jouent (secret validé) — jamais le maître du jeu ni les prénoms inventés des faux secrets, dont
+  // la présence (ou un décompte noms / secrets) trahirait les faux.
   const players = await prisma.player.findMany({
     where: {
       formationId: formation.id,
-      secret: { status: { in: ["PUBLISHED", "FOUND"] } },
+      isGameMaster: false,
+      NOT: { secret: { is: { isDecoy: true } } },
+      OR: [
+        { role: "STAGIAIRE", active: true, gameParticipation: "ACCEPTED" },
+        { secret: { is: { status: { in: ["PUBLISHED", "FOUND"] } } } },
+      ],
     },
     select: {
       id: true,
