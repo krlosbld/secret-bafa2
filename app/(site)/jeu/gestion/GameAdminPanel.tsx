@@ -65,7 +65,17 @@ export default async function GameAdminPanel({
       },
     }),
     prisma.player.findMany({
-      where: { formationId, OR: [{ role: "STAGIAIRE" }, { secret: { isNot: null } }] },
+      // Joueurs : les stagiaires qui ont accepté de jouer, et l'équipe qui joue (avec un vrai secret).
+      // Pas les stagiaires sans réponse ou qui ont refusé, ni le maître du jeu, ni les faux secrets.
+      where: {
+        formationId,
+        isGameMaster: false,
+        NOT: { secret: { is: { isDecoy: true } } },
+        OR: [
+          { role: "STAGIAIRE", active: true, gameParticipation: "ACCEPTED" },
+          { role: { not: "STAGIAIRE" }, secret: { isNot: null } },
+        ],
+      },
       orderBy: { firstName: "asc" },
       select: {
         id: true,
