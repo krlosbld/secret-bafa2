@@ -24,21 +24,26 @@ export default function DirectorGameControls({
   launchedAt,
   ended,
   gameMaster,
+  selfPlayerId = null,
   staff,
   defaults,
+  compact = false,
 }: {
   launched: boolean;
   launchedAt: string | null;
   ended: boolean;
   gameMaster: { id: string; firstName: string } | null;
+  selfPlayerId?: string | null; // le directeur : maître du jeu proposé par défaut
   staff: Staff[];
   defaults: { buzzQuota: number; rules: Record<string, boolean> };
+  compact?: boolean; // onglet Jeu, jeu lancé : une seule ligne « Maître du jeu : X · Changer »
 }) {
   const router = useRouter();
   const [dialog, setDialog] = useState<"launch" | "master" | null>(null);
   const [quota, setQuota] = useState(defaults.buzzQuota);
   const [rules, setRules] = useState(defaults.rules);
-  const [master, setMaster] = useState<string>(gameMaster?.id ?? "");
+  const defaultMaster = gameMaster?.id ?? (selfPlayerId && staff.some((s) => s.playerId === selfPlayerId) ? selfPlayerId : "");
+  const [master, setMaster] = useState<string>(defaultMaster);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const masterName = (id: string) => staff.find((s) => s.playerId === id)?.name ?? gameMaster?.firstName ?? "?";
@@ -96,10 +101,21 @@ export default function DirectorGameControls({
               Au lancement, tu règles le jeu et tu choisis le maître du jeu. Chaque stagiaire est ensuite invité à participer.
             </p>
           </div>
-          <button className="btn btn-main" style={{ fontSize: 15, padding: "10px 18px" }} onClick={() => setDialog("launch")}>
+          <button className="btn btn-main" style={{ fontSize: 15, padding: "10px 18px" }} onClick={() => { setMaster(defaultMaster); setError(null); setDialog("launch"); }}>
             🚀 Lancer le jeu
           </button>
         </div>
+      ) : compact ? (
+        <p style={{ margin: "0 0 16px", fontSize: 14, color: "#64748b" }}>
+          🎭 Maître du jeu : <strong>{gameMaster?.firstName ?? "aucun"}</strong> ·{" "}
+          <button
+            type="button"
+            onClick={() => { setMaster(""); setError(null); setDialog("master"); }}
+            style={{ background: "none", border: "none", padding: 0, color: "#2c5d94", fontWeight: 700, cursor: "pointer", fontSize: 14 }}
+          >
+            Changer
+          </button>
+        </p>
       ) : (
         <div className="card" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
           <div>
@@ -144,7 +160,9 @@ export default function DirectorGameControls({
               )}
               {masterSelect}
               <p style={{ margin: 0, fontSize: 12, color: "#64748b" }}>
-                Le maître du jeu est le seul à voir les secrets, à les valider ou les refuser, et à régler le jeu. Il ne peut pas buzzer.
+                Le maître du jeu est le seul à voir les secrets, à les valider ou les refuser, et à régler le jeu ; il ne joue pas. Par
+                défaut c&apos;est toi : si tu choisis quelqu&apos;un d&apos;autre, tu deviens un joueur comme les autres (secret, buzz),
+                sans accès à la gestion du jeu.
               </p>
               {error && <p style={{ margin: 0, color: "#dc2626", fontWeight: 700, fontSize: 14 }}>{error}</p>}
               <div className="sb-actions">

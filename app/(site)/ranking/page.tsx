@@ -2,7 +2,7 @@ import { getGameFormation } from "@/lib/gameFormation";
 import SessionAccessGate from "@/components/SessionAccessGate";
 import RankingClient from "./RankingClient";
 import { redirect } from "next/navigation";
-import { gameClosedForCurrentPlayer } from "@/lib/gameAccess";
+import { gameClosedForCurrentPlayer, isGameLaunched } from "@/lib/gameAccess";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -13,6 +13,7 @@ export default async function RankingPage() {
     return <SessionAccessGate next="/ranking" title="Classement" />;
   }
   if (await gameClosedForCurrentPlayer()) redirect("/bafa");
+  if (!(await isGameLaunched(formation.id))) redirect("/jeu");
 
   return <RankingClient />;
 }

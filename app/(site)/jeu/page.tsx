@@ -10,6 +10,9 @@ import { redirect } from "next/navigation";
 import { gameClosedForCurrentPlayer, getGameState } from "@/lib/gameAccess";
 import { getPlayerSession } from "@/lib/playerAuth";
 import MySecretPanel, { type MySecretStatus } from "@/components/MySecretPanel";
+import DirectorGameControls from "./gestion/DirectorGameControls";
+import { loadDirectorControls } from "./gestion/directorControls";
+import { getSession, isSuperAdmin } from "@/lib/auth";
 
 export const metadata = { title: "BafaPilot 🤫" };
 
@@ -25,13 +28,35 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   }
   if (await gameClosedForCurrentPlayer()) redirect("/bafa");
 
-  // Où en est mon secret (joueur de la session) ; le maître du jeu, lui, n'en propose pas.
-  const [state, playerSession] = await Promise.all([getGameState(formation.id), getPlayerSession()]);
+  const [state, playerSession, adminSession] = await Promise.all([getGameState(formation.id), getPlayerSession(), getSession()]);
   const me = playerSession
-    ? await prisma.player.findUnique({ where: { id: playerSession.playerId }, select: { role: true, isGameMaster: true, secret: { select: { status: true } } } })
+    ? await prisma.player.findUnique({ where: { id: playerSession.playerId }, select: { id: true, role: true, isGameMaster: true, secret: { select: { status: true } } } })
     : null;
+  const isDirector = me?.role === "DIRECTEUR" || isSuperAdmin(adminSession);
+  // Bloc du directeur : « Lancer le jeu », puis la seule ligne « Maître du jeu : X · Changer ».
+  const directorControls = isDirector ? await loadDirectorControls(formation.id, state, me?.id ?? null) : null;
+
+  // Tant que le jeu n'est pas lancé, l'onglet Jeu ne montre que le lancement (directeur) ou un message.
+  if (!state.launched) {
+    return (
+      <main className="page">
+        <div className="container">
+          <h1 className="h1">Jeu des secrets 🤫</h1>
+          {directorControls ? (
+            <DirectorGameControls {...directorControls} />
+          ) : (
+            <div className="card" style={{ marginTop: 16, fontWeight: 700, color: "#475569" }}>
+              Le Jeu des secrets n&apos;a pas encore été lancé par le directeur de la session.
+            </div>
+          )}
+        </div>
+      </main>
+    );
+  }
+
+  // Où en est mon secret : tout joueur (stagiaire, formateur, directeur) sauf le maître du jeu.
   const myStatus = (me?.secret?.status ?? "NONE") as MySecretStatus;
-  const showMySecret = state.launched && !state.ended && !!me && !me.isGameMaster && me.role !== "DIRECTEUR";
+  const showMySecret = !state.ended && !!me && !me.isGameMaster;
 
   const [allSecrets, historyRevealConfig] = await Promise.all([
     prisma.secret.findMany({
@@ -89,11 +114,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
               : "Cette formation est terminée — lecture seule, plus de nouveaux secrets ni de buzz possibles."}
           </div>
         )}
-        {!state.launched && (
-          <div className="card" style={{ marginBottom: 20, fontWeight: 700, color: "#475569" }}>
-            Le Jeu des secrets n&apos;a pas encore été lancé par le directeur de la session.
-          </div>
-        )}
+        {directorControls && <DirectorGameControls {...directorControls} compact />}
         {showMySecret && <MySecretPanel status={myStatus} autoOpen={proposer === "1"} />}
         <SecretsClient initial={secrets} historyRevealEnabled={historyRevealEnabled} />
       </div>

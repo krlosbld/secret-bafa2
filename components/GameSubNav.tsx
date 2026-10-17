@@ -4,13 +4,22 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import NavSubmitButton from "@/components/NavSubmitButton";
 
-// Sous-barre de l'onglet Jeu (Secret BAFA) : tout ce qui concerne le jeu des secrets, et seulement là.
-export default function GameSubNav({ canManage = false }: { canManage?: boolean }) {
+// Sous-barre de l'onglet Jeu (Secret BAFA) : Secrets · Classement · Gestion du jeu (maître du jeu).
+// Rien tant que le jeu n'est pas lancé : l'onglet Jeu ne montre alors que « Lancer le jeu ».
+export default function GameSubNav({
+  launched = false,
+  canManage = false,
+  canPropose = true,
+}: {
+  launched?: boolean;
+  canManage?: boolean;
+  canPropose?: boolean;
+}) {
   const pathname = usePathname() ?? "";
   const onManage = pathname.startsWith("/jeu/gestion");
   const onSecrets = pathname.startsWith("/jeu") && !onManage;
   const onRanking = pathname.startsWith("/ranking");
-  if (!onSecrets && !onRanking && !onManage) return null;
+  if (!launched || (!onSecrets && !onRanking && !onManage)) return null;
 
   return (
     <div className="game-subnav">
@@ -28,7 +37,7 @@ export default function GameSubNav({ canManage = false }: { canManage?: boolean 
               ⚙️ Gestion du jeu
             </Link>
           )}
-          <NavSubmitButton />
+          {canPropose && <NavSubmitButton />}
         </div>
       </div>
     </div>

@@ -82,9 +82,9 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Connecte-toi avec ton compte BafaPilot pour buzzer." }, { status: 401 });
     }
 
-    // Le maître du jeu (directeur, ou formateur délégué) a accès à l'administration des secrets —
-    // il ne peut pas buzzer, même s'il a lui-même un secret, pour ne pas profiter de sa vision d'admin.
-    if (player.role === "DIRECTEUR" || player.isGameMaster) {
+    // Le maître du jeu voit tous les secrets : il ne peut pas buzzer. Un directeur qui a confié le
+    // rôle à quelqu'un d'autre est un joueur comme les autres.
+    if (player.isGameMaster) {
       return NextResponse.json(
         { error: "En tant que maître du jeu, tu ne peux pas buzzer." },
         { status: 403 }

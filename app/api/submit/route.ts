@@ -34,10 +34,13 @@ export async function POST(req: Request) {
     const formation = await getFormationFromCookie();
     const playerSession = await getPlayerSession();
     const player = playerSession
-      ? await prisma.player.findUnique({ where: { id: playerSession.playerId }, select: { id: true, formationId: true } })
+      ? await prisma.player.findUnique({ where: { id: playerSession.playerId }, select: { id: true, formationId: true, isGameMaster: true } })
       : null;
     if (!formation || !player || player.formationId !== formation.id) {
       return NextResponse.json({ ok: false, message: "Connecte-toi avec ton compte BafaPilot pour ajouter ton secret." }, { status: 401 });
+    }
+    if (player.isGameMaster) {
+      return NextResponse.json({ ok: false, message: "Le maître du jeu ne propose pas de secret : il les valide." }, { status: 403 });
     }
     if (!(await isGameLaunched(formation.id))) {
       return NextResponse.json({ ok: false, message: "Le jeu n'a pas encore été lancé par le directeur." }, { status: 403 });

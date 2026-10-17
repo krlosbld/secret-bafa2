@@ -8,15 +8,21 @@ import GameInvitationGate from "@/components/GameInvitationGate";
 import { prisma } from "@/lib/prisma";
 import { getSession, isSuperAdmin } from "@/lib/auth";
 import { getPlayerSession } from "@/lib/playerAuth";
+import { getGameFormation } from "@/lib/gameFormation";
+import { isGameLaunched } from "@/lib/gameAccess";
 
-// Lien « Gestion du jeu » : super-admin, directeur de la session ouverte (lancement, maître du jeu),
-// maître du jeu désigné (administration du jeu).
-async function canManageGame(): Promise<boolean> {
-  if (isSuperAdmin(await getSession())) return true;
+// Barre du jeu de la session ouverte : affichée une fois le jeu lancé ; « Gestion du jeu » pour le
+// maître du jeu désigné (et le super-admin), « Ajouter mon secret » pour les joueurs.
+async function gameNav(): Promise<{ launched: boolean; canManage: boolean; canPropose: boolean }> {
+  const formation = await getGameFormation();
+  if (!formation) return { launched: false, canManage: false, canPropose: false };
+  const launched = await isGameLaunched(formation.id);
+  if (isSuperAdmin(await getSession())) return { launched, canManage: true, canPropose: false };
   const playerSession = await getPlayerSession();
-  if (!playerSession) return false;
-  const player = await prisma.player.findUnique({ where: { id: playerSession.playerId }, select: { role: true, isGameMaster: true } });
-  return player?.role === "DIRECTEUR" || !!player?.isGameMaster;
+  const player = playerSession
+    ? await prisma.player.findUnique({ where: { id: playerSession.playerId }, select: { isGameMaster: true } })
+    : null;
+  return { launched, canManage: !!player?.isGameMaster, canPropose: !player?.isGameMaster };
 }
 
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {
@@ -24,7 +30,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
     <>
       <ImpersonationBanner />
       <AppNav />
-      <GameSubNav canManage={await canManageGame()} />
+      <GameSubNav {...await gameNav()} />
       {children}
       <RulesModal />
       <PersonalNoteGate />
