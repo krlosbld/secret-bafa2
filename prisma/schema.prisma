@@ -111,10 +111,13 @@ model Player {
   buzzCount             Int               @default(0)
   buzzQuotaOverride     Int? // null = utilise le quota de la formation
   isGameMaster          Boolean           @default(false) // maître du jeu de la session (un seul, désigné par le directeur) : administre le jeu, ne peut pas buzzer
-  // Participation d'un stagiaire au Jeu des secrets de cette session, demandée après le lancement :
-  // null = pas encore répondu, ACCEPTED, DECLINED (refus définitif pour cette session).
+  // Participation d'un stagiaire au Jeu des secrets de cette session, demandée pendant les inscriptions :
+  // null = invité (pas encore répondu), ACCEPTED, DECLINED (refus définitif), EXCLUDED (exclu par le
+  // maître du jeu pendant les inscriptions), EXPIRED (aucune proposition dans les 24 h après acceptation).
   gameParticipation     String?
-  gameParticipationAt   DateTime?
+  gameParticipationAt   DateTime? // date de la réponse (acceptation ou refus)
+  gameExitAt            DateTime? // exclusion ou expiration
+  gameExitBy            String? // qui a exclu (libellé), ou « expiration automatique »
   createdAt             DateTime          @default(now())
   formation             Formation         @relation(fields: [formationId], references: [id], onDelete: Cascade)
   directorAccount       DirectorAccount?  @relation(fields: [directorAccountId], references: [id])
@@ -294,7 +297,7 @@ model Secret {
   playerId                 String            @unique
   content                  String
   bonus                    Int               @default(1)
-  status                   String            @default("PENDING") // PENDING | PUBLISHED (validé) | FOUND | REJECTED (refusé : le joueur en propose un autre)
+  status                   String            @default("PENDING") // PENDING | PUBLISHED (validé) | FOUND | REJECTED (refusé : le joueur en propose un autre) | WITHDRAWN (participant exclu : conservé, hors jeu)
   flagged                  Boolean           @default(false)
   isDecoy                  Boolean           @default(false) // faux secret créé par l'admin, sans vrai joueur derrière
   limitedVisibility        Boolean           @default(false)
@@ -319,6 +322,7 @@ model SecretRejection {
   secretId   String
   content    String
   bonus      Int
+  reason     String? // motif du refus, communiqué au joueur (obligatoire depuis octobre 2026)
   rejectedBy String? // libellé de la personne qui a refusé
   rejectedAt DateTime @default(now())
   secret     Secret   @relation(fields: [secretId], references: [id], onDelete: Cascade)

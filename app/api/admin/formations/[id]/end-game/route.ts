@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { getGameStatus } from "@/lib/gameAccess";
 import { prisma } from "@/lib/prisma";
 import { getGameAdminAuth } from "@/lib/gameAdminAuth";
 
@@ -18,6 +19,9 @@ export async function POST(_req: Request, { params }: Params) {
   });
   if (existing?.value === "true") {
     return NextResponse.json({ error: "Le jeu est déjà terminé." }, { status: 400 });
+  }
+  if ((await getGameStatus(formationId)) !== "en_cours") {
+    return NextResponse.json({ error: "La partie n'a pas commencé : il n'y a rien à terminer." }, { status: 409 });
   }
 
   const unfound = await prisma.secret.findMany({

@@ -9,20 +9,23 @@ import { prisma } from "@/lib/prisma";
 import { getSession, isSuperAdmin } from "@/lib/auth";
 import { getPlayerSession } from "@/lib/playerAuth";
 import { getGameFormation } from "@/lib/gameFormation";
-import { isGameLaunched } from "@/lib/gameAccess";
+import { currentActivePlayer, getGameStatus } from "@/lib/gameAccess";
 
-// Barre du jeu de la session ouverte : affichée une fois le jeu lancé ; « Gestion du jeu » pour le
-// maître du jeu désigné (et le super-admin), « Ajouter mon secret » pour les joueurs.
-async function gameNav(): Promise<{ launched: boolean; canManage: boolean; canPropose: boolean }> {
+// Barre du jeu de la session ouverte : affichée une fois les inscriptions lancées ; « Classement »
+// dès que la partie a commencé ; « Gestion du jeu » pour le maître du jeu (et le super-admin) ;
+// « Ajouter mon secret » pour un participant, pendant les inscriptions.
+async function gameNav(): Promise<{ launched: boolean; showRanking: boolean; canManage: boolean; canPropose: boolean }> {
   const formation = await getGameFormation();
-  if (!formation) return { launched: false, canManage: false, canPropose: false };
-  const launched = await isGameLaunched(formation.id);
-  if (isSuperAdmin(await getSession())) return { launched, canManage: true, canPropose: false };
+  if (!formation) return { launched: false, showRanking: false, canManage: false, canPropose: false };
+  const status = await getGameStatus(formation.id);
+  const base = { launched: status !== "non_configure", showRanking: status === "en_cours" || status === "termine" };
+  if (isSuperAdmin(await getSession())) return { ...base, canManage: true, canPropose: false };
   const playerSession = await getPlayerSession();
   const player = playerSession
     ? await prisma.player.findUnique({ where: { id: playerSession.playerId }, select: { isGameMaster: true } })
     : null;
-  return { launched, canManage: !!player?.isGameMaster, canPropose: !player?.isGameMaster };
+  const active = status === "inscriptions_ouvertes" ? await currentActivePlayer() : null;
+  return { ...base, canManage: !!player?.isGameMaster, canPropose: !!active };
 }
 
 export default async function SiteLayout({ children }: { children: React.ReactNode }) {

@@ -28,7 +28,7 @@ export default async function AppNav() {
   if (user && !isSuperAdmin) {
     const playerSession = await getPlayerSession();
     const [player, sessionCount] = await Promise.all([
-      playerSession ? prisma.player.findUnique({ where: { id: playerSession.playerId }, select: { role: true, formationId: true, gameParticipation: true } }) : null,
+      playerSession ? prisma.player.findUnique({ where: { id: playerSession.playerId }, select: { id: true, role: true, formationId: true, gameParticipation: true } }) : null,
       prisma.formationMember.count({ where: { userId: user.id } }),
     ]);
     trainee = player?.role === "STAGIAIRE";

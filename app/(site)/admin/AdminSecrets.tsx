@@ -31,6 +31,8 @@ export function AdminSecretsPending({ secrets }: { secrets: Secret[] }) {
   const [showDecoyForm, setShowDecoyForm] = useState(false);
   const [decoyProposal, setDecoyProposal] = useState<{ firstName: string; content: string; source?: string; original?: string } | null>(null);
   const [decoyPoints, setDecoyPoints] = useState(3);
+  const [refusingId, setRefusingId] = useState<string | null>(null); // refus en cours : motif à saisir
+  const [refuseReason, setRefuseReason] = useState("");
   const [decoyError, setDecoyError] = useState("");
   const [generatingDecoy, setGeneratingDecoy] = useState(false);
   const [creatingDecoy, setCreatingDecoy] = useState(false);
@@ -310,13 +312,46 @@ export function AdminSecretsPending({ secrets }: { secrets: Secret[] }) {
               className="btn btn-danger"
               disabled={loading === s.id}
               onClick={() => {
-                if (confirm(s.isDecoy ? "Refuser ce faux secret ?" : `Refuser le secret de ${s.player.firstName} ? Il devra en proposer un autre.`)) patch(s.id, { status: "REJECTED" });
+                setRefusingId(refusingId === s.id ? null : s.id);
+                setRefuseReason("");
               }}
             >
               ❌ Refuser
             </button>
             <SecretHistoryButton secretId={s.id} />
           </div>
+          {refusingId === s.id && (
+            <div style={{ marginTop: 10, display: "flex", flexDirection: "column", gap: 8 }}>
+              <label className="sb-field" style={{ margin: 0 }}>
+                <span>
+                  Motif du refus {s.isDecoy ? "(facultatif)" : "— obligatoire, transmis à " + s.player.firstName}
+                </span>
+                <textarea
+                  value={refuseReason}
+                  onChange={(e) => setRefuseReason(e.target.value)}
+                  rows={2}
+                  maxLength={500}
+                  placeholder="Ex. : trop facile à deviner, il cite un lieu de la session…"
+                  autoFocus
+                />
+              </label>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn btn-ghost" onClick={() => setRefusingId(null)}>
+                  Annuler
+                </button>
+                <button
+                  className="btn btn-danger"
+                  disabled={loading === s.id || (!s.isDecoy && !refuseReason.trim())}
+                  onClick={async () => {
+                    await patch(s.id, { status: "REJECTED", reason: refuseReason.trim() });
+                    setRefusingId(null);
+                  }}
+                >
+                  Confirmer le refus
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       ))}
     </div>

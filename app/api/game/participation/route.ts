@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { readJsonBody } from "@/lib/requestGuard";
 import { getPlayerSession } from "@/lib/playerAuth";
-import { getGameState } from "@/lib/gameAccess";
+import { getGameStatus } from "@/lib/gameAccess";
 
 export const runtime = "nodejs";
 
@@ -20,8 +20,9 @@ export async function POST(req: Request) {
     : null;
   if (!player || player.role !== "STAGIAIRE") return NextResponse.json({ error: "Réservé aux stagiaires de la session." }, { status: 403 });
 
-  const state = await getGameState(player.formationId);
-  if (!state.launched || state.ended) return NextResponse.json({ error: "Le jeu n'est pas ouvert aux inscriptions." }, { status: 409 });
+  const status = await getGameStatus(player.formationId);
+  if (status === "en_cours") return NextResponse.json({ error: "La partie est déjà en cours. Tu ne peux plus la rejoindre." }, { status: 409 });
+  if (status !== "inscriptions_ouvertes") return NextResponse.json({ error: "Le jeu n'est pas ouvert aux inscriptions." }, { status: 409 });
 
   // Mise à jour conditionnelle : seule la première réponse compte, même en cas de double clic.
   const done = await prisma.player.updateMany({

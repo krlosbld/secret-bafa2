@@ -67,4 +67,6 @@ export const AUDIT_LABELS: Record<string, string> = {
   TEAM_INVITE_REVOKED: "Invitation d'équipe annulée",
   GAME_LAUNCHED: "Jeu des secrets lancé",
   GAME_MASTER_CHANGED: "Maître du jeu changé",
+  GAME_STARTED: "Partie du Jeu des secrets commencée",
+  GAME_PARTICIPANT_EXCLUDED: "Participant exclu du Jeu des secrets",
 };

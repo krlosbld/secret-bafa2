@@ -7,7 +7,7 @@ import SessionAccessGate from "@/components/SessionAccessGate";
 import FakeSecretAnnouncement from "@/components/FakeSecretAnnouncement";
 import SecretsClient from "../SecretsClient";
 import { redirect } from "next/navigation";
-import { gameClosedForCurrentPlayer, getGameState } from "@/lib/gameAccess";
+import { currentActivePlayer, gameClosedForCurrentPlayer, getGameState, PROPOSAL_DELAY_MS } from "@/lib/gameAccess";
 import { getPlayerSession } from "@/lib/playerAuth";
 import MySecretPanel, { type MySecretStatus } from "@/components/MySecretPanel";
 import DirectorGameControls from "./gestion/DirectorGameControls";
@@ -19,25 +19,38 @@ export const metadata = { title: "BafaPilot 🤫" };
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
+const PHASE_TEXT = {
+  inscriptions_ouvertes: "Inscriptions en cours : les secrets seront visibles et les buzz ouverts quand le maître du jeu commencera la partie.",
+  en_cours: "Lis les secrets et devine à qui ils appartiennent. Buzze pour tenter ta chance !",
+  termine: "La partie est terminée : voici les résultats définitifs et les auteurs des secrets.",
+} as const;
+
+// Onglet Jeu, selon la phase :
+// - non configuré : le directeur voit « Lancer le jeu », les autres un message ;
+// - inscriptions : le participant suit sa proposition de secret ; aucun secret n'est visible ;
+// - en cours : secrets validés visibles (sans auteur), buzz pour les participants ;
+// - terminé : résultats, auteurs révélés.
 export default async function HomePage({ searchParams }: { searchParams: Promise<{ proposer?: string }> }) {
   const { proposer } = await searchParams;
-  // Tout passe par le compte : membre de la session ouverte (ou admin), sinon écran d'accès.
   const formation = await getGameFormation();
   if (!formation) {
     return <SessionAccessGate next="/jeu" title="Secret BAFA 🤫" />;
   }
   if (await gameClosedForCurrentPlayer()) redirect("/bafa");
 
-  const [state, playerSession, adminSession] = await Promise.all([getGameState(formation.id), getPlayerSession(), getSession()]);
+  const [state, playerSession, adminSession, active] = await Promise.all([
+    getGameState(formation.id),
+    getPlayerSession(),
+    getSession(),
+    currentActivePlayer(),
+  ]);
   const me = playerSession
-    ? await prisma.player.findUnique({ where: { id: playerSession.playerId }, select: { id: true, role: true, isGameMaster: true, secret: { select: { status: true } } } })
+    ? await prisma.player.findUnique({ where: { id: playerSession.playerId }, select: { id: true, role: true, isGameMaster: true } })
     : null;
   const isDirector = me?.role === "DIRECTEUR" || isSuperAdmin(adminSession);
-  // Bloc du directeur : « Lancer le jeu », puis la seule ligne « Maître du jeu : X · Changer ».
   const directorControls = isDirector ? await loadDirectorControls(formation.id, state, me?.id ?? null) : null;
 
-  // Tant que le jeu n'est pas lancé, l'onglet Jeu ne montre que le lancement (directeur) ou un message.
-  if (!state.launched) {
+  if (state.status === "non_configure") {
     return (
       <main className="page">
         <div className="container">
@@ -54,49 +67,62 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
     );
   }
 
-  // Où en est mon secret : tout joueur (stagiaire, formateur, directeur) sauf le maître du jeu.
-  const myStatus = (me?.secret?.status ?? "NONE") as MySecretStatus;
-  const showMySecret = !state.ended && !!me && !me.isGameMaster;
-
-  const [allSecrets, historyRevealConfig] = await Promise.all([
-    prisma.secret.findMany({
-      where: { status: { in: ["PUBLISHED", "FOUND"] }, formationId: formation.id },
+  // Ma proposition (participant) : statut, délai de 24 h, motif du dernier refus.
+  let mySecret: { status: MySecretStatus; deadline: string | null; reason: string | null } | null = null;
+  if (active) {
+    const row = await prisma.player.findUnique({
+      where: { id: active.id },
       select: {
-        id: true,
-        content: true,
-        status: true,
-        bonus: true,
-        isDecoy: true,
-        limitedVisibility: true,
-        limitedVisibilitySince: true,
-        limitedVisibilityMinutes: true,
-        player: { select: { firstName: true } },
-        foundBy: { select: { firstName: true } },
+        gameParticipationAt: true,
+        secret: { select: { status: true, rejections: { orderBy: { rejectedAt: "desc" }, take: 1, select: { reason: true } } } },
       },
-      orderBy: { createdAt: "asc" },
-    }),
-    prisma.config.findUnique({ where: { formationId_key: { formationId: formation.id, key: "rule_paidSecretHistory" } } }),
-  ]);
+    });
+    mySecret = {
+      status: (row?.secret?.status ?? "NONE") as MySecretStatus,
+      deadline: !row?.secret && row?.gameParticipationAt ? new Date(row.gameParticipationAt.getTime() + PROPOSAL_DELAY_MS).toISOString() : null,
+      reason: row?.secret?.status === "REJECTED" ? row.secret.rejections[0]?.reason ?? null : null,
+    };
+  }
+
+  const showSecrets = state.status === "en_cours" || state.status === "termine";
+  const [allSecrets, historyRevealConfig] = showSecrets
+    ? await Promise.all([
+        prisma.secret.findMany({
+          where: { status: { in: ["PUBLISHED", "FOUND"] }, formationId: formation.id },
+          select: {
+            id: true,
+            content: true,
+            status: true,
+            bonus: true,
+            isDecoy: true,
+            limitedVisibility: true,
+            limitedVisibilitySince: true,
+            limitedVisibilityMinutes: true,
+            player: { select: { firstName: true } },
+            foundBy: { select: { firstName: true } },
+          },
+          orderBy: { createdAt: "asc" },
+        }),
+        prisma.config.findUnique({ where: { formationId_key: { formationId: formation.id, key: "rule_paidSecretHistory" } } }),
+      ])
+    : [[], null];
   const historyRevealEnabled = historyRevealConfig?.value === "true";
   // isDecoy ne doit jamais atteindre le client (ça révélerait quels secrets sont faux) — on ne
-  // garde que le coût déjà calculé pour la révélation payante.
-  // L'auteur n'est envoyé qu'une fois le secret trouvé : sinon n'importe quel joueur le lirait dans
-  // les données reçues par son navigateur.
+  // garde que le coût déjà calculé pour la révélation payante. L'auteur n'est envoyé qu'une fois le
+  // secret trouvé, ou quand la partie est terminée.
   const secrets = allSecrets.filter(isSecretCurrentlyVisible).map(({ isDecoy, player, ...s }) => ({
     ...s,
-    player: s.status === "FOUND" ? player : null,
+    player: s.status === "FOUND" || state.status === "termine" ? (isDecoy ? { firstName: "🎭 faux secret" } : player) : null,
     revealCost: historyRevealCost({ bonus: s.bonus, isDecoy }),
   }));
 
   return (
     <main className="page">
-      <FakeSecretAnnouncement />
+      {state.status === "en_cours" && <FakeSecretAnnouncement />}
       <div className="container">
         <h1 className="h1">BafaPilot 🤫</h1>
-        <p className="sub">
-          Lis les secrets et devine à qui ils appartiennent. Buzze pour tenter ta chance !
-        </p>
-        {!formation.active && (
+        <p className="sub">{PHASE_TEXT[state.status]}</p>
+        {!formation.active && state.status === "en_cours" && (
           <div
             style={{
               background: "#fffbeb",
@@ -115,8 +141,23 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           </div>
         )}
         {directorControls && <DirectorGameControls {...directorControls} compact />}
-        {showMySecret && <MySecretPanel status={myStatus} autoOpen={proposer === "1"} />}
-        <SecretsClient initial={secrets} historyRevealEnabled={historyRevealEnabled} />
+        {mySecret && state.status !== "termine" && (
+          <MySecretPanel
+            status={mySecret.status}
+            phase={state.status}
+            deadline={mySecret.deadline}
+            reason={mySecret.reason}
+            autoOpen={proposer === "1"}
+          />
+        )}
+        {state.status === "inscriptions_ouvertes" && !mySecret && (
+          <div className="card" style={{ fontWeight: 700, color: "#475569" }}>
+            {me?.isGameMaster
+              ? "Inscriptions en cours : suis les participants et valide leurs secrets dans « Gestion du jeu »."
+              : "Inscriptions en cours : la partie n'a pas encore commencé."}
+          </div>
+        )}
+        {showSecrets && <SecretsClient initial={secrets} historyRevealEnabled={historyRevealEnabled} canPlay={!!active && state.status === "en_cours"} />}
       </div>
     </main>
   );

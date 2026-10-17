@@ -13,7 +13,7 @@ export async function PATCH(req: Request, { params }: Params) {
   if (!auth.ok) return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
 
   const { id } = await params;
-  const secret = await prisma.secret.findUnique({ where: { id }, select: { formationId: true, status: true, content: true, bonus: true } });
+  const secret = await prisma.secret.findUnique({ where: { id }, select: { formationId: true, status: true, content: true, bonus: true, isDecoy: true } });
   if (!secret) return NextResponse.json({ error: "Introuvable." }, { status: 404 });
   if (auth.formationId && secret.formationId !== auth.formationId) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
@@ -25,10 +25,12 @@ export async function PATCH(req: Request, { params }: Params) {
   // Refus d'une proposition : l'auteur pourra en proposer une autre ; la proposition refusée est gardée.
   if (body.status === "REJECTED") {
     if (secret.status !== "PENDING") return NextResponse.json({ error: "Seul un secret en attente peut être refusé." }, { status: 409 });
+    const reason = typeof body.reason === "string" ? body.reason.trim().slice(0, 500) : "";
+    if (!reason && !secret.isDecoy) return NextResponse.json({ error: "Indique le motif du refus : il sera transmis au joueur." }, { status: 400 });
     const master = await getGameMasterAuth();
     await prisma.$transaction([
       prisma.secretRejection.create({
-        data: { secretId: id, content: secret.content, bonus: secret.bonus, rejectedBy: master.ok ? master.label : null },
+        data: { secretId: id, content: secret.content, bonus: secret.bonus, reason: reason || null, rejectedBy: master.ok ? master.label : null },
       }),
       prisma.secret.update({ where: { id }, data: { status: "REJECTED", limitedVisibility: false } }),
     ]);

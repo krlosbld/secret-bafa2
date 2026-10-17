@@ -4,21 +4,34 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import SubmitSecretModal from "@/components/SubmitSecretModal";
 
-// « Mon secret » (onglet Jeu) : où en est sa proposition — en attente, validée, trouvée ou refusée —
-// et, si besoin, la fenêtre pour en proposer une (ouverte d'office juste après avoir accepté de jouer).
+// « Mon secret » (onglet Jeu, participant) : où en est sa proposition — à envoyer (avec le délai de
+// 24 h), en attente, validée, trouvée ou refusée (avec le motif) — et la fenêtre pour proposer,
+// ouverte d'office juste après avoir accepté de jouer.
 export type MySecretStatus = "NONE" | "PENDING" | "PUBLISHED" | "FOUND" | "REJECTED";
 
-const TEXT: Record<MySecretStatus, { icon: string; title: string; text: string; tone: string }> = {
-  NONE: { icon: "✍️", title: "Propose ton secret", text: "Écris un secret sur toi : le maître du jeu le validera avant qu'il entre dans le jeu.", tone: "#1e3a5f" },
-  PENDING: { icon: "⏳", title: "Ton secret est en attente de validation", text: "Le maître du jeu va le lire. Tu seras fixé à ta prochaine visite.", tone: "#b45309" },
-  PUBLISHED: { icon: "✅", title: "Ton secret a été validé", text: "Il est en jeu : aux autres de deviner qu'il est à toi !", tone: "#15803d" },
-  FOUND: { icon: "🎯", title: "Ton secret a été trouvé", text: "Quelqu'un a deviné qu'il était à toi.", tone: "#15803d" },
-  REJECTED: { icon: "❌", title: "Ton précédent secret n'a pas été accepté", text: "Propose un autre secret : il repassera par la validation du maître du jeu.", tone: "#b91c1c" },
-};
+function timeLeft(deadline: string): string {
+  const ms = new Date(deadline).getTime() - Date.now();
+  if (ms <= 0) return "le délai est dépassé";
+  const h = Math.floor(ms / 3600000);
+  const m = Math.floor((ms % 3600000) / 60000);
+  return h > 0 ? `il te reste ${h} h ${String(m).padStart(2, "0")}` : `il te reste ${m} min`;
+}
 
-export default function MySecretPanel({ status, autoOpen }: { status: MySecretStatus; autoOpen: boolean }) {
+export default function MySecretPanel({
+  status,
+  phase,
+  deadline,
+  reason,
+  autoOpen,
+}: {
+  status: MySecretStatus;
+  phase: "inscriptions_ouvertes" | "en_cours" | "termine";
+  deadline: string | null; // fin des 24 h pour une première proposition
+  reason: string | null; // motif du dernier refus
+  autoOpen: boolean;
+}) {
   const router = useRouter();
-  const canPropose = status === "NONE" || status === "REJECTED";
+  const canPropose = phase === "inscriptions_ouvertes" && (status === "NONE" || status === "REJECTED");
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -33,7 +46,30 @@ export default function MySecretPanel({ status, autoOpen }: { status: MySecretSt
     return () => clearInterval(id);
   }, [autoOpen, canPropose]);
 
-  const t = TEXT[status];
+  const waitingStart = phase === "inscriptions_ouvertes";
+  const t: { icon: string; title: string; text: string; tone: string } = {
+    NONE: {
+      icon: "✍️",
+      title: "Propose ton secret",
+      text: `Écris un secret sur toi : le maître du jeu le validera.${deadline ? ` Pour rester dans la partie, envoie-le dans les 24 h suivant ton inscription — ${timeLeft(deadline)}.` : ""}`,
+      tone: "#1e3a5f",
+    },
+    PENDING: { icon: "⏳", title: "Ton secret est en attente de validation", text: "Le maître du jeu va le lire. Tu seras fixé à ta prochaine visite.", tone: "#b45309" },
+    PUBLISHED: {
+      icon: "✅",
+      title: "Ton secret a été validé",
+      text: waitingStart ? "Il sera visible (sans ton nom) quand le maître du jeu commencera la partie." : "Il est en jeu : aux autres de deviner qu'il est à toi !",
+      tone: "#15803d",
+    },
+    FOUND: { icon: "🎯", title: "Ton secret a été trouvé", text: "Quelqu'un a deviné qu'il était à toi. Tu gardes tes points !", tone: "#15803d" },
+    REJECTED: {
+      icon: "❌",
+      title: "Ton précédent secret n'a pas été accepté",
+      text: "Propose un autre secret : il repassera par la validation du maître du jeu.",
+      tone: "#b91c1c",
+    },
+  }[status];
+
   return (
     <div className="card my-secret" style={{ borderLeftColor: t.tone, marginBottom: 20 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap", justifyContent: "space-between" }}>
@@ -43,7 +79,12 @@ export default function MySecretPanel({ status, autoOpen }: { status: MySecretSt
           </span>
           <div>
             <div style={{ fontWeight: 800, color: t.tone }}>{t.title}</div>
-            <div style={{ fontSize: 14, color: "#475569", marginTop: 2 }}>{t.text}</div>
+            {status === "REJECTED" && reason && (
+              <div style={{ fontSize: 14, color: "#7f1d1d", marginTop: 4, background: "#fef2f2", borderRadius: 8, padding: "6px 10px" }}>
+                <strong>Motif :</strong> {reason}
+              </div>
+            )}
+            <div style={{ fontSize: 14, color: "#475569", marginTop: 4 }}>{t.text}</div>
           </div>
         </div>
         {canPropose && (

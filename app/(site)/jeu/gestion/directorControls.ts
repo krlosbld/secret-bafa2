@@ -17,6 +17,7 @@ export async function loadDirectorControls(formationId: string, state: GameState
   const values = new Map(configRows.map((r) => [r.key, r.value]));
   return {
     launched: state.launched,
+    status: state.status,
     launchedAt: state.launchedAt,
     ended: state.ended,
     gameMaster: state.gameMaster,

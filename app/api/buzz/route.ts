@@ -5,7 +5,7 @@ import { resolveWinningBuzz, CLAIM_FAKE_GUESS_LABEL } from "@/lib/buzzResolution
 import { isSecretCurrentlyVisible } from "@/lib/secretVisibility";
 import { getFormationFromCookie, hasNotStartedYet } from "@/lib/formationSession";
 import { getPlayerSession } from "@/lib/playerAuth";
-import { gameClosedForCurrentPlayer } from "@/lib/gameAccess";
+import { currentActivePlayer, getGameStatus } from "@/lib/gameAccess";
 
 export const runtime = "nodejs";
 
@@ -25,8 +25,8 @@ function isWithinBuzzHours(): boolean {
 }
 
 export async function POST(req: Request) {
-  if (await gameClosedForCurrentPlayer()) {
-    return NextResponse.json({ ok: false, error: "Tu ne participes pas au Jeu des secrets de cette session." }, { status: 403 });
+  if (!(await currentActivePlayer())) {
+    return NextResponse.json({ ok: false, error: "Seuls les participants au Jeu des secrets peuvent buzzer." }, { status: 403 });
   }
   try {
     if (!isWithinBuzzHours()) {
@@ -70,6 +70,9 @@ export async function POST(req: Request) {
     if (gameEndedConfig?.value === "true") {
       return NextResponse.json({ error: "Le jeu est terminé, il n'est plus possible de buzzer." }, { status: 403 });
     }
+    if ((await getGameStatus(formationId)) !== "en_cours") {
+      return NextResponse.json({ error: "La partie n'a pas encore commencé : les buzz seront possibles au démarrage." }, { status: 403 });
+    }
     if (buzzPausedConfig?.value === "true") {
       return NextResponse.json({ error: "Les buzz sont temporairement suspendus." }, { status: 403 });
     }
@@ -82,8 +85,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Connecte-toi avec ton compte BafaPilot pour buzzer." }, { status: 401 });
     }
 
-    // Le maître du jeu voit tous les secrets : il ne peut pas buzzer. Un directeur qui a confié le
-    // rôle à quelqu'un d'autre est un joueur comme les autres.
+    // Le maître du jeu voit tous les secrets : il ne peut pas buzzer (garde-fou, il n'est pas participant).
     if (player.isGameMaster) {
       return NextResponse.json(
         { error: "En tant que maître du jeu, tu ne peux pas buzzer." },

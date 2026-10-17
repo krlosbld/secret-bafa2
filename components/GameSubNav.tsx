@@ -8,10 +8,12 @@ import NavSubmitButton from "@/components/NavSubmitButton";
 // Rien tant que le jeu n'est pas lancé : l'onglet Jeu ne montre alors que « Lancer le jeu ».
 export default function GameSubNav({
   launched = false,
+  showRanking = false,
   canManage = false,
-  canPropose = true,
+  canPropose = false,
 }: {
   launched?: boolean;
+  showRanking?: boolean; // dès que la partie a commencé
   canManage?: boolean;
   canPropose?: boolean;
 }) {
@@ -29,9 +31,11 @@ export default function GameSubNav({
           <Link href="/jeu" className={`game-subnav__link${onSecrets ? " game-subnav__link--active" : ""}`}>
             Secrets
           </Link>
-          <Link href="/ranking" className={`game-subnav__link${onRanking ? " game-subnav__link--active" : ""}`}>
-            Classement
-          </Link>
+          {showRanking && (
+            <Link href="/ranking" className={`game-subnav__link${onRanking ? " game-subnav__link--active" : ""}`}>
+              Classement
+            </Link>
+          )}
           {canManage && (
             <Link href="/jeu/gestion" className={`game-subnav__link${onManage ? " game-subnav__link--active" : ""}`}>
               ⚙️ Gestion du jeu

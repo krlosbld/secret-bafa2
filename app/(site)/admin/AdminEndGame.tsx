@@ -21,7 +21,7 @@ export default function AdminEndGame({
   async function endGame() {
     if (
       !confirm(
-        "Terminer le jeu ? Il ne sera plus possible de buzzer. Les secrets encore non trouvés ne seront pas révélés, mais leur bonus + 10 points seront attribués à leur propriétaire. Cette action est irréversible."
+        "Terminer la partie ? Les buzz et les propositions seront fermés, chaque secret encore non trouvé rapporte son bonus + 10 points à son auteur, le classement devient définitif et les auteurs des secrets sont révélés. Cette action est irréversible."
       )
     )
       return;

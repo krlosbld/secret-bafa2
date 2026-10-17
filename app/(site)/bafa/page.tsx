@@ -7,7 +7,7 @@ import PlanningTab from "./PlanningTab";
 import PlanningSettings from "./PlanningSettings";
 import { getSessionPostes } from "@/lib/posteLibrary";
 import { getSessionCriteria } from "@/lib/sessionCriteria";
-import { getGameState } from "@/lib/gameAccess";
+import { currentActivePlayer, getGameStatus } from "@/lib/gameAccess";
 import { loadTeam } from "@/lib/team";
 import { getManagerActor } from "@/lib/adminActor";
 import { InviteByEmail } from "@/components/TeamManager";
@@ -793,12 +793,15 @@ export default async function BafaPage({
     const [home, account, gameState, me] = await Promise.all([
       loadTraineeHome(playerSession!.playerId, formationId),
       getVerifiedUser(),
-      getGameState(formationId),
-      prisma.player.findUnique({ where: { id: playerSession!.playerId }, select: { gameParticipation: true, secret: { select: { status: true } } } }),
+      getGameStatus(formationId),
+      currentActivePlayer(),
     ]);
-    // Jeu des secrets : l'état de son secret, seulement s'il participe au jeu en cours.
+    // Jeu des secrets : l'état de sa proposition, s'il participe (inscriptions ou partie en cours).
+    const mySecret = me ? await prisma.player.findUnique({ where: { id: me.id }, select: { secret: { select: { status: true } } } }) : null;
     const gameStatus =
-      gameState.launched && !gameState.ended && me?.gameParticipation === "ACCEPTED" ? me.secret?.status ?? "NONE" : null;
+      me && (gameState === "inscriptions_ouvertes" || gameState === "en_cours")
+        ? `${mySecret?.secret?.status ?? "NONE"}${gameState === "inscriptions_ouvertes" ? ":inscriptions" : ""}`
+        : null;
     return (
       <main className="page th-view">
         <div className="container">

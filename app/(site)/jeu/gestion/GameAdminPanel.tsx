@@ -1,4 +1,7 @@
 import { prisma } from "@/lib/prisma";
+import ParticipantsBoard from "./ParticipantsBoard";
+import { loadReadiness } from "@/lib/gameReadiness";
+import { getGameStatus } from "@/lib/gameAccess";
 import { AdminSecretsPending, AdminSecretsPublished } from "../../admin/AdminSecrets";
 import AdminBuzzPending from "../../admin/AdminBuzzPending";
 import AdminPlayers from "../../admin/AdminPlayers";
@@ -32,7 +35,7 @@ export default async function GameAdminPanel({
   canReset?: boolean;
   canManageIdentity?: boolean;
 }) {
-  const [pendingSecrets, publishedSecrets, pendingBuzzes, players, trainees, quotaConfig, lastNightlyRunConfig, gameEndedConfig, ruleRows, buzzPausedConfig] = await Promise.all([
+  const [pendingSecrets, publishedSecrets, pendingBuzzes, players, quotaConfig, lastNightlyRunConfig, gameEndedConfig, ruleRows, buzzPausedConfig] = await Promise.all([
     prisma.secret.findMany({
       where: { status: "PENDING", formationId },
       orderBy: { createdAt: "asc" },
@@ -88,11 +91,6 @@ export default async function GameAdminPanel({
         secret: { select: { status: true, content: true, bonus: true } },
       },
     }),
-    prisma.player.findMany({
-      where: { formationId, role: "STAGIAIRE", active: true }, // les leurres sont des fiches inactives
-      orderBy: { firstName: "asc" },
-      select: { firstName: true, gameParticipation: true, secret: { select: { status: true } } },
-    }),
     prisma.config.findUnique({ where: { formationId_key: { formationId, key: "buzzQuota" } } }),
     prisma.config.findUnique({ where: { formationId_key: { formationId, key: "lastNightlyRun" } } }),
     prisma.config.findUnique({ where: { formationId_key: { formationId, key: "gameEnded" } } }),
@@ -100,10 +98,7 @@ export default async function GameAdminPanel({
     prisma.config.findUnique({ where: { formationId_key: { formationId, key: "buzzPaused" } } }),
   ]);
 
-  const participating = trainees.filter((t) => t.gameParticipation === "ACCEPTED");
-  const declined = trainees.filter((t) => t.gameParticipation === "DECLINED");
-  const undecided = trainees.filter((t) => !t.gameParticipation);
-  const withoutSecret = participating.filter((t) => !t.secret || t.secret.status === "REJECTED");
+  const [readiness, status] = await Promise.all([loadReadiness(formationId), getGameStatus(formationId)]);
 
   const quota = Number(quotaConfig?.value ?? 3);
   const gameEnded = gameEndedConfig?.value === "true";
@@ -122,31 +117,15 @@ export default async function GameAdminPanel({
 
   return (
     <div>
-      <Section title="Participation des stagiaires">
-        <div className="card" style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 14 }}>
-          <div>
-            <strong>✅ {participating.length} participe{participating.length > 1 ? "nt" : ""}</strong>
-            {participating.length > 0 && <span style={{ color: "#64748b" }}> — {participating.map((t) => t.firstName).join(", ")}</span>}
-          </div>
-          {withoutSecret.length > 0 && (
-            <div style={{ color: "#92400e" }}>
-              ✍️ Pas encore de secret (ou secret refusé) : {withoutSecret.map((t) => t.firstName).join(", ")}
-            </div>
-          )}
-          <div>
-            <strong>🚫 {declined.length} {declined.length > 1 ? "ont" : "a"} refusé</strong>
-            {declined.length > 0 && <span style={{ color: "#64748b" }}> — {declined.map((t) => t.firstName).join(", ")}</span>}
-          </div>
-          <div>
-            <strong>⏳ {undecided.length} sans réponse</strong>
-            {undecided.length > 0 && <span style={{ color: "#64748b" }}> — {undecided.map((t) => t.firstName).join(", ")}</span>}
-          </div>
-        </div>
+      <Section title={status === "inscriptions_ouvertes" ? "Participants et démarrage de la partie" : "Participants"}>
+        <ParticipantsBoard status={status === "non_configure" ? "inscriptions_ouvertes" : status} participants={readiness.participants} />
       </Section>
 
-      <Section title="Fin du jeu">
-        <AdminEndGame formationId={formationId} gameEnded={gameEnded} initialBuzzPaused={buzzPaused} />
-      </Section>
+      {status !== "inscriptions_ouvertes" && (
+        <Section title="Fin du jeu">
+          <AdminEndGame formationId={formationId} gameEnded={gameEnded} initialBuzzPaused={buzzPaused} />
+        </Section>
+      )}
 
       <Section title="⚙️ Règles du jeu">
         <AdminGameRules initialRules={initialRules} />

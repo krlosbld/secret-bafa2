@@ -3,15 +3,17 @@ import { prisma } from "@/lib/prisma";
 import { CLAIM_FAKE_GUESS_LABEL, historyRevealCost } from "@/lib/buzzResolution";
 import { getFormationFromCookie, hasNotStartedYet } from "@/lib/formationSession";
 import { getPlayerSession } from "@/lib/playerAuth";
-import { gameClosedForCurrentPlayer } from "@/lib/gameAccess";
+import { currentActivePlayer, getGameStatus } from "@/lib/gameAccess";
 
 export const runtime = "nodejs";
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function POST(_req: Request, { params }: Params) {
-  if (await gameClosedForCurrentPlayer()) {
-    return NextResponse.json({ ok: false, error: "Tu ne participes pas au Jeu des secrets de cette session." }, { status: 403 });
+  // Révélation payante : participants seulement, partie en cours.
+  const active = await currentActivePlayer();
+  if (!active || (await getGameStatus(active.formationId)) !== "en_cours") {
+    return NextResponse.json({ ok: false, error: "Réservé aux participants, pendant la partie." }, { status: 403 });
   }
   const { id: secretId } = await params;
   const formation = await getFormationFromCookie();

@@ -1742,3 +1742,84 @@ a {
     max-height: 60vh;
   }
 }
+
+/* ================= JEU — PARTICIPANTS (espace du maître du jeu) ================= */
+.pb {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pb-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pb-pill {
+  font-size: 13px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #eef2f7;
+  color: #334155;
+}
+
+.pb-pill--ok { background: #dcfce7; color: #166534; }
+.pb-pill--wait { background: #fef3c7; color: #92400e; }
+.pb-pill--ko { background: #fee2e2; color: #991b1b; }
+.pb-pill--muted { background: transparent; color: #64748b; font-weight: 600; }
+
+.pb-group__title {
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: #64748b;
+  margin-bottom: 6px;
+}
+
+.pb-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 7px 0;
+  border-top: 1px solid #f1f5f9;
+  font-size: 14px;
+}
+
+.pb-extra {
+  color: #64748b;
+  font-size: 13px;
+}
+
+.pb-exclude {
+  padding: 4px 10px !important;
+  font-size: 12px !important;
+  color: #b91c1c !important;
+}
+
+.pb-start {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding-top: 12px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.pb-blockers {
+  font-size: 14px;
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+
+.pb-blockers ul {
+  margin: 6px 0;
+  padding-left: 18px;
+}

@@ -21,6 +21,7 @@ async function post(url: string, body: unknown): Promise<string | null> {
 
 export default function DirectorGameControls({
   launched,
+  status = "inscriptions_ouvertes",
   launchedAt,
   ended,
   gameMaster,
@@ -30,6 +31,7 @@ export default function DirectorGameControls({
   compact = false,
 }: {
   launched: boolean;
+  status?: "non_configure" | "inscriptions_ouvertes" | "en_cours" | "termine";
   launchedAt: string | null;
   ended: boolean;
   gameMaster: { id: string; firstName: string } | null;
@@ -50,7 +52,7 @@ export default function DirectorGameControls({
 
   async function launch() {
     if (!master) return setError("Choisis le maître du jeu.");
-    if (!confirm(`Lancer le Jeu des secrets avec ${masterName(master)} comme maître du jeu ?\n\nLes stagiaires seront invités à participer à leur prochaine connexion.`)) return;
+    if (!confirm(`Ouvrir les inscriptions au Jeu des secrets, avec ${masterName(master)} comme maître du jeu ?\n\nLes stagiaires seront invités à participer à leur prochaine connexion. La partie commencera quand le maître du jeu l'aura démarrée.`)) return;
     setBusy(true);
     setError(null);
     const err = await post("/api/game/launch", { buzzQuota: quota, rules, gameMasterPlayerId: master });
@@ -98,7 +100,8 @@ export default function DirectorGameControls({
           <div>
             <div style={{ fontWeight: 800, fontSize: 17 }}>Le Jeu des secrets n&apos;est pas encore lancé</div>
             <p style={{ margin: "4px 0 0", fontSize: 14, color: "#64748b" }}>
-              Au lancement, tu règles le jeu et tu choisis le maître du jeu. Chaque stagiaire est ensuite invité à participer.
+              Le lancement ouvre les inscriptions : tu règles le jeu et choisis le maître du jeu, chaque stagiaire est invité à
+              participer. Le maître du jeu valide les secrets puis commence la partie.
             </p>
           </div>
           <button className="btn btn-main" style={{ fontSize: 15, padding: "10px 18px" }} onClick={() => { setMaster(defaultMaster); setError(null); setDialog("launch"); }}>
@@ -119,7 +122,9 @@ export default function DirectorGameControls({
       ) : (
         <div className="card" style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 16, flexWrap: "wrap" }}>
           <div>
-            <div style={{ fontWeight: 800, fontSize: 17 }}>{ended ? "🏁 Le jeu est terminé" : "🟢 Le jeu est actif"}</div>
+            <div style={{ fontWeight: 800, fontSize: 17 }}>
+              {ended || status === "termine" ? "🏁 Partie terminée" : status === "en_cours" ? "🎮 Partie en cours" : "🟢 Inscriptions ouvertes"}
+            </div>
             <p style={{ margin: "4px 0 0", fontSize: 14, color: "#64748b" }}>
               {launchedAt && `Lancé le ${new Date(launchedAt).toLocaleDateString("fr-FR")} · `}
               Maître du jeu : <strong>{gameMaster?.firstName ?? "aucun"}</strong>
@@ -170,7 +175,7 @@ export default function DirectorGameControls({
                   Annuler
                 </button>
                 <button className="sb-btn sb-btn--main" onClick={dialog === "launch" ? launch : changeMaster} disabled={busy || !master}>
-                  {busy ? "…" : dialog === "launch" ? "🚀 Confirmer le lancement" : "Confirmer le changement"}
+                  {busy ? "…" : dialog === "launch" ? "🚀 Ouvrir les inscriptions" : "Confirmer le changement"}
                 </button>
               </div>
             </div>

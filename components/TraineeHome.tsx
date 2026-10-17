@@ -87,12 +87,14 @@ function DayTimeline({
   );
 }
 
+// Clé : statut du secret, suivi de « :inscriptions » pendant la phase d'inscription.
 const GAME_LINE: Record<string, { text: string; cta?: string }> = {
-  NONE: { text: "✍️ Tu n'as pas encore proposé ton secret.", cta: "Proposer mon secret" },
-  PENDING: { text: "⏳ Ton secret est en attente de validation par le maître du jeu." },
-  PUBLISHED: { text: "✅ Ton secret a été validé : il est en jeu." },
-  FOUND: { text: "🎯 Ton secret a été trouvé." },
-  REJECTED: { text: "❌ Ton précédent secret n'a pas été accepté : propose-en un autre.", cta: "Proposer un autre secret" },
+  "NONE:inscriptions": { text: "✍️ Tu n'as pas encore proposé ton secret (24 h après ton inscription).", cta: "Proposer mon secret" },
+  "PENDING:inscriptions": { text: "⏳ Ton secret est en attente de validation par le maître du jeu." },
+  "PUBLISHED:inscriptions": { text: "✅ Ton secret a été validé : la partie commencera bientôt." },
+  "REJECTED:inscriptions": { text: "❌ Ton précédent secret n'a pas été accepté : consulte le motif et propose-en un autre.", cta: "Proposer un autre secret" },
+  PUBLISHED: { text: "✅ La partie est en cours : ton secret est en jeu." },
+  FOUND: { text: "🎯 Ton secret a été trouvé — tu gardes tes points." },
 };
 
 export default function TraineeHome({

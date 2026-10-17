@@ -1,23 +1,18 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { isFlagged } from "@/lib/contentFilter";
-import { getFormationFromCookie, hasNotStartedYet } from "@/lib/formationSession";
-import { getPlayerSession } from "@/lib/playerAuth";
-import { gameClosedForCurrentPlayer, isGameLaunched } from "@/lib/gameAccess";
+import { getFormationFromCookie } from "@/lib/formationSession";
+import { currentActivePlayer, getGameStatus } from "@/lib/gameAccess";
 
 export const runtime = "nodejs";
 
-// Proposer son secret : il est rattaché à la fiche du compte connecté dans la session ouverte, et
-// attend la décision du maître du jeu. Un seul secret actif par personne ; après un refus, la
-// nouvelle proposition remplace l'ancienne (gardée dans SecretRejection) et repart en attente.
-// Un stagiaire doit avoir accepté de participer au jeu lancé de sa session.
+// Proposer son secret (fenêtre dédiée) : réservé aux stagiaires participants, pendant la phase
+// d'inscription. La première proposition doit arriver dans les 24 h suivant l'acceptation (sinon la
+// participation expire). Une seule proposition à la fois : après un refus, la nouvelle remplace
+// l'ancienne (gardée avec son motif dans SecretRejection) et repart en attente.
 export async function POST(req: Request) {
-  if (await gameClosedForCurrentPlayer()) {
-    const message = "Tu ne participes pas au Jeu des secrets de cette session.";
-    return NextResponse.json({ ok: false, error: message, message }, { status: 403 });
-  }
   try {
-    const body = await req.json();
+    const body = await req.json().catch(() => ({}));
     const content = String(body.content ?? "").trim();
     const bonus = Number(body.bonus ?? 1);
 
@@ -32,29 +27,19 @@ export async function POST(req: Request) {
     }
 
     const formation = await getFormationFromCookie();
-    const playerSession = await getPlayerSession();
-    const player = playerSession
-      ? await prisma.player.findUnique({ where: { id: playerSession.playerId }, select: { id: true, formationId: true, isGameMaster: true } })
-      : null;
-    if (!formation || !player || player.formationId !== formation.id) {
-      return NextResponse.json({ ok: false, message: "Connecte-toi avec ton compte BafaPilot pour ajouter ton secret." }, { status: 401 });
+    if (!formation) {
+      return NextResponse.json({ ok: false, message: "Connecte-toi avec ton compte BafaPilot pour proposer ton secret." }, { status: 401 });
     }
-    if (player.isGameMaster) {
-      return NextResponse.json({ ok: false, message: "Le maître du jeu ne propose pas de secret : il les valide." }, { status: 403 });
+    const status = await getGameStatus(formation.id);
+    if (status !== "inscriptions_ouvertes") {
+      const message = status === "en_cours" ? "La partie est en cours : les propositions de secrets sont fermées." : "Le jeu n'est pas ouvert aux propositions.";
+      return NextResponse.json({ ok: false, message }, { status: 403 });
     }
-    if (!(await isGameLaunched(formation.id))) {
-      return NextResponse.json({ ok: false, message: "Le jeu n'a pas encore été lancé par le directeur." }, { status: 403 });
-    }
-    if (!formation.active) {
-      return NextResponse.json(
-        {
-          ok: false,
-          message: hasNotStartedYet(formation)
-            ? "Cette formation n'a pas encore commencé."
-            : "Cette formation est terminée, impossible d'ajouter un secret.",
-        },
-        { status: 403 }
-      );
+    // Délai de 24 h vérifié ici même : un traitement automatique en retard ne doit rien permettre.
+    const player = await currentActivePlayer();
+    if (!player || player.formationId !== formation.id) {
+      const message = "Tu ne participes pas (ou plus) au Jeu des secrets de cette session.";
+      return NextResponse.json({ ok: false, error: message, message }, { status: 403 });
     }
 
     const existingSecret = await prisma.secret.findUnique({ where: { playerId: player.id }, select: { id: true, status: true } });
@@ -62,7 +47,7 @@ export async function POST(req: Request) {
       const message =
         existingSecret.status === "PENDING"
           ? "Ton secret est déjà en attente de validation."
-          : "Ton secret a déjà été validé : il est en jeu.";
+          : "Ton secret a déjà été validé.";
       return NextResponse.json({ ok: false, message }, { status: 409 });
     }
 

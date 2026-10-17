@@ -23,7 +23,16 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-export default function SecretsClient({ initial, historyRevealEnabled }: { initial: SecretItem[]; historyRevealEnabled: boolean }) {
+// canPlay : participant d'une partie en cours (boutons de buzz) ; l'équipe et le maître du jeu consultent seulement.
+export default function SecretsClient({
+  initial,
+  historyRevealEnabled,
+  canPlay = true,
+}: {
+  initial: SecretItem[];
+  historyRevealEnabled: boolean;
+  canPlay?: boolean;
+}) {
   const [secrets, setSecrets] = useState<SecretItem[]>(() => shuffle(initial));
   const [toast, setToast] = useState(() => initial.some((s) => s.status === "FOUND"));
 
@@ -94,9 +103,17 @@ export default function SecretsClient({ initial, historyRevealEnabled }: { initi
               +{s.bonus} pt{s.bonus > 1 ? "s" : ""}
             </div>
           </div>
+          {s.player && (
+            <div className="row">
+              <div className="label">Auteur</div>
+              <div className="value" style={{ fontWeight: 800 }}>
+                {s.player.firstName} (non trouvé)
+              </div>
+            </div>
+          )}
           <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <BuzzButton secretId={s.id} />
-            {historyRevealEnabled && <HistoryRevealButton secretId={s.id} cost={s.revealCost} />}
+            {canPlay && <BuzzButton secretId={s.id} />}
+            {canPlay && historyRevealEnabled && <HistoryRevealButton secretId={s.id} cost={s.revealCost} />}
           </div>
         </div>
       ))}
