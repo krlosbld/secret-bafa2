@@ -7,7 +7,7 @@ import { getVerifiedUser } from "@/lib/userSession";
 export const LEGACY_SUPERADMIN = "LEGACY_SUPERADMIN";
 
 export type AdminActor = {
-  kind: "superadmin" | "gestionnaire";
+  kind: "superadmin" | "gestionnaire" | "directeur"; // directeur : seulement pour inviter des formateurs dans sa session
   userId: string | null; // null = super-admin du .env
   label: string;
 };

@@ -128,11 +128,21 @@ export default function TeamManager({
 }
 
 // Inviter par email une personne qui n'a pas encore de compte (ou qui en a un) : elle reçoit un lien
-// personnel, crée son compte et se retrouve rattachée à la session avec le rôle choisi.
-function InviteByEmail({ formationId, invites }: { formationId: string; invites: PendingInvite[] }) {
+// personnel, crée son compte et se retrouve rattachée à la session avec le rôle choisi. Un directeur
+// (Réglages → Équipe) n'invite que des formateurs : roles = ["FORMATEUR"].
+export function InviteByEmail({
+  formationId,
+  invites,
+  roles = ["DIRECTEUR", "FORMATEUR"],
+}: {
+  formationId: string;
+  invites: PendingInvite[];
+  roles?: string[];
+}) {
   const router = useRouter();
   const [email, setEmail] = useState("");
-  const [role, setRole] = useState("DIRECTEUR");
+  const [role, setRole] = useState(roles[0]);
+  const choices = ROLES.filter((r) => roles.includes(r.value));
   const [sending, setSending] = useState(false);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
 
@@ -173,11 +183,12 @@ function InviteByEmail({ formationId, invites }: { formationId: string; invites:
           placeholder="adresse@email.fr"
           style={{ flex: "1 1 220px", border: "1px solid #ddd", borderRadius: 8, padding: "9px 10px", fontSize: 14 }}
         />
-        {ROLES.map((r) => (
-          <button key={r.value} type="button" className={`btn ${role === r.value ? "btn-main" : "btn-ghost"}`} onClick={() => setRole(r.value)}>
-            {r.label}
-          </button>
-        ))}
+        {choices.length > 1 &&
+          choices.map((r) => (
+            <button key={r.value} type="button" className={`btn ${role === r.value ? "btn-main" : "btn-ghost"}`} onClick={() => setRole(r.value)}>
+              {r.label}
+            </button>
+          ))}
         <button type="button" className="btn btn-main" onClick={invite} disabled={sending || !email.trim()}>
           {sending ? "Envoi…" : "Envoyer l'invitation"}
         </button>

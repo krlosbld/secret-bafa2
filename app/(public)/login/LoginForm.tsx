@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { PasswordInput, Alert, postJson, ResendVerification } from "../_components/ui";
 
-export default function LoginForm({ next, notice }: { next: string; notice: "reset" | "verified" | "logged_out" | null }) {
+export default function LoginForm({ next, notice }: { next: string; notice: "reset" | "verified" | "logged_out" | "idle" | null }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
@@ -33,6 +33,7 @@ export default function LoginForm({ next, notice }: { next: string; notice: "res
         {notice === "verified" && <Alert kind="ok">Votre adresse email est confirmée. Vous pouvez vous connecter.</Alert>}
         {notice === "reset" && <Alert kind="ok">Votre mot de passe a été modifié. Connectez-vous avec le nouveau.</Alert>}
         {notice === "logged_out" && <Alert kind="info">Vous êtes déconnecté.</Alert>}
+        {notice === "idle" && <Alert kind="info">Vous avez été déconnecté après 15 minutes sans activité. Reconnectez-vous pour continuer.</Alert>}
 
         <label className="bp-field">
           <span className="bp-field__label">Email</span>

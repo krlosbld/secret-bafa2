@@ -6,6 +6,9 @@ import { getSession } from "@/lib/auth";
 import PlanningTab from "./PlanningTab";
 import PlanningSettings from "./PlanningSettings";
 import { getSessionPostes } from "@/lib/posteLibrary";
+import { loadTeam } from "@/lib/team";
+import { getManagerActor } from "@/lib/adminActor";
+import { InviteByEmail } from "@/components/TeamManager";
 import PlanningHoursTable from "./PlanningHoursTable";
 import PersonalSpaceBody from "./PersonalSpaceBody";
 import GroupGenerator from "./GroupGenerator";
@@ -76,7 +79,7 @@ function TabNav({
 }
 
 // Sous-onglets de ⚙️ Réglages.
-function SettingsSections({ active }: { active: "session" | "planning" }) {
+function SettingsSections({ active }: { active: "session" | "planning" | "equipe" }) {
   return (
     <div className="set-sections" role="tablist">
       <Link href="/bafa?tab=reglages" className={`set-section${active === "session" ? " set-section--active" : ""}`}>
@@ -84,6 +87,9 @@ function SettingsSections({ active }: { active: "session" | "planning" }) {
       </Link>
       <Link href="/bafa?tab=reglages&section=planning" className={`set-section${active === "planning" ? " set-section--active" : ""}`}>
         Planning et évaluations
+      </Link>
+      <Link href="/bafa?tab=reglages&section=equipe" className={`set-section${active === "equipe" ? " set-section--active" : ""}`}>
+        Équipe
       </Link>
     </div>
   );
@@ -632,6 +638,49 @@ export default async function BafaPage({
 
   // Réglages en deux écrans : la session (nom, type, dates, colonnes du tableau) et « Planning et
   // évaluations » (temps de formation du compte, critères et états de notation communs).
+  // Équipe de la session : le directeur y invite des formateurs par email (lien de création de compte).
+  if (tab === "reglages" && canEditSettings && section === "equipe") {
+    const [team, manager] = await Promise.all([loadTeam(formationId), getManagerActor()]);
+    const ROLE_NAMES: Record<string, string> = { DIRECTEUR: "Directeur", FORMATEUR: "Formateur" };
+    return (
+      <main className="page">
+        <div className="container">
+          <TabNav active="reglages" showGroups={isStaff} showSettings={canEditSettings} trainee={isTrainee} />
+          <SettingsSections active="equipe" />
+          <div className="set-grid">
+            <section className="set-card">
+              <div className="set-card__head">
+                <h2 className="set-card__title">Équipe de la session ({team.members.length})</h2>
+                <p className="set-card__sub">Les comptes BafaPilot rattachés à cette session.</p>
+              </div>
+              <div className="set-team">
+                {team.members.map((m) => (
+                  <div key={m.id} className="set-team__row">
+                    <div>
+                      <strong>{m.name}</strong>
+                      <span className="set-team__email">{m.email}</span>
+                    </div>
+                    <span className={`set-team__role set-team__role--${m.role.toLowerCase()}`}>{ROLE_NAMES[m.role] ?? m.role}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+            <section className="set-card">
+              <div className="set-card__head">
+                <h2 className="set-card__title">Ajouter un formateur</h2>
+                <p className="set-card__sub">
+                  Il reçoit par email un lien pour créer son compte (ou se connecter s&apos;il en a déjà un) et se retrouve rattaché à
+                  cette session comme formateur.
+                </p>
+              </div>
+              <InviteByEmail formationId={formationId} invites={team.invites} roles={manager ? ["FORMATEUR", "DIRECTEUR"] : ["FORMATEUR"]} />
+            </section>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   if (tab === "reglages" && canEditSettings && section === "planning") {
     const [sessionPostes, criteria, criterionStates, typeRow] = await Promise.all([
       getSessionPostes(formationId),

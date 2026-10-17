@@ -7,7 +7,7 @@ import LoginForm from "./LoginForm";
 
 export const metadata = { title: "Se connecter — BafaPilot" };
 
-const NOTICES = ["reset", "verified", "logged_out"] as const;
+const NOTICES = ["reset", "verified", "logged_out", "idle"] as const;
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ next?: string; notice?: string }> }) {
   const { next, notice } = await searchParams;

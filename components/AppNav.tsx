@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { getVerifiedUser } from "@/lib/userSession";
 import NavTabs, { NavTabsStatic } from "@/components/NavTabs";
 import LogoutButton from "@/components/LogoutButton";
+import IdleLogout from "@/components/IdleLogout";
 
 // Barre du haut commune à tout BafaPilot : Accueil · Mes sessions · Formation · Jeu, puis les accès
 // selon les droits (Gestion, Administration) et « Se déconnecter » dès qu'on est connecté.
@@ -54,6 +55,7 @@ export default async function AppNav() {
               Gestion
             </Link>
           )}
+          {loggedIn && <IdleLogout />}
           {loggedIn ? (
             <LogoutButton />
           ) : (

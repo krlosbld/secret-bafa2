@@ -16,7 +16,12 @@ const COOKIE = "bp_session";
 const ORIGIN_COOKIE = "bp_session_origin";
 export const USER_SESSION_TTL = 60 * 60 * 24 * 30; // 30 jours
 export const IMPERSONATION_TTL = 60 * 60; // 1 heure
-const TOUCH_INTERVAL_MS = 60 * 60 * 1000; // lastUsedAt mis à jour au plus une fois par heure
+// Déconnexion automatique après 15 minutes sans activité. lastUsedAt = dernière activité réelle de
+// la personne (souris, clavier, toucher), signalée par la page via /api/auth/activity — les
+// rafraîchissements automatiques (planning, jeu) ne comptent pas. Le serveur laisse une minute de
+// marge à la page, qui déconnecte elle-même à 15 minutes.
+export const IDLE_TIMEOUT_MS = 15 * 60 * 1000;
+const IDLE_SERVER_GRACE_MS = 60 * 1000;
 
 export type CurrentUser = {
   id: string;
@@ -74,18 +79,25 @@ async function sessionFromToken(token: string | undefined): Promise<CurrentUser 
   });
   if (!session) return null;
 
-  if (session.expiresAt.getTime() <= Date.now()) {
+  const idle = Date.now() - session.lastUsedAt.getTime() > IDLE_TIMEOUT_MS + IDLE_SERVER_GRACE_MS;
+  if (session.expiresAt.getTime() <= Date.now() || idle) {
     // Une prise de contrôle expirée est gardée jusqu'au retour (stopImpersonation) : il faut savoir
     // vers quel compte renvoyer le super-admin et journaliser la fin. Les autres sont effacées.
     if (!session.impersonatorId) await prisma.userSession.delete({ where: { id: session.id } }).catch(() => {});
     return null;
   }
 
-  if (Date.now() - session.lastUsedAt.getTime() > TOUCH_INTERVAL_MS) {
-    await prisma.userSession.update({ where: { id: session.id }, data: { lastUsedAt: new Date() } }).catch(() => {});
-  }
-
   return { ...session.user, impersonatorId: session.impersonatorId, sessionExpiresAt: session.expiresAt };
+}
+
+// Activité réelle signalée par la page : repousse la déconnexion automatique. Renvoie false si la
+// session n'est plus valable (déjà expirée ou inactive depuis trop longtemps).
+export async function touchCurrentSession(): Promise<boolean> {
+  const store = await cookies();
+  const token = store.get(COOKIE)?.value;
+  if (!token || !(await sessionFromToken(token))) return false;
+  await prisma.userSession.update({ where: { tokenHash: hashToken(token) }, data: { lastUsedAt: new Date() } }).catch(() => {});
+  return true;
 }
 
 // Compte connecté (email confirmé ou non), ou null. Mis en cache pour la durée d'une requête :
