@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { PROPOSAL_DELAY_MS, expireOverdueParticipants } from "@/lib/gameAccess";
+import { startPlan } from "@/lib/gameStartPlan";
 
 // Où en sont les inscriptions d'une session : qui est prêt (secret validé), ce qui attend une
 // décision, ce qui bloque le démarrage. Participants potentiels : les stagiaires et les membres de
@@ -50,5 +51,5 @@ export async function loadReadiness(formationId: string) {
   const active = participants.filter((p) => p.participation === "ACCEPTED");
   const ready = active.filter((p) => p.secretStatus === "PUBLISHED");
   const blockers = active.filter((p) => p.secretStatus !== "PUBLISHED");
-  return { participants, active, ready, blockers, canStart: active.length > 0 && blockers.length === 0 };
+  return { participants, active, ready, blockers, canStart: active.length > 0 && blockers.length === 0, startPlan: startPlan(participants) };
 }

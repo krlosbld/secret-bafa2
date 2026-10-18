@@ -3,11 +3,12 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { ParticipantRow } from "@/lib/gameReadiness";
+import { startPlan } from "@/lib/gameStartPlan";
 
 // Espace du maître du jeu — participants : prêts à jouer, propositions à valider, refus à
 // reproposer, sans secret (délai de 24 h), exclus ou expirés, refus et sans réponse. Pendant les
-// inscriptions : « Exclure du jeu » et « Commencer le jeu » (bloqué tant qu'un participant actif
-// n'a pas de secret validé).
+// inscriptions : « Exclure du jeu » et « Commencer le jeu », qui valide et publie les secrets en
+// attente et exclut les inscrits sans secret et ceux qui n'ont pas répondu (lib/gameStartPlan).
 
 function left(deadline: string): string {
   const ms = new Date(deadline).getTime() - Date.now();
@@ -17,11 +18,7 @@ function left(deadline: string): string {
   return h > 0 ? `${h} h ${String(m).padStart(2, "0")} restantes` : `${m} min restantes`;
 }
 
-function blockerReason(p: ParticipantRow): string {
-  if (p.secretStatus === "PENDING") return "secret en attente de ta validation";
-  if (p.secretStatus === "REJECTED") return "secret refusé, nouvelle proposition attendue";
-  return p.deadline ? `pas encore de secret (${left(p.deadline)})` : "pas encore de secret";
-}
+const names = (items: ParticipantRow[]) => items.map((p) => p.firstName).join(", ");
 
 export default function ParticipantsBoard({
   status,
@@ -44,8 +41,8 @@ export default function ParticipantsBoard({
   const out = participants.filter((p) => p.participation === "EXCLUDED" || p.participation === "EXPIRED");
   const declined = participants.filter((p) => p.participation === "DECLINED");
   const invited = participants.filter((p) => !p.participation);
-  const blockers = active.filter((p) => p.secretStatus !== "PUBLISHED");
-  const canStart = active.length > 0 && blockers.length === 0;
+  const plan = startPlan(participants);
+  const canStart = plan.players > 0;
   const registering = status === "inscriptions_ouvertes";
 
   async function post(url: string, body: unknown): Promise<boolean> {
@@ -109,27 +106,9 @@ export default function ParticipantsBoard({
 
       {registering && (
         <div className="pb-start">
-          {!canStart && (
-            <div className="pb-blockers">
-              {active.length === 0 ? (
-                "Aucun participant inscrit pour l'instant."
-              ) : (
-                <>
-                  <strong>Bloque le démarrage :</strong>
-                  <ul>
-                    {blockers.map((p) => (
-                      <li key={p.id}>
-                        {p.firstName} — {blockerReason(p)}
-                      </li>
-                    ))}
-                  </ul>
-                  Valide ou refuse les propositions, ou exclus un participant qui bloque.
-                </>
-              )}
-            </div>
-          )}
+          {!canStart && <div className="pb-blockers">Aucun inscrit n&apos;a encore proposé de secret : la partie ne peut pas commencer.</div>}
           <button type="button" className="btn btn-main" disabled={!canStart || busy} onClick={() => setStarting(true)} style={{ fontSize: 15, padding: "10px 18px" }}>
-            ▶️ Commencer le jeu ({ready.length} joueur{ready.length > 1 ? "s" : ""})
+            ▶️ Commencer le jeu ({plan.players} joueur{plan.players > 1 ? "s" : ""})
           </button>
         </div>
       )}
@@ -138,11 +117,30 @@ export default function ParticipantsBoard({
       {(excluding || starting) && (
         <div className="sb-backdrop" onMouseDown={() => !busy && (setExcluding(null), setStarting(false))}>
           <div className="sb-modal" role="dialog" aria-modal="true" onMouseDown={(e) => e.stopPropagation()} style={{ maxWidth: 460 }}>
-            <p style={{ margin: "0 0 18px", fontSize: 15, lineHeight: 1.5, fontWeight: 600 }}>
+            <p style={{ margin: "0 0 14px", fontSize: 15, lineHeight: 1.5, fontWeight: 600 }}>
               {excluding
                 ? "Exclure ce participant du Jeu des secrets ? Il ne pourra plus rejoindre cette partie. Cette action ne modifiera pas son inscription à la formation."
-                : "Commencer la partie ? Les inscriptions seront définitivement fermées et les secrets validés seront visibles par les joueurs."}
+                : `Commencer la partie avec ${plan.players} joueur${plan.players > 1 ? "s" : ""} ? Les inscriptions seront définitivement fermées et les secrets seront visibles par les joueurs.`}
             </p>
+            {starting && !excluding && (
+              <ul className="pb-plan">
+                {plan.publish.length > 0 && (
+                  <li>
+                    ✅ <strong>{plan.publish.length} secret{plan.publish.length > 1 ? "s" : ""} en attente</strong> {plan.publish.length > 1 ? "seront validés et publiés" : "sera validé et publié"} : {names(plan.publish)}
+                  </li>
+                )}
+                {plan.excludeNoSecret.length > 0 && (
+                  <li>
+                    🚫 <strong>Exclu{plan.excludeNoSecret.length > 1 ? "s" : ""} faute de secret</strong> : {names(plan.excludeNoSecret)}
+                  </li>
+                )}
+                {plan.excludeNoAnswer.length > 0 && (
+                  <li>
+                    🚫 <strong>Exclu{plan.excludeNoAnswer.length > 1 ? "s" : ""} faute de réponse</strong> : {names(plan.excludeNoAnswer)}
+                  </li>
+                )}
+              </ul>
+            )}
             {excluding && <p style={{ margin: "-8px 0 18px", color: "#475569" }}>Participant : <strong>{excluding.firstName}</strong></p>}
             <div className="sb-actions">
               <button className="sb-btn sb-btn--ghost" disabled={busy} onClick={() => (setExcluding(null), setStarting(false))}>
