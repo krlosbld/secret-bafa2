@@ -32,7 +32,7 @@ export async function PATCH(req: Request, { params }: Params) {
   if (typeof body.firstName === "string") {
     const firstName = body.firstName.trim();
     if (!firstName || firstName.length > 40) return NextResponse.json({ error: "Prénom requis (40 caractères maximum)." }, { status: 400 });
-    const collision = await findNameCollision(formationId, firstName, secret.playerId);
+    const collision = await findNameCollision(formationId, firstName, secret.playerId, { ignoreGameMaster: true });
     if (collision) return NextResponse.json({ error: nameCollisionError(collision, firstName) }, { status: 409 });
     data.firstName = firstName;
     data.fakeVisible = true; // modifier le prénom le fait apparaître comme un joueur

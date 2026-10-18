@@ -34,20 +34,32 @@ export function matchesName(existing: string, target: string): boolean {
 export async function findMatchingPlayer(
   formationId: string,
   firstName: string,
-  excludePlayerId?: string
+  excludePlayerId?: string,
+  opts: { ignoreGameMaster?: boolean } = {}
 ): Promise<{ id: string; firstName: string } | null> {
   const target = firstName.trim();
   if (!target) return null;
 
   const players = await prisma.player.findMany({
-    where: { formationId, ...(excludePlayerId ? { id: { not: excludePlayerId } } : {}) },
+    where: {
+      formationId,
+      ...(excludePlayerId ? { id: { not: excludePlayerId } } : {}),
+      ...(opts.ignoreGameMaster ? { isGameMaster: false } : {}),
+    },
     select: { id: true, firstName: true },
   });
   return players.find((p) => matchesName(p.firstName, target)) ?? null;
 }
 
-export async function findNameCollision(formationId: string, firstName: string, excludePlayerId?: string): Promise<string | null> {
-  const match = await findMatchingPlayer(formationId, firstName, excludePlayerId);
+// ignoreGameMaster : pour le prénom d'un faux secret, le maître du jeu ne compte pas — il ne joue
+// jamais, donc un faux joueur à son nom ne peut être confondu avec aucun vrai joueur.
+export async function findNameCollision(
+  formationId: string,
+  firstName: string,
+  excludePlayerId?: string,
+  opts: { ignoreGameMaster?: boolean } = {}
+): Promise<string | null> {
+  const match = await findMatchingPlayer(formationId, firstName, excludePlayerId, opts);
   return match?.firstName ?? null;
 }
 

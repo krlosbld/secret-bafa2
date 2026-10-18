@@ -50,7 +50,7 @@ export async function POST(req: Request) {
     );
   }
 
-  const collision = await findNameCollision(formationId, firstName);
+  const collision = await findNameCollision(formationId, firstName, undefined, { ignoreGameMaster: true });
   if (collision) {
     return NextResponse.json({ error: nameCollisionError(collision, firstName) }, { status: 409 });
   }
