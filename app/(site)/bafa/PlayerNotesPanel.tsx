@@ -275,6 +275,7 @@ export default function PlayerNotesPanel({
               {OPINION_LABELS[notes.finalOpinion] ?? notes.finalOpinion}
             </span>
           )}
+          {canEditStaffNotes && <TextHistoryButton entityType="finalOpinion" entityKey={playerId} />}
         </div>
       )}
 

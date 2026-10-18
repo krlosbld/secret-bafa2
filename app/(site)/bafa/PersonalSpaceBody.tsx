@@ -6,34 +6,7 @@ import type { EvalBlock } from "./EvaluationBoard";
 import type { CriterionState } from "./CriteriaBoard";
 import DayEvaluationPanel from "./DayEvaluationPanel";
 import PlayerNotesPanel, { type Notes } from "./PlayerNotesPanel";
-
-const SCORE_MIN = -1;
-const SCORE_MAX = 2;
-
-function lerpColor(a: string, b: string, t: number): string {
-  const pa = parseInt(a.slice(1), 16);
-  const pb = parseInt(b.slice(1), 16);
-  const ar = (pa >> 16) & 255, ag = (pa >> 8) & 255, ab = pa & 255;
-  const br = (pb >> 16) & 255, bg = (pb >> 8) & 255, bb = pb & 255;
-  const r = Math.round(ar + (br - ar) * t);
-  const g = Math.round(ag + (bg - ag) * t);
-  const bl = Math.round(ab + (bb - ab) * t);
-  return `rgb(${r},${g},${bl})`;
-}
-
-function scoreColor(score: number): string {
-  if (score <= 0) {
-    const t = Math.min(1, Math.max(0, (score - SCORE_MIN) / (0 - SCORE_MIN)));
-    return lerpColor("#dc2626", "#f59e0b", t);
-  }
-  const t = Math.min(1, Math.max(0, score / SCORE_MAX));
-  return lerpColor("#f59e0b", "#16a34a", t);
-}
-
-function scoreAngle(score: number): number {
-  const t = Math.min(1, Math.max(0, (score - SCORE_MIN) / (SCORE_MAX - SCORE_MIN)));
-  return 180 - t * 180;
-}
+import { legacyScoreAngle as scoreAngle, legacyScoreColor as scoreColor } from "@/lib/legacyTrend";
 
 export default function PersonalSpaceBody({
   playerId,

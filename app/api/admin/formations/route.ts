@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { ensureSessionLevels } from "@/lib/ratingLevels";
 import { getSession, isSuperAdmin } from "@/lib/auth";
 import { generateUniqueFormationCode } from "@/lib/formationCode";
 
@@ -38,5 +39,6 @@ export async function POST(req: Request) {
     data: { name, code: await generateUniqueFormationCode(), active: true },
     select: { id: true, name: true },
   });
+  await ensureSessionLevels(formation.id);
   return NextResponse.json({ ok: true, formation });
 }

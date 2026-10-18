@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { canEditEvaluationSettings } from "@/lib/planningAuth";
+import { canEditLegacyCriterionStates } from "@/lib/planningAuth";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,7 +11,7 @@ export async function GET() {
 }
 
 export async function POST(req: Request) {
-  if (!(await canEditEvaluationSettings())) {
+  if (!(await canEditLegacyCriterionStates())) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 

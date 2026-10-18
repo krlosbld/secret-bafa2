@@ -73,6 +73,25 @@ export async function PATCH(req: Request, { params }: Params) {
     return NextResponse.json({ error: "Durée minimale de 5 minutes." }, { status: 400 });
   }
 
+  // Changer le type ou le groupe d'un créneau déjà évalué ne fait rien perdre (les évaluations
+  // restent sur les fiches, lib/evaluationScope) mais change ce que l'équipe voit : on demande
+  // confirmation.
+  const scopeChanged =
+    (data.type !== undefined && data.type !== current.type) || ("groupId" in data && data.groupId !== current.groupId);
+  if (scopeChanged && body.confirmEvaluated !== true) {
+    const filled = await prisma.evaluation.count({ where: { blockId: id, note: { not: "" } } });
+    if (filled > 0) {
+      return NextResponse.json(
+        {
+          error: `Ce créneau porte déjà ${filled} évaluation(s) écrite(s). Elles resteront consultables sur les fiches des stagiaires concernés, mais le créneau ne sera plus proposé de la même façon. Confirmer la modification ?`,
+          needsConfirm: true,
+          filled,
+        },
+        { status: 409 }
+      );
+    }
+  }
+
   await snapshotPlanning(auth.formationId);
   const [updated] = await prisma.$transaction([
     prisma.planningBlock.update({ where: { id }, data }),

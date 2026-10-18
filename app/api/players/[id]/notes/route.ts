@@ -5,6 +5,7 @@ import { getPlayerSession } from "@/lib/playerAuth";
 import { getPlayerNotes } from "@/lib/playerNotes";
 import { mergeOnConflict } from "@/lib/conflictMerge";
 import { logTextEdit } from "@/lib/textHistory";
+import { OPINION_LABELS } from "@/lib/playerReport";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -84,6 +85,13 @@ export async function PATCH(req: Request, { params }: Params) {
       ["EN_ATTENTE", "FAVORABLE", "DEFAVORABLE"].includes(body.finalOpinion)
     ) {
       data.finalOpinion = body.finalOpinion;
+      // Historique de l'avis (droits inchangés) : intitulés lisibles, réservé à l'équipe.
+      const current = await prisma.player.findUnique({ where: { id }, select: { finalOpinion: true } });
+      historyEntries.push({
+        field: "finalOpinion",
+        previousValue: OPINION_LABELS[current?.finalOpinion ?? ""] ?? current?.finalOpinion ?? "",
+        newValue: OPINION_LABELS[body.finalOpinion],
+      });
     }
     if (typeof body.finalAppraisalVisible === "boolean") data.finalAppraisalVisible = body.finalAppraisalVisible;
   }

@@ -80,6 +80,7 @@ export default function PlanningSettings({
   initialCriteria,
   initialCriterionStates,
   sessionType,
+  canEditLegacyStates,
 }: {
   initialPostes: Poste[];
   family: "BAFA" | "BAFD";
@@ -87,6 +88,7 @@ export default function PlanningSettings({
   initialCriteria: Criterion[];
   initialCriterionStates: CriterionStateDef[];
   sessionType: string;
+  canEditLegacyStates: boolean; // anciens états, communs à toutes les sessions : super-admin seulement
 }) {
   const [postes, setPostes] = useState<Poste[]>(initialPostes);
   const [criteria, setCriteria] = useState<Criterion[]>(initialCriteria);
@@ -127,28 +129,32 @@ export default function PlanningSettings({
   }
 
   async function addCriterion(label: string) {
-    const tmpId = `tmp-${Date.now()}`;
-    setCriteria((cs) => [...cs, { id: tmpId, label, order: cs.length }]);
     const res = await fetch("/api/criteria", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ label }),
     });
     const data = await res.json().catch(() => ({}));
-    if (res.ok && data.criterion) {
-      setCriteria((cs) => cs.map((c) => (c.id === tmpId ? data.criterion : c)));
-    } else {
-      setCriteria((cs) => cs.filter((c) => c.id !== tmpId));
-    }
+    if (res.ok && data.criterion) setCriteria((cs) => [...cs, data.criterion]);
   }
 
-  async function renameCriterion(id: string, label: string) {
-    setCriteria((cs) => cs.map((c) => (c.id === id ? { ...c, label } : c)));
-    await fetch(`/api/criteria/${id}`, {
+  async function reloadCriteria() {
+    const res = await fetch("/api/criteria/usage", { cache: "no-store" });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok && data.criteria) setCriteria(data.criteria);
+  }
+
+  // Toute modification d'un critère existant passe par le serveur, puis la liste est rechargée.
+  async function patchCriterion(id: string, patch: Record<string, unknown>): Promise<{ error?: string; needsChoice?: boolean; ratingCount?: number }> {
+    const res = await fetch(`/api/criteria/${id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ label }),
+      body: JSON.stringify(patch),
     });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) return { error: data.error || "Erreur.", needsChoice: !!data.needsChoice, ratingCount: data.ratingCount };
+    await reloadCriteria();
+    return {};
   }
 
   async function removeCriterion(id: string): Promise<string | null> {
@@ -214,19 +220,22 @@ export default function PlanningSettings({
             <h2 className="set-card__title">Critères d&apos;évaluation quotidiens</h2>
             <p className="set-card__sub">Notés chaque jour sur la fiche de chaque stagiaire. Propres à cette session.</p>
           </div>
-          <CriteriaManager criteria={criteria} onAdd={addCriterion} onRename={renameCriterion} onRemove={removeCriterion} />
+          <CriteriaManager criteria={criteria} onAdd={addCriterion} onPatch={patchCriterion} onRemove={removeCriterion} />
         </section>
-        <section className="set-card">
-          <div className="set-card__head">
-            <h2 className="set-card__title">États de notation des critères</h2>
-          </div>
-          <CriterionStateManager
-            states={criterionStates}
-            onAdd={addCriterionState}
-            onUpdate={updateCriterionState}
-            onRemove={removeCriterionState}
-          />
-        </section>
+        {canEditLegacyStates && (
+          <section className="set-card">
+            <div className="set-card__head">
+              <h2 className="set-card__title">États de notation des critères</h2>
+              <p className="set-card__sub">Communs à toutes les sessions : une modification change la lecture des appréciations déjà enregistrées partout.</p>
+            </div>
+            <CriterionStateManager
+              states={criterionStates}
+              onAdd={addCriterionState}
+              onUpdate={updateCriterionState}
+              onRemove={removeCriterionState}
+            />
+          </section>
+        )}
       </div>
     </div>
   );
@@ -333,60 +342,149 @@ function PosteManager({
   );
 }
 
+const crInput = { flex: 1, minWidth: 140, border: "1px solid #ddd", borderRadius: 8, padding: "6px 8px", fontSize: 14 } as const;
+const crSmall = { padding: "4px 9px", fontSize: 12 } as const;
+
+type PatchResult = { error?: string; needsChoice?: boolean; ratingCount?: number };
+
 function CriteriaManager({
   criteria,
   onAdd,
-  onRename,
+  onPatch,
   onRemove,
 }: {
   criteria: Criterion[];
   onAdd: (label: string) => Promise<void>;
-  onRename: (id: string, label: string) => Promise<void>;
+  onPatch: (id: string, patch: Record<string, unknown>) => Promise<PatchResult>;
   onRemove: (id: string) => Promise<string | null>;
 }) {
   const [newLabel, setNewLabel] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
+  // Renommage en cours : saisie libre, rien n'est envoyé avant « Enregistrer ».
+  const [editing, setEditing] = useState<{ id: string; label: string; choice?: number } | null>(null);
+  const [showArchived, setShowArchived] = useState(false);
 
-  async function handleAdd() {
-    if (!newLabel.trim()) return;
-    setBusy("new");
-    await onAdd(newLabel.trim());
-    setNewLabel("");
+  const active = criteria.filter((c) => !c.archived);
+  const archived = criteria.filter((c) => c.archived);
+
+  async function run(id: string, action: () => Promise<string | null | undefined>) {
+    setError(null);
+    setBusy(id);
+    const err = await action();
+    if (err) setError(err);
     setBusy(null);
   }
 
-  async function handleRemove(id: string) {
-    setError(null);
-    setBusy(id);
-    const err = await onRemove(id);
-    if (err) setError(err);
-    setBusy(null);
+  async function handleAdd() {
+    if (!newLabel.trim()) return;
+    await run("new", async () => {
+      await onAdd(newLabel.trim());
+      setNewLabel("");
+      return null;
+    });
+  }
+
+  async function saveRename(renameMode?: "correct" | "archive_and_create") {
+    if (!editing || !editing.label.trim()) return;
+    const { id, label } = editing;
+    await run(id, async () => {
+      const r = await onPatch(id, { label: label.trim(), ...(renameMode ? { renameMode } : {}) });
+      if (r.needsChoice) {
+        setEditing({ id, label, choice: r.ratingCount ?? 0 });
+        return null;
+      }
+      if (!r.error) setEditing(null);
+      return r.error;
+    });
+  }
+
+  function confirmArchive(c: Criterion) {
+    if (!window.confirm(`Archiver « ${c.label} » ?\n\nIl ne sera plus proposé à la saisie. Ses ${c.ratingCount ?? 0} appréciation(s) restent consultables sur les fiches et dans les PDF.`)) return;
+    run(c.id, async () => (await onPatch(c.id, { archived: true })).error);
   }
 
   return (
     <div>
       <p style={{ fontSize: 12, color: "#64748b", marginTop: 0, marginBottom: 10 }}>
-        Ces critères apparaissent chaque jour sur la page de chaque stagiaire (Acquis / En cours / À travailler / Non observé).
+        Ces critères apparaissent chaque jour sur la fiche de chaque stagiaire. Un critère déjà apprécié ne se supprime pas : il
+        s&apos;archive, et ses appréciations restent consultables.
       </p>
       <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 12 }}>
-        {criteria.map((c) => (
-          <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <input
-              value={c.label}
-              onChange={(e) => onRename(c.id, e.target.value)}
-              style={{ flex: 1, minWidth: 140, border: "1px solid #ddd", borderRadius: 8, padding: "6px 8px", fontSize: 14 }}
-            />
-            <button
-              onClick={() => handleRemove(c.id)}
-              disabled={busy === c.id}
-              className="btn btn-ghost"
-              style={{ padding: "4px 10px", color: "#dc2626" }}
-            >
-              ✕
-            </button>
-          </div>
-        ))}
+        {active.map((c, i) => {
+          const isEditing = editing?.id === c.id;
+          const used = (c.ratingCount ?? 0) > 0;
+          return (
+            <div key={c.id} style={{ borderBottom: "1px solid #f1f5f9", paddingBottom: 8 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                {isEditing ? (
+                  <input
+                    autoFocus
+                    value={editing.label}
+                    onChange={(e) => setEditing({ id: c.id, label: e.target.value })}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") saveRename();
+                      if (e.key === "Escape") setEditing(null);
+                    }}
+                    maxLength={100}
+                    style={crInput}
+                  />
+                ) : (
+                  <span style={{ flex: 1, minWidth: 140, fontSize: 14, fontWeight: 600 }}>
+                    {c.label}
+                    {used && <span style={{ fontWeight: 400, fontSize: 12, color: "#94a3b8" }}> · {c.ratingCount} appréciation(s)</span>}
+                  </span>
+                )}
+                {isEditing ? (
+                  <>
+                    <button className="btn btn-main" style={crSmall} disabled={busy === c.id || !editing.label.trim()} onClick={() => saveRename()}>
+                      Enregistrer
+                    </button>
+                    <button className="btn btn-ghost" style={crSmall} onClick={() => setEditing(null)}>
+                      Annuler
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <button className="btn btn-ghost" style={crSmall} title="Monter" aria-label="Monter" disabled={i === 0 || !!busy} onClick={() => run(c.id, async () => (await onPatch(c.id, { move: "up" })).error)}>
+                      ↑
+                    </button>
+                    <button className="btn btn-ghost" style={crSmall} title="Descendre" aria-label="Descendre" disabled={i === active.length - 1 || !!busy} onClick={() => run(c.id, async () => (await onPatch(c.id, { move: "down" })).error)}>
+                      ↓
+                    </button>
+                    <button className="btn btn-ghost" style={crSmall} onClick={() => setEditing({ id: c.id, label: c.label })}>
+                      Renommer
+                    </button>
+                    {used ? (
+                      <button className="btn btn-ghost" style={crSmall} disabled={busy === c.id} onClick={() => confirmArchive(c)}>
+                        Archiver
+                      </button>
+                    ) : (
+                      <button className="btn btn-ghost" style={{ ...crSmall, color: "#dc2626" }} title="Supprimer" aria-label="Supprimer" disabled={busy === c.id} onClick={() => run(c.id, () => onRemove(c.id))}>
+                        ✕
+                      </button>
+                    )}
+                  </>
+                )}
+              </div>
+              {isEditing && editing.choice !== undefined && (
+                <div style={{ marginTop: 8, background: "#f8fafc", border: "1px solid #e2e8f0", borderRadius: 10, padding: 10, fontSize: 13 }}>
+                  <div style={{ fontWeight: 700, marginBottom: 6 }}>
+                    « {c.label} » porte déjà {editing.choice} appréciation(s). Que voulez-vous faire ?
+                  </div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                    <button className="btn btn-main" style={{ ...crSmall, textAlign: "left" }} disabled={busy === c.id} onClick={() => saveRename("correct")}>
+                      Corriger l&apos;intitulé — c&apos;est le même critère (orthographe, formulation)
+                    </button>
+                    <button className="btn btn-ghost" style={{ ...crSmall, textAlign: "left" }} disabled={busy === c.id} onClick={() => saveRename("archive_and_create")}>
+                      Archiver ce critère et créer « {editing.label.trim()} » — c&apos;est un critère différent
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {error && (
@@ -396,16 +494,34 @@ function CriteriaManager({
       )}
 
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <input
-          value={newLabel}
-          onChange={(e) => setNewLabel(e.target.value)}
-          placeholder="Nouveau critère…"
-          style={{ flex: 1, minWidth: 140, border: "1px solid #ddd", borderRadius: 8, padding: "6px 8px", fontSize: 14 }}
-        />
+        <input value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder="Nouveau critère…" maxLength={100} style={crInput} />
         <button className="btn btn-main" onClick={handleAdd} disabled={busy === "new" || !newLabel.trim()} style={{ padding: "6px 12px" }}>
           + Ajouter
         </button>
       </div>
+
+      {archived.length > 0 && (
+        <div style={{ marginTop: 14 }}>
+          <button className="btn btn-ghost" style={crSmall} onClick={() => setShowArchived((v) => !v)}>
+            {showArchived ? "▾" : "▸"} Critères archivés ({archived.length})
+          </button>
+          {showArchived && (
+            <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
+              {archived.map((c) => (
+                <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 8, color: "#64748b", fontSize: 14 }}>
+                  <span style={{ flex: 1 }}>
+                    {c.label}
+                    {(c.ratingCount ?? 0) > 0 && <span style={{ fontSize: 12 }}> · {c.ratingCount} appréciation(s)</span>}
+                  </span>
+                  <button className="btn btn-ghost" style={crSmall} disabled={busy === c.id} onClick={() => run(c.id, async () => (await onPatch(c.id, { archived: false })).error)}>
+                    Réactiver
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

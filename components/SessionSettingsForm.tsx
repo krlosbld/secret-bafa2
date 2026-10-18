@@ -33,12 +33,24 @@ export default function SessionSettingsForm({ formationId, initial }: { formatio
     setSaving(true);
     setMessage(null);
     try {
-      const res = await fetch(`/api/sessions/${formationId}/settings`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ name, sessionType, startDate: startDate || null, location }),
-      });
-      const data = await res.json().catch(() => ({}));
+      const send = (confirmShorten: boolean) =>
+        fetch(`/api/sessions/${formationId}/settings`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name, sessionType, startDate: startDate || null, location, confirmShorten }),
+        });
+      let res = await send(false);
+      let data = await res.json().catch(() => ({}));
+      // Durée réduite alors que des jours en trop sont déjà remplis : confirmation explicite.
+      if (res.status === 409 && data.needsConfirm) {
+        if (!window.confirm(data.error)) {
+          setMessage({ ok: false, text: "Modification annulée." });
+          setSaving(false);
+          return;
+        }
+        res = await send(true);
+        data = await res.json().catch(() => ({}));
+      }
       setMessage(res.ok ? { ok: true, text: "Enregistré ✓" } : { ok: false, text: data.error || "Enregistrement impossible." });
       if (res.ok) router.refresh();
     } catch {

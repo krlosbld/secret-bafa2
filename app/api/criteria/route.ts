@@ -27,7 +27,9 @@ export async function POST(req: Request) {
   }
 
   const existing = await getSessionCriteria(auth.formationId);
-  const criterion = await prisma.criterion.create({ data: { label, order: existing.length, formationId: auth.formationId } });
+  const order = existing.reduce((max, c) => Math.max(max, c.order + 1), 0);
+  const created = await prisma.criterion.create({ data: { label, order, formationId: auth.formationId } });
+  const criterion = { id: created.id, label: created.label, order: created.order, archived: false, ratingCount: 0 };
 
   return NextResponse.json({ ok: true, criterion });
 }

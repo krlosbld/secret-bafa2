@@ -2,11 +2,13 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { getPlayerSession } from "@/lib/playerAuth";
-import { getSession } from "@/lib/auth";
+import { getSession, isSuperAdmin } from "@/lib/auth";
 import PlanningTab from "./PlanningTab";
 import PlanningSettings from "./PlanningSettings";
 import { getSessionPostes } from "@/lib/posteLibrary";
-import { getSessionCriteria } from "@/lib/sessionCriteria";
+import { getSessionCriteria, getSessionCriteriaWithUsage } from "@/lib/sessionCriteria";
+import { blockApplies, blockShownForPlayer } from "@/lib/evaluationScope";
+import { legacyDailyLevel, legacyScoreAngle, legacyScoreColor } from "@/lib/legacyTrend";
 import { currentActivePlayer, getGameStatus } from "@/lib/gameAccess";
 import { loadTeam } from "@/lib/team";
 import { getManagerActor } from "@/lib/adminActor";
@@ -98,7 +100,7 @@ function SettingsSections({ active }: { active: "session" | "planning" | "equipe
 }
 
 async function getEvaluationData(playerId: string, formationId: string, staff: boolean) {
-  const [blocks, configRows, postes, criteria, criterionStates, evaluations, ratings, assignments, groupMemberships] = await Promise.all([
+  const [blocks, configRows, postes, allCriteria, criterionStates, evaluations, ratings, assignments, groupMemberships] = await Promise.all([
     prisma.planningBlock.findMany({ where: { formationId }, orderBy: [{ day: "asc" }, { startMin: "asc" }] }),
     prisma.config.findMany({ where: { formationId, key: { in: ["planningSessionType", "planningStartDate"] } } }),
     prisma.posteType.findMany({ orderBy: { order: "asc" } }),
@@ -122,14 +124,22 @@ async function getEvaluationData(playerId: string, formationId: string, staff: b
   const memberGroupIds = new Set(groupMemberships.map((m) => m.groupId));
 
   const evaluableIds = new Set(postes.filter((p) => p.evaluable).map((p) => p.id));
-  const evalBlocks = blocks.filter((b) => {
-    if (!evaluableIds.has(b.type) || b.day >= dayCount) return false;
-    // Un créneau lié à un groupe n'est concerné que par les membres de ce groupe — même logique de
-    // priorité que le pop-up de rappel des formateurs (lib/pendingEvaluations.ts).
-    if (b.groupId) return memberGroupIds.has(b.groupId);
-    const assigned = assignedByBlock.get(b.id);
-    return !assigned || assigned.has(playerId);
-  });
+  // Créneaux du stagiaire (lib/evaluationScope) : ceux qui le concernent aujourd'hui, plus ceux où il
+  // a déjà une évaluation — un changement de groupe ou de créneau ne fait rien disparaître.
+  const evaluatedBlockIds = new Set(evaluations.filter((e) => e.note.trim()).map((e) => e.blockId));
+  const evalBlocks = blocks.filter((b) =>
+    blockShownForPlayer(b, {
+      evaluableTypeIds: evaluableIds,
+      playerGroupIds: memberGroupIds,
+      assignedPlayerIds: assignedByBlock.get(b.id),
+      playerId,
+      evaluatedBlockIds,
+      dayCount,
+    })
+  );
+  // Critères archivés : seulement s'ils ont été notés pour ce stagiaire (lecture seule).
+  const ratedCriterionIds = new Set(ratings.map((r) => r.criterionId));
+  const criteria = allCriteria.filter((c) => !c.archived || ratedCriterionIds.has(c.id));
   const notes: Record<string, string> = {};
   for (const e of evaluations) notes[e.blockId] = e.note;
   const ratingValues: Record<string, string> = {};
@@ -187,9 +197,11 @@ async function getStagiaireIndicators(dayCount: number, formationId: string, pla
   const evalBlocksByDay = new Map<number, Set<string>>();
   const blockToDay = new Map<string, number>();
   const blockGroupId = new Map<string, string | null>();
+  const blockType = new Map<string, string>();
   for (const b of blocks) {
     if (!evaluableIds.has(b.type) || b.day >= dayCount) continue;
     blockToDay.set(b.id, b.day);
+    blockType.set(b.id, b.type);
     blockGroupId.set(b.id, b.groupId);
     if (!evalBlocksByDay.has(b.day)) evalBlocksByDay.set(b.day, new Set());
     evalBlocksByDay.get(b.day)!.add(b.id);
@@ -213,17 +225,20 @@ async function getStagiaireIndicators(dayCount: number, formationId: string, pla
 
   function dailyFillRatio(playerId: string, day: number): number {
     const dayBlocks = evalBlocksByDay.get(day) ?? new Set<string>();
-    const applicable = [...dayBlocks].filter((blockId) => {
-      const groupId = blockGroupId.get(blockId);
-      if (groupId) return groupIdsByPlayer.get(playerId)?.has(groupId) ?? false;
-      const assigned = assignedByBlock.get(blockId);
-      return !assigned || assigned.has(playerId);
-    });
+    const playerFilledBlocks = filledBlocksByPlayer.get(playerId);
+    // Même règle que la fiche (lib/evaluationScope) : un créneau déjà évalué compte toujours.
+    const applicable = [...dayBlocks].filter(
+      (blockId) =>
+        !!playerFilledBlocks?.has(blockId) ||
+        blockApplies(
+          { id: blockId, day, type: blockType.get(blockId)!, groupId: blockGroupId.get(blockId) ?? null },
+          { evaluableTypeIds: evaluableIds, playerGroupIds: groupIdsByPlayer.get(playerId) ?? new Set(), assignedPlayerIds: assignedByBlock.get(blockId), playerId }
+        )
+    );
     const total = applicable.length;
     if (total === 0) return 1;
 
     let filled = 0;
-    const playerFilledBlocks = filledBlocksByPlayer.get(playerId);
     for (const blockId of applicable) {
       if (playerFilledBlocks?.has(blockId)) filled++;
     }
@@ -233,9 +248,7 @@ async function getStagiaireIndicators(dayCount: number, formationId: string, pla
 
   function dailyTrend(playerId: string, day: number): number | null {
     const values = ratingsByPlayerDay.get(playerId)?.get(day) ?? [];
-    const scores = values.map((v) => scoreByStateId.get(v)).filter((s): s is number => s !== null && s !== undefined);
-    if (scores.length === 0) return null;
-    return scores.reduce((s, v) => s + v, 0) / scores.length;
+    return legacyDailyLevel(values.map((v) => scoreByStateId.get(v)));
   }
 
   return { dailyFillRatio, dailyTrend };
@@ -253,39 +266,11 @@ async function getGroupAssignment(formationId: string): Promise<{ groupsByPlayer
   return { groupsByPlayerId };
 }
 
-function lerpColor(a: string, b: string, t: number): string {
-  const pa = parseInt(a.slice(1), 16);
-  const pb = parseInt(b.slice(1), 16);
-  const ar = (pa >> 16) & 255, ag = (pa >> 8) & 255, ab = pa & 255;
-  const br = (pb >> 16) & 255, bg = (pb >> 8) & 255, bb = pb & 255;
-  const r = Math.round(ar + (br - ar) * t);
-  const g = Math.round(ag + (bg - ag) * t);
-  const bl = Math.round(ab + (bb - ab) * t);
-  return `rgb(${r},${g},${bl})`;
-}
-
-const SCORE_MIN = -1;
-const SCORE_MAX = 2;
-
-function scoreColor(score: number): string {
-  if (score <= 0) {
-    const t = Math.min(1, Math.max(0, (score - SCORE_MIN) / (0 - SCORE_MIN)));
-    return lerpColor("#dc2626", "#f59e0b", t);
-  }
-  const t = Math.min(1, Math.max(0, score / SCORE_MAX));
-  return lerpColor("#f59e0b", "#16a34a", t);
-}
-
-function scoreAngle(score: number): number {
-  const t = Math.min(1, Math.max(0, (score - SCORE_MIN) / (SCORE_MAX - SCORE_MIN)));
-  return 180 - t * 180;
-}
-
 // Variante « cercle » (tableau Stagiaires) : pastille colorée selon la tendance, flèche blanche
 // orientée de la même façon. Même logique de couleur et d'angle que la flèche simple.
 function TrendCircle({ score, day, href }: { score: number | null; day: number; href: string }) {
-  const background = score === null ? "#d5dce5" : scoreColor(score);
-  const angle = score === null ? 90 : scoreAngle(score);
+  const background = score === null ? "#d5dce5" : legacyScoreColor(score);
+  const angle = score === null ? 90 : legacyScoreAngle(score);
   return (
     <Link href={href} title={`J${day + 1}`} className="st-trend" style={{ background }}>
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" style={{ transform: `rotate(${angle}deg)` }} aria-hidden>
@@ -686,7 +671,7 @@ export default async function BafaPage({
   if (tab === "reglages" && canEditSettings && section === "planning") {
     const [sessionPostes, criteria, criterionStates, typeRow] = await Promise.all([
       getSessionPostes(formationId),
-      getSessionCriteria(formationId),
+      getSessionCriteriaWithUsage(formationId),
       prisma.criterionState.findMany({ orderBy: { order: "asc" } }),
       prisma.config.findUnique({ where: { formationId_key: { formationId, key: "planningSessionType" } } }),
     ]);
@@ -702,6 +687,7 @@ export default async function BafaPage({
             initialCriteria={criteria}
             initialCriterionStates={criterionStates}
             sessionType={typeRow?.value ?? DEFAULT_SESSION_TYPE}
+            canEditLegacyStates={isSuperAdmin(adminSession)}
           />
         </div>
       </main>

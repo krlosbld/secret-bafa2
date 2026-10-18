@@ -5,7 +5,7 @@ import { getTextHistory } from "@/lib/textHistory";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const ALLOWED_TYPES = ["evaluation", "dailyRemark", "ems", "retourEms", "complementaryNote", "finalAppraisal"];
+const ALLOWED_TYPES = ["evaluation", "dailyRemark", "ems", "retourEms", "complementaryNote", "finalAppraisal", "finalOpinion"];
 
 export async function GET(req: Request) {
   const auth = await getPlanningAuth();

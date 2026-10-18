@@ -94,22 +94,28 @@ export default function CriteriaBoard({
     }
   }
 
-  if (criteria.length === 0) {
+  // Critère archivé : affiché seulement le jour où il a été noté, sans saisie possible.
+  const shown = criteria.filter((c) => !c.archived || values[`${c.id}:${activeDay}`]);
+
+  if (shown.length === 0) {
     return <p style={{ color: "#64748b", fontSize: 14 }}>Aucun critère configuré.</p>;
   }
 
   return (
     <div className="card">
       <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-        {criteria.map((c) => {
+        {shown.map((c) => {
           const key = `${c.id}:${activeDay}`;
           const current = values[key];
           const currentState = stateOf(states, current);
 
           return (
             <div key={c.id}>
-              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6 }}>{c.label}</div>
-              {canEdit ? (
+              <div style={{ fontWeight: 700, fontSize: 14, marginBottom: 6 }}>
+                {c.label}
+                {c.archived && <span style={{ fontWeight: 600, fontSize: 12, color: "#94a3b8" }}> · critère archivé</span>}
+              </div>
+              {canEdit && !c.archived ? (
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                   {states.map((s) => {
                     const active = current === s.id;

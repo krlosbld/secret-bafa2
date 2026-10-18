@@ -44,9 +44,37 @@ export async function getSessionSettings(formationId: string): Promise<SessionSe
 
 export class SettingsError extends Error {}
 
+// Réduire la durée d'une session (BAFA 1 → BAFA 3…) masquerait les jours en trop : on compte ce qui y
+// est déjà saisi pour demander confirmation. Rien n'est supprimé, et revenir à la durée initiale
+// fait réapparaître ces jours.
+export class ShortenConfirmError extends Error {}
+
+export async function evaluationDataFromDay(formationId: string, fromDay: number): Promise<number> {
+  const [evaluations, ratings, remarks] = await Promise.all([
+    prisma.evaluation.count({ where: { note: { not: "" }, block: { formationId, day: { gte: fromDay } } } }),
+    prisma.criterionRating.count({ where: { day: { gte: fromDay }, player: { formationId } } }),
+    prisma.dailyRemark.count({ where: { note: { not: "" }, day: { gte: fromDay }, player: { formationId } } }),
+  ]);
+  return evaluations + ratings + remarks;
+}
+
+export async function checkShortening(formationId: string, nextSessionType: string, confirmed: boolean): Promise<void> {
+  if (confirmed) return;
+  const row = await prisma.config.findUnique({ where: { formationId_key: { formationId, key: "planningSessionType" } } });
+  const currentDays = daysForType(row?.value ?? DEFAULT_SESSION_TYPE);
+  const nextDays = daysForType(nextSessionType);
+  if (nextDays >= currentDays) return;
+  const count = await evaluationDataFromDay(formationId, nextDays);
+  if (count > 0) {
+    throw new ShortenConfirmError(
+      `La session passe de ${currentDays} à ${nextDays} jours, mais ${count} évaluation(s), appréciation(s) ou remarque(s) existent après le jour ${nextDays}. Elles ne seront pas supprimées, mais ne seront plus affichées tant que la durée n'est pas rétablie. Confirmer ?`
+    );
+  }
+}
+
 export async function updateSessionSettings(
   formationId: string,
-  input: { name?: unknown; sessionType?: unknown; startDate?: unknown; location?: unknown }
+  input: { name?: unknown; sessionType?: unknown; startDate?: unknown; location?: unknown; confirmShorten?: unknown }
 ): Promise<SessionSettings> {
   const name = typeof input.name === "string" ? input.name.trim() : "";
   const sessionType = typeof input.sessionType === "string" ? input.sessionType : "";
@@ -58,6 +86,8 @@ export async function updateSessionSettings(
   if (startDate && (!/^\d{4}-\d{2}-\d{2}$/.test(startDate) || Number.isNaN(Date.parse(`${startDate}T00:00:00Z`)))) {
     throw new SettingsError("Date de début invalide.");
   }
+
+  await checkShortening(formationId, sessionType, input.confirmShorten === true);
 
   const endDate = startDate ? computeEndDate(startDate, sessionType) : null;
   const upsert = (key: string, value: string) =>

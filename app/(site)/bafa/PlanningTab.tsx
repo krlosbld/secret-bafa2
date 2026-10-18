@@ -43,6 +43,8 @@ export type Criterion = {
   id: string;
   label: string;
   order: number;
+  archived?: boolean; // plus proposé à la saisie ; notes consultables les jours où il a été noté
+  ratingCount?: number; // réglages : appréciations déjà portées par le critère
 };
 
 export type CriterionStateDef = {
@@ -745,13 +747,22 @@ export default function PlanningTab({
               onCancel={() => setEditing(null)}
               onSave={async (patch) => {
                 const id = editing.id;
+                const before = editing;
                 setBlocks((bs) => bs.map((b) => (b.id === id ? { ...b, ...patch } : b)));
                 setEditing(null);
-                await fetch(`/api/planning/${id}`, {
-                  method: "PATCH",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify(patch),
-                });
+                const send = (extra: Record<string, unknown> = {}) =>
+                  fetch(`/api/planning/${id}`, {
+                    method: "PATCH",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ ...patch, ...extra }),
+                  });
+                let res = await send();
+                // Créneau déjà évalué dont le type ou le groupe change : confirmation explicite.
+                if (res.status === 409) {
+                  const data = await res.json().catch(() => ({}));
+                  if (data.needsConfirm && window.confirm(data.error)) res = await send({ confirmEvaluated: true });
+                }
+                if (!res.ok) setBlocks((bs) => bs.map((b) => (b.id === id ? before : b)));
               }}
               onDelete={async () => {
                 const id = editing.id;

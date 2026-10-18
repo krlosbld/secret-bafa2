@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { getSessionCriteria } from "@/lib/sessionCriteria";
+import { blockShownForPlayer } from "@/lib/evaluationScope";
 import { DEFAULT_SESSION_TYPE, todayISO, daysForType, dateForDayIndex, formatDayHeader } from "@/lib/planningConfig";
 
 export type DayReport = {
@@ -37,7 +38,7 @@ export async function buildPlayerReport(playerId: string, formationId: string): 
   const player = await prisma.player.findUnique({ where: { id: playerId } });
   if (!player || player.formationId !== formationId) return null;
 
-  const [blocks, configRows, postes, criteria, criterionStates, evaluations, ratings, assignments, remarkRows] =
+  const [blocks, configRows, postes, criteria, criterionStates, evaluations, ratings, assignments, remarkRows, groupMemberships] =
     await Promise.all([
       prisma.planningBlock.findMany({ where: { formationId }, orderBy: [{ day: "asc" }, { startMin: "asc" }] }),
       prisma.config.findMany({ where: { formationId, key: { in: ["planningSessionType", "planningStartDate"] } } }),
@@ -48,6 +49,7 @@ export async function buildPlayerReport(playerId: string, formationId: string): 
       prisma.criterionRating.findMany({ where: { playerId } }),
       prisma.blockAssignment.findMany({ select: { blockId: true, playerId: true } }),
       prisma.dailyRemark.findMany({ where: { playerId } }),
+      prisma.groupMember.findMany({ where: { playerId }, select: { groupId: true } }),
     ]);
 
   const sessionType = configRows.find((r) => r.key === "planningSessionType")?.value ?? DEFAULT_SESSION_TYPE;
@@ -64,27 +66,42 @@ export async function buildPlayerReport(playerId: string, formationId: string): 
   }
 
   const notesByBlock = new Map(evaluations.map((e) => [e.blockId, e.note]));
-  const ratingsByKey = new Map(ratings.map((r) => [`${r.criterionId}:${r.day}`, r.value]));
+  const ratingsByKey = new Map(ratings.map((r) => [`${r.criterionId}:${r.day}`, r]));
+  // Même règle que la fiche (lib/evaluationScope) : créneaux du stagiaire, groupe compris, plus
+  // ceux déjà évalués.
+  const memberGroupIds = new Set(groupMemberships.map((m) => m.groupId));
+  const evaluatedBlockIds = new Set(evaluations.filter((e) => e.note.trim()).map((e) => e.blockId));
   const stateLabelById = new Map(criterionStates.map((s) => [s.id, s.label]));
   const remarkByDay = new Map(remarkRows.map((r) => [r.day, r.note]));
 
   const days: DayReport[] = Array.from({ length: dayCount }, (_, day) => {
-    const dayBlocks = blocks.filter((b) => b.day === day && evaluableIds.has(b.type));
-    const evaluationsForDay = dayBlocks
-      .filter((b) => {
-        const assigned = assignedByBlock.get(b.id);
-        return !assigned || assigned.has(playerId);
-      })
+    const evaluationsForDay = blocks
+      .filter(
+        (b) =>
+          b.day === day &&
+          blockShownForPlayer(b, {
+            evaluableTypeIds: evaluableIds,
+            playerGroupIds: memberGroupIds,
+            assignedPlayerIds: assignedByBlock.get(b.id),
+            playerId,
+            evaluatedBlockIds,
+            dayCount,
+          })
+      )
       .map((b) => ({
         time: `${minToTime(b.startMin)}–${minToTime(b.endMin)}`,
         label: `${b.label} (${posteById.get(b.type)?.label ?? b.type})`,
         note: notesByBlock.get(b.id) ?? "",
       }));
 
-    const criteriaForDay = criteria.map((c) => {
-      const value = ratingsByKey.get(`${c.id}:${day}`);
-      return { label: c.label, stateLabel: value ? stateLabelById.get(value) ?? null : null };
-    });
+    // Un critère archivé n'apparaît que les jours où il a été noté.
+    const criteriaForDay = criteria
+      .filter((c) => !c.archived || ratingsByKey.has(`${c.id}:${day}`))
+      .map((c) => {
+        const rating = ratingsByKey.get(`${c.id}:${day}`);
+        const stateLabel = rating ? rating.levelLabel ?? stateLabelById.get(rating.value) ?? null : null;
+        return { label: c.label, stateLabel };
+      });
 
     return {
       dayLabel: formatDayHeader(dateForDayIndex(startDate, day)),

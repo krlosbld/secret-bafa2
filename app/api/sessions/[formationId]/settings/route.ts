@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { readJsonBody } from "@/lib/requestGuard";
-import { updateSessionSettings, canEditSessionSettings, SettingsError } from "@/lib/sessionSettings";
+import { updateSessionSettings, canEditSessionSettings, SettingsError, ShortenConfirmError } from "@/lib/sessionSettings";
 
 export const runtime = "nodejs";
 
@@ -17,6 +17,7 @@ export async function PATCH(req: Request, { params }: { params: Promise<{ format
     return NextResponse.json({ ok: true, settings });
   } catch (e) {
     if (e instanceof SettingsError) return NextResponse.json({ error: e.message }, { status: 400 });
+    if (e instanceof ShortenConfirmError) return NextResponse.json({ error: e.message, needsConfirm: true }, { status: 409 });
     throw e;
   }
 }

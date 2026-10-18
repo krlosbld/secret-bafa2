@@ -1,19 +1,15 @@
-import { getSession } from "@/lib/auth";
+import { getSession, isSuperAdmin } from "@/lib/auth";
 import { getPlayerSession } from "@/lib/playerAuth";
 import { prisma } from "@/lib/prisma";
 import { resolveAdminFormationId } from "@/lib/formation";
 
 const STAFF_ROLES = ["FORMATEUR", "DIRECTEUR"];
 
-// Réglages communs à toutes les sessions (critères d'évaluation, états de notation, modification et
-// suppression des types de créneaux) : directeurs et admin seulement — ils sont dans l'onglet
-// ⚙️ Réglages. Un formateur peut toujours créer un nouveau temps de formation depuis le planning.
-export async function canEditEvaluationSettings(): Promise<boolean> {
-  if (await getSession()) return true;
-  const playerSession = await getPlayerSession();
-  if (!playerSession) return false;
-  const player = await prisma.player.findUnique({ where: { id: playerSession.playerId }, select: { role: true } });
-  return player?.role === "DIRECTEUR";
+// Anciens états de notation (Acquis, En progression…) : communs à toutes les sessions, ils donnent
+// leur sens aux appréciations déjà enregistrées. Les modifier changerait l'historique de toutes les
+// sessions : réservé au super-admin.
+export async function canEditLegacyCriterionStates(): Promise<boolean> {
+  return isSuperAdmin(await getSession());
 }
 
 export async function canEditPlanning(): Promise<boolean> {

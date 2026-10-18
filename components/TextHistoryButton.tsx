@@ -11,7 +11,7 @@ export default function TextHistoryButton({
 }: {
   entityType: string;
   entityKey: string;
-  onRestore: (value: string) => void;
+  onRestore?: (value: string) => void; // absent : historique en lecture seule
 }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -72,17 +72,23 @@ export default function TextHistoryButton({
                     >
                       {e.previousValue || "Vide"}
                     </p>
-                    <button
-                      type="button"
-                      className="btn btn-ghost"
-                      style={{ padding: "4px 10px", fontSize: 12 }}
-                      onClick={() => {
-                        onRestore(e.previousValue);
-                        setOpen(false);
-                      }}
-                    >
-                      ↩ Restaurer cette version
-                    </button>
+                    {onRestore ? (
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        style={{ padding: "4px 10px", fontSize: 12 }}
+                        onClick={() => {
+                          onRestore(e.previousValue);
+                          setOpen(false);
+                        }}
+                      >
+                        ↩ Restaurer cette version
+                      </button>
+                    ) : (
+                      <div style={{ fontSize: 12, color: "#64748b" }}>
+                        Remplacé par : <strong>{e.newValue || "—"}</strong>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

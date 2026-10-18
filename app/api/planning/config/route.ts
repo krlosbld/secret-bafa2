@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getPlanningAuth } from "@/lib/planningAuth";
 import { SESSION_TYPES, DEFAULT_SESSION_TYPE, todayISO } from "@/lib/planningConfig";
 import { resolveViewFormationId } from "@/lib/formation";
-import { syncSessionDatesFromPlanning } from "@/lib/sessionSettings";
+import { syncSessionDatesFromPlanning, checkShortening, ShortenConfirmError } from "@/lib/sessionSettings";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -39,6 +39,12 @@ export async function PATCH(req: Request) {
   }
 
   const formationId = auth.formationId;
+  try {
+    await checkShortening(formationId, sessionType, body.confirmShorten === true);
+  } catch (e) {
+    if (e instanceof ShortenConfirmError) return NextResponse.json({ error: e.message, needsConfirm: true }, { status: 409 });
+    throw e;
+  }
   await prisma.$transaction([
     prisma.config.upsert({
       where: { formationId_key: { formationId, key: "planningSessionType" } },

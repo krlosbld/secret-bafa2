@@ -28,6 +28,7 @@ model Formation {
   textEditHistory   TextEditHistory[]
   groups            Group[]
   criteria          Criterion[]
+  ratingLevels      RatingLevel[]
 }
 
 // Un groupe persistant de stagiaires (+ formateurs rattachés). Plusieurs groupes coexistent en
@@ -447,28 +448,38 @@ model Evaluation {
 // sans session) servent à remplir les critères d'une nouvelle session BAFA ; une session BAFD
 // démarre sans critère.
 model Criterion {
-  id          String            @id @default(cuid())
-  label       String
-  order       Int               @default(0)
-  formationId String?
-  isTemplate  Boolean           @default(false)
-  createdAt   DateTime          @default(now())
-  ratings     CriterionRating[]
-  formation   Formation?        @relation(fields: [formationId], references: [id], onDelete: Cascade)
+  id           String                  @id @default(cuid())
+  label        String
+  order        Int                     @default(0)
+  formationId  String?
+  isTemplate   Boolean                 @default(false)
+  createdAt    DateTime                @default(now())
+  ratings      CriterionRating[]
+  archivedAt   DateTime? // archivé : plus proposé à la saisie, anciennes notes consultables
+  archivedBy   String?
+  labelHistory CriterionLabelHistory[]
+  formation    Formation?              @relation(fields: [formationId], references: [id], onDelete: Cascade)
 
   @@index([formationId])
 }
 
 model CriterionRating {
-  id          String    @id @default(cuid())
+  id          String                   @id @default(cuid())
   playerId    String
   criterionId String
   day         Int
-  value       String // id d'un CriterionState
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  player      Player    @relation(fields: [playerId], references: [id], onDelete: Cascade)
-  criterion   Criterion @relation(fields: [criterionId], references: [id], onDelete: Cascade)
+  value       String // ancienne échelle : id d'un CriterionState ; nouvelle : id d'un RatingLevel
+  level       Int? // nouvelle échelle : 1 (à consolider) · 2 · 3 (point d'appui) ; null = ancienne échelle
+  levelLabel  String? // intitulé du niveau au moment de la saisie
+  comment     String? // commentaire (justification obligatoire au niveau 1), visible par le stagiaire
+  authorId    String? // fiche (Player) de l'auteur de la version actuelle ; null = non enregistré
+  authorLabel String?
+  version     Int                      @default(0) // contrôle des modifications simultanées
+  createdAt   DateTime                 @default(now())
+  updatedAt   DateTime                 @updatedAt
+  player      Player                   @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  criterion   Criterion                @relation(fields: [criterionId], references: [id], onDelete: Cascade)
+  history     CriterionRatingHistory[]
 
   @@unique([playerId, criterionId, day])
   @@index([playerId, day])
@@ -494,4 +505,72 @@ model CriterionState {
   score     Float? // -1..1, null = exclu du calcul de tendance
   order     Int      @default(0)
   createdAt DateTime @default(now())
+}
+
+// Appréciations de la session (nouvelle échelle) : exactement 3 niveaux techniques fixes, 1 (à
+// consolider) · 2 (satisfaisant) · 3 (point d'appui), jamais présentés comme des notes. Seul
+// l'intitulé est personnalisable par le directeur, pour sa session uniquement.
+model RatingLevel {
+  id           String                    @id @default(cuid())
+  formationId  String
+  level        Int
+  label        String
+  createdAt    DateTime                  @default(now())
+  updatedAt    DateTime                  @updatedAt
+  formation    Formation                 @relation(fields: [formationId], references: [id], onDelete: Cascade)
+  labelHistory RatingLevelLabelHistory[]
+
+  @@unique([formationId, level])
+}
+
+model RatingLevelLabelHistory {
+  id            String      @id @default(cuid())
+  ratingLevelId String
+  previousLabel String
+  newLabel      String
+  authorId      String?
+  authorLabel   String?
+  changedAt     DateTime    @default(now())
+  ratingLevel   RatingLevel @relation(fields: [ratingLevelId], references: [id], onDelete: Cascade)
+
+  @@index([ratingLevelId])
+}
+
+// Historique des notes de critères (création, modification, effacement) : réservé à l'équipe.
+model CriterionRatingHistory {
+  id              String           @id @default(cuid())
+  ratingId        String?
+  formationId     String
+  playerId        String
+  criterionId     String
+  day             Int
+  action          String // CREATE | UPDATE | DELETE
+  previousValue   String?
+  newValue        String?
+  previousLevel   Int?
+  newLevel        Int?
+  previousLabel   String?
+  newLabel        String?
+  previousComment String?
+  newComment      String?
+  authorId        String?
+  authorLabel     String?
+  changedAt       DateTime         @default(now())
+  rating          CriterionRating? @relation(fields: [ratingId], references: [id], onDelete: SetNull)
+
+  @@index([formationId, playerId, criterionId, day])
+}
+
+// Corrections d'intitulé d'un critère déjà noté (le sens des anciennes notes reste traçable).
+model CriterionLabelHistory {
+  id            String    @id @default(cuid())
+  criterionId   String
+  previousLabel String
+  newLabel      String
+  authorId      String?
+  authorLabel   String?
+  changedAt     DateTime  @default(now())
+  criterion     Criterion @relation(fields: [criterionId], references: [id], onDelete: Cascade)
+
+  @@index([criterionId])
 }
