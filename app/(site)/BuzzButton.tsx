@@ -2,6 +2,17 @@
 
 import { useState } from "react";
 
+// Prénoms des joueurs (liste déroulante) : chargés à l'ouverture, partagés entre les boutons de la page.
+let namesCache: { at: number; names: string[] } | null = null;
+async function loadNames(): Promise<string[]> {
+  if (namesCache && Date.now() - namesCache.at < 15000) return namesCache.names;
+  const res = await fetch("/api/game/buzz-names", { cache: "no-store" });
+  const data = await res.json().catch(() => ({}));
+  const names: string[] = Array.isArray(data.names) ? data.names : [];
+  namesCache = { at: Date.now(), names };
+  return names;
+}
+
 export default function BuzzButton({ secretId }: { secretId: string }) {
   const [open, setOpen] = useState(false);
   const [guessedName, setGuessedName] = useState("");
@@ -10,19 +21,24 @@ export default function BuzzButton({ secretId }: { secretId: string }) {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
   const [claimFakeResult, setClaimFakeResult] = useState<{ correct: boolean; points?: number } | null>(null);
+  const [names, setNames] = useState<string[] | null>(null);
 
   function handleOpen() {
     setError("");
     setSuccess(false);
     setClaimFake(false);
     setClaimFakeResult(null);
+    setGuessedName("");
     setOpen(true);
+    loadNames()
+      .then(setNames)
+      .catch(() => setNames([]));
   }
 
   async function sendBuzz() {
     setError("");
     if (!claimFake && !guessedName.trim()) {
-      setError("Indique à qui appartient ce secret.");
+      setError("Choisis à qui appartient ce secret.");
       return;
     }
     setLoading(true);
@@ -41,6 +57,7 @@ export default function BuzzButton({ secretId }: { secretId: string }) {
       }
       setClaimFakeResult(data?.claimFakeResult ?? null);
       setSuccess(true);
+      namesCache = null;
       setGuessedName("");
     } catch {
       setError("Erreur réseau.");
@@ -116,13 +133,14 @@ export default function BuzzButton({ secretId }: { secretId: string }) {
                 {!claimFake && (
                   <label className="sb-field">
                     <span>À qui appartient ce secret ?</span>
-                    <input
-                      value={guessedName}
-                      onChange={(e) => setGuessedName(e.target.value)}
-                      placeholder="Prénom de la personne"
-                      maxLength={40}
-                      disabled={loading}
-                    />
+                    <select value={guessedName} onChange={(e) => setGuessedName(e.target.value)} disabled={loading || names === null}>
+                      <option value="">{names === null ? "Chargement…" : "Choisis un joueur…"}</option>
+                      {(names ?? []).map((n) => (
+                        <option key={n} value={n}>
+                          {n}
+                        </option>
+                      ))}
+                    </select>
                   </label>
                 )}
 

@@ -499,6 +499,7 @@ a {
 }
 
 .sb-field input,
+.sb-field select,
 .sb-field textarea {
   width: 100%;
   border: 1px solid #ddd;
@@ -508,12 +509,18 @@ a {
   font-size: 0.9rem;
 }
 
+.sb-field select {
+  background: #fff;
+  font-size: 1rem;
+}
+
 .sb-field textarea {
   min-height: 120px;
   resize: vertical;
 }
 
 .sb-field input:focus,
+.sb-field select:focus,
 .sb-field textarea:focus {
   border-color: #0f766e;
 }
