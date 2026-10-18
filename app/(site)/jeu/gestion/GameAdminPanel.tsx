@@ -40,7 +40,7 @@ export default async function GameAdminPanel({
       where: { status: "PENDING", formationId },
       orderBy: { createdAt: "asc" },
       include: {
-        player: { select: { firstName: true, code: true } },
+        player: { select: { firstName: true, code: true, fakeVisible: true } },
         foundBy: { select: { firstName: true } },
         _count: { select: { rejections: true } },
       },
@@ -49,7 +49,7 @@ export default async function GameAdminPanel({
       where: { status: { in: ["PUBLISHED", "FOUND"] }, formationId },
       orderBy: { createdAt: "desc" },
       include: {
-        player: { select: { firstName: true, code: true } },
+        player: { select: { firstName: true, code: true, fakeVisible: true } },
         foundBy: { select: { firstName: true } },
       },
     }),

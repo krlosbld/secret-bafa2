@@ -112,6 +112,7 @@ model Player {
   buzzCount             Int               @default(0)
   buzzQuotaOverride     Int? // null = utilise le quota de la formation
   isGameMaster          Boolean           @default(false) // maître du jeu de la session (un seul, désigné par le directeur) : administre le jeu, ne peut pas buzzer
+  fakeVisible           Boolean           @default(false) // fiche d'un faux secret affichée comme un joueur (classement, points de nuit), révélée en fin de partie
   // Participation d'un stagiaire au Jeu des secrets de cette session, demandée pendant les inscriptions :
   // null = invité (pas encore répondu), ACCEPTED, DECLINED (refus définitif), EXCLUDED (exclu par le
   // maître du jeu pendant les inscriptions), EXPIRED (aucune proposition dans les 24 h après acceptation).

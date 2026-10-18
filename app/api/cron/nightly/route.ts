@@ -65,7 +65,9 @@ async function runNightlyJob(req: Request) {
     const unpublished = !awardToday
       ? []
       : await prisma.secret.findMany({
-          where: { status: "PUBLISHED", formationId, isDecoy: false }, // pas de points pour un faux secret
+          // Pas de points pour un faux secret, sauf s'il est porté par un « faux joueur » visible :
+          // il doit rester crédible dans le classement (il est révélé et sans médaille en fin de partie).
+          where: { status: "PUBLISHED", formationId, OR: [{ isDecoy: false }, { player: { fakeVisible: true } }] },
           select: { playerId: true },
         });
 

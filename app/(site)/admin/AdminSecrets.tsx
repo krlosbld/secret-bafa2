@@ -17,7 +17,7 @@ type Secret = {
   limitedVisibilitySince: string | null;
   limitedVisibilityMinutes: number;
   createdAt: string;
-  player: { firstName: string; code: string };
+  player: { firstName: string; code: string; fakeVisible?: boolean };
   foundBy: { firstName: string } | null;
   _count?: { rejections: number }; // propositions déjà refusées pour ce joueur
 };
@@ -283,10 +283,14 @@ export function AdminSecretsPending({ secrets }: { secrets: Secret[] }) {
               🔁 Nouvelle proposition ({s._count!.rejections} refus avant)
             </div>
           )}
-          <div className="row">
-            <div className="label">Auteur</div>
-            <div className="value">{s.player.firstName}</div>
-          </div>
+          {s.isDecoy ? (
+            <DecoyAuthor secretId={s.id} firstName={s.player.firstName} visible={!!s.player.fakeVisible} />
+          ) : (
+            <div className="row">
+              <div className="label">Auteur</div>
+              <div className="value">{s.player.firstName}</div>
+            </div>
+          )}
           <div className="row">
             <div className="label">Secret</div>
             <div className="value" style={{ display: "flex", alignItems: "flex-start", gap: 8, flexWrap: "wrap" }}>
@@ -489,10 +493,14 @@ export function AdminSecretsPublished({ secrets }: { secrets: Secret[] }) {
             className={`status-dot ${s.status === "FOUND" ? "status-dot--green" : "status-dot--green"}`}
             title={s.status}
           />
-          <div className="row">
-            <div className="label">Auteur</div>
-            <div className="value">{s.player.firstName}</div>
-          </div>
+          {s.isDecoy ? (
+            <DecoyAuthor secretId={s.id} firstName={s.player.firstName} visible={!!s.player.fakeVisible} />
+          ) : (
+            <div className="row">
+              <div className="label">Auteur</div>
+              <div className="value">{s.player.firstName}</div>
+            </div>
+          )}
           <div className="row">
             <div className="label">Secret</div>
             <div className="value" style={{ display: "flex", alignItems: "flex-start", gap: 8, flexWrap: "wrap" }}>
@@ -613,5 +621,69 @@ export function AdminSecretsPublished({ secrets }: { secrets: Secret[] }) {
       </button>
     )}
     </>
+  );
+}
+
+// Prénom d'un faux secret : le modifier en fait un « faux joueur » visible dans le classement
+// (points de nuit compris), révélé en fin de partie. On peut ensuite le retirer du classement.
+function DecoyAuthor({ secretId, firstName, visible }: { secretId: string; firstName: string; visible: boolean }) {
+  const router = useRouter();
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState(firstName);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function send(body: object) {
+    setBusy(true);
+    setError("");
+    const res = await fetch(`/api/admin/secrets/${secretId}/decoy-player`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    }).catch(() => null);
+    const data = res ? await res.json().catch(() => ({})) : {};
+    setBusy(false);
+    if (!res?.ok) {
+      setError(data.error || "Modification impossible.");
+      return;
+    }
+    setEditing(false);
+    router.refresh();
+  }
+
+  return (
+    <div className="row">
+      <div className="label">Prénom</div>
+      <div className="value">
+        {editing ? (
+          <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+            <input value={value} maxLength={40} autoFocus onChange={(e) => setValue(e.target.value)} disabled={busy} style={{ border: "1px solid #ddd", borderRadius: 8, padding: "5px 8px", fontSize: 14 }} />
+            <button className="btn btn-main" style={{ padding: "4px 10px", fontSize: 12 }} disabled={busy || !value.trim()} onClick={() => send({ firstName: value })}>
+              Enregistrer
+            </button>
+            <button className="btn btn-ghost" style={{ padding: "4px 10px", fontSize: 12 }} disabled={busy} onClick={() => (setEditing(false), setValue(firstName), setError(""))}>
+              Annuler
+            </button>
+            <div style={{ width: "100%", fontSize: 12, color: "#6b21a8" }}>« {value.trim() || "…"} » apparaîtra comme un joueur dans le classement.</div>
+          </div>
+        ) : (
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+            <strong>{firstName}</strong>
+            {visible ? (
+              <span style={{ fontSize: 12, fontWeight: 700, color: "#6b21a8", background: "#f3e8ff", borderRadius: 999, padding: "1px 8px" }}>👤 faux joueur visible</span>
+            ) : (
+              <span style={{ fontSize: 12, color: "#94a3b8" }}>(caché du classement)</span>
+            )}
+            <button className="btn btn-ghost" style={{ padding: "3px 9px", fontSize: 12 }} onClick={() => setEditing(true)}>
+              ✏️ Modifier le prénom
+            </button>
+            <button className="btn btn-ghost" style={{ padding: "3px 9px", fontSize: 12 }} disabled={busy} onClick={() => send({ visible: !visible })}>
+              {visible ? "Retirer du classement" : "Montrer comme joueur"}
+            </button>
+          </div>
+        )}
+        {error && <div style={{ color: "#dc2626", fontSize: 13, fontWeight: 600, marginTop: 4 }}>{error}</div>}
+      </div>
+    </div>
   );
 }
