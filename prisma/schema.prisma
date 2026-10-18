@@ -30,6 +30,7 @@ model Formation {
   criteria          Criterion[]
   ratingLevels      RatingLevel[]
   pointTransactions PointTransaction[]
+  secretQuestions   SecretQuestion[]
 }
 
 // Un groupe persistant de stagiaires (+ formateurs rattachés). Plusieurs groupes coexistent en
@@ -152,6 +153,7 @@ model Player {
   finalAppraisalVisible     Boolean            @default(false)
   finalAppraisalAuthorId    String?
   pointTransactions         PointTransaction[]
+  secretQuestions           SecretQuestion[]
 
   @@unique([formationId, code])
   @@index([directorAccountId])
@@ -315,6 +317,7 @@ model Secret {
   foundBy                  Player?           @relation("FoundBy", fields: [foundByPlayerId], references: [id])
   buzzes                   Buzz[]
   rejections               SecretRejection[]
+  secretQuestions          SecretQuestion[]
 
   @@index([formationId])
 }
@@ -601,4 +604,29 @@ model PointTransaction {
 
   @@index([formationId, createdAt])
   @@index([playerId])
+}
+
+// Questions fermées posées au maître du jeu sur un secret (réponse « Oui » ou « Non » uniquement).
+// source : MYSTERY = Buzz mystère (une question répondue par joueur et par partie) ; LEADER = privilège
+// du leader (lot L4). Privées : visibles seulement par le joueur concerné et le maître du jeu.
+// Une question refusée (motif) ne consomme pas le droit ; une réponse Oui / Non le consomme.
+model SecretQuestion {
+  id            String    @id @default(cuid())
+  formationId   String
+  playerId      String
+  secretId      String
+  source        String // MYSTERY | LEADER
+  text          String
+  status        String    @default("PENDING") // PENDING | ANSWERED | REFUSED | CLOSED (partie terminée sans réponse)
+  answer        String? // OUI | NON
+  refusalReason String?
+  answeredBy    String? // maître du jeu qui a répondu ou refusé
+  createdAt     DateTime  @default(now())
+  answeredAt    DateTime?
+  formation     Formation @relation(fields: [formationId], references: [id], onDelete: Cascade)
+  player        Player    @relation(fields: [playerId], references: [id], onDelete: Cascade)
+  secret        Secret    @relation(fields: [secretId], references: [id], onDelete: Cascade)
+
+  @@index([formationId, status])
+  @@index([playerId, source])
 }

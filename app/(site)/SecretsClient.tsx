@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import BuzzButton from "./BuzzButton";
 import HistoryRevealButton from "./HistoryRevealButton";
+import MysteryBuzzButton from "@/components/MysteryBuzzButton";
 
 type SecretItem = {
   id: string;
@@ -42,11 +43,15 @@ export default function SecretsClient({
   historyRevealEnabled,
   canPlay = true,
   shuffleSeed,
+  mysteryAvailable = false,
+  mySecretId = null,
 }: {
   initial: SecretItem[];
   historyRevealEnabled: boolean;
   canPlay?: boolean;
   shuffleSeed: number; // tirée par le serveur à chaque affichage : ordre aléatoire, identique des deux côtés
+  mysteryAvailable?: boolean; // Buzz mystère activé et encore disponible pour ce joueur
+  mySecretId?: string | null; // le secret du joueur connecté (lui seul le reçoit) : pas de Buzz mystère dessus
 }) {
   const [secrets, setSecrets] = useState<SecretItem[]>(() => shuffle(initial, seededRandom(shuffleSeed)));
   const [toast, setToast] = useState(() => initial.some((s) => s.status === "FOUND"));
@@ -129,6 +134,7 @@ export default function SecretsClient({
           <div style={{ marginTop: 12, display: "flex", gap: 8, flexWrap: "wrap" }}>
             {canPlay && <BuzzButton secretId={s.id} />}
             {canPlay && historyRevealEnabled && <HistoryRevealButton secretId={s.id} cost={s.revealCost} />}
+            {canPlay && mysteryAvailable && s.id !== mySecretId && <MysteryBuzzButton secretId={s.id} secretContent={s.content} />}
           </div>
         </div>
       ))}

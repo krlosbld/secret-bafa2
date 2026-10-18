@@ -11,6 +11,8 @@ import { redirect } from "next/navigation";
 import { currentActivePlayer, gameClosedForCurrentPlayer, getGameState, PROPOSAL_DELAY_MS } from "@/lib/gameAccess";
 import { getPlayerSession } from "@/lib/playerAuth";
 import MySecretPanel, { type MySecretStatus } from "@/components/MySecretPanel";
+import MyPowers from "@/components/MyPowers";
+import { getMysteryState } from "@/lib/mysteryBuzz";
 import DirectorGameControls from "./gestion/DirectorGameControls";
 import { loadDirectorControls } from "./gestion/directorControls";
 import { getSession, isSuperAdmin } from "@/lib/auth";
@@ -85,6 +87,10 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
     };
   }
 
+  // Mes pouvoirs (Buzz mystère) : les données du joueur connecté seulement.
+  const mystery = active ? await getMysteryState(formation.id, active.id) : null;
+  const myOwnSecretId = mystery?.available ? (await prisma.secret.findUnique({ where: { playerId: active!.id }, select: { id: true } }))?.id ?? null : null;
+
   const showSecrets = state.status === "en_cours" || state.status === "termine";
   const [allSecrets, historyRevealConfig] = showSecrets
     ? await Promise.all([
@@ -142,6 +148,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           </div>
         )}
         {directorControls && <DirectorGameControls {...directorControls} compact />}
+        {mystery && (mystery.enabled || mystery.questions.length > 0) && <MyPowers initial={mystery} />}
         {mySecret && state.status !== "termine" && (
           <MySecretPanel
             status={mySecret.status}
@@ -164,6 +171,8 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
             historyRevealEnabled={historyRevealEnabled}
             canPlay={!!active && state.status === "en_cours"}
             shuffleSeed={randomInt(2 ** 31)}
+            mysteryAvailable={!!mystery?.available}
+            mySecretId={myOwnSecretId}
           />
         )}
       </div>

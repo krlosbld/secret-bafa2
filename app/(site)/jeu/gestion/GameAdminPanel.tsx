@@ -12,6 +12,7 @@ import AdminReset from "../../admin/AdminReset";
 import { GAME_RULES } from "@/lib/gameRules";
 import { getRuleSettings } from "@/lib/gameRuleSettings";
 import AdminPointsLedger from "../../admin/AdminPointsLedger";
+import AdminQuestions from "../../admin/AdminQuestions";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -107,6 +108,7 @@ export default async function GameAdminPanel({
   const buzzPaused = buzzPausedConfig?.value === "true";
   const ruleValues = new Map(ruleRows.map((r) => [r.key, r.value]));
   const ruleSettings = await getRuleSettings(formationId);
+  const questionCount = await prisma.secretQuestion.count({ where: { formationId } });
   const initialRules = Object.fromEntries(GAME_RULES.map((r) => [r.key, ruleValues.get(r.key) === "true"]));
 
   let lastNightlyRun: { at: string; updated: number } | null = null;
@@ -123,6 +125,12 @@ export default async function GameAdminPanel({
       <Section title="Faux secrets">
         <AdminDecoyCreator />
       </Section>
+
+      {(ruleSettings.enabled["rule_mysteryBuzz"] || questionCount > 0) && (
+        <Section title="❓ Questions des joueurs">
+          <AdminQuestions />
+        </Section>
+      )}
 
       <Section title={status === "inscriptions_ouvertes" ? "Participants et démarrage de la partie" : "Participants"}>
         <ParticipantsBoard status={status === "non_configure" ? "inscriptions_ouvertes" : status} participants={readiness.participants} />

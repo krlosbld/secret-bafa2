@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { applyPoints } from "@/lib/gamePoints";
+import { closePendingQuestions } from "@/lib/mysteryBuzz";
 import { getGameMasterAuth, getGameStatus } from "@/lib/gameAccess";
 import { prisma } from "@/lib/prisma";
 import { getGameAdminAuth } from "@/lib/gameAdminAuth";
@@ -34,6 +35,7 @@ export async function POST(_req: Request, { params }: Params) {
   // partie relancée ne le redonne pas.
   const actor = await getGameMasterAuth();
   await prisma.$transaction(async (tx) => {
+    await closePendingQuestions(tx, formationId); // questions sans réponse : closes
     await tx.config.upsert({
       where: { formationId_key: { formationId, key: "gameEnded" } },
       update: { value: "true" },

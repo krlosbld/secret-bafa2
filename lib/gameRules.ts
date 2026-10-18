@@ -38,9 +38,10 @@ export const ALL_GAME_RULES: GameRule[] = [
   {
     key: "rule_mysteryBuzz",
     label: "Buzz mystère ❓",
-    description: "Une fois par partie, chaque joueur pose au maître du jeu une question fermée (oui / non) sur un secret, sans jamais viser l'identité de son auteur.",
+    description:
+      "Une fois par partie, chaque joueur pose au maître du jeu une question fermée (oui / non) sur un secret, de 9 h à 18 h, sans jamais viser l'identité de son auteur. Tu peux refuser une question avec un motif : le joueur la reformule. Ne consomme pas le quota de buzz.",
     section: "pouvoirs",
-    available: false,
+    available: true,
   },
   {
     key: "rule_fakeIdentity",
