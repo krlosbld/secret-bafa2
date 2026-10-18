@@ -4,6 +4,19 @@ import { getSecretsAdminAuth } from "@/lib/gameAdminAuth";
 import { CLAIM_FAKE_GUESS_LABEL, resolveWinningBuzz } from "@/lib/buzzResolution";
 import { audit } from "@/lib/adminActor";
 import { getGameMasterAuth } from "@/lib/gameAccess";
+import { normalize } from "@/lib/fuzzy";
+
+// Un buzz incorrect tranché par le maître du jeu tranche aussi les buzz identiques (même secret, même
+// prénom à la casse et aux accents près) encore en attente : inutile de les traiter un par un.
+async function closeIdenticalPending(buzz: { id: string; secretId: string; guessedName: string }, status: "REJECTED" | "VALIDATED") {
+  const others = await prisma.buzz.findMany({
+    where: { secretId: buzz.secretId, status: "PENDING", isCorrect: false, id: { not: buzz.id } },
+    select: { id: true, guessedName: true },
+  });
+  const ids = others.filter((o) => normalize(o.guessedName) === normalize(buzz.guessedName)).map((o) => o.id);
+  if (ids.length > 0) await prisma.buzz.updateMany({ where: { id: { in: ids } }, data: { status } });
+  return ids.length;
+}
 
 export const runtime = "nodejs";
 
@@ -31,7 +44,8 @@ export async function PATCH(req: Request, { params }: Params) {
 
   if (action === "reject") {
     await prisma.buzz.update({ where: { id }, data: { status: "REJECTED" } });
-    return NextResponse.json({ ok: true });
+    const alsoClosed = buzz.isCorrect ? 0 : await closeIdenticalPending(buzz, "REJECTED");
+    return NextResponse.json({ ok: true, alsoClosed });
   }
 
   // « Accepter quand même » : le maître du jeu juge que la réponse désigne bien l'auteur malgré une
@@ -72,6 +86,7 @@ export async function PATCH(req: Request, { params }: Params) {
       });
     } else {
       await prisma.buzz.update({ where: { id }, data: { status: "VALIDATED" } });
+      if (!buzz.isCorrect) return NextResponse.json({ ok: true, alsoClosed: await closeIdenticalPending(buzz, "VALIDATED") });
     }
 
     return NextResponse.json({ ok: true });

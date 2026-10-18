@@ -2,9 +2,12 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { normalize } from "@/lib/fuzzy";
 
 type BuzzItem = {
   id: string;
+  secretId: string;
+  also?: { firstName: string; createdAt: string }[]; // buzz identiques regroupés (même secret, même prénom)
   guessedName: string;
   isCorrect: boolean;
   createdAt: string;
@@ -46,6 +49,29 @@ function groupByDay(buzzes: BuzzItem[]): { key: string; label: string; items: Bu
   return groups;
 }
 
+// Les buzz incorrects identiques (même secret, même prénom à la casse et aux accents près) sont
+// regroupés sur une seule carte : une seule décision les tranche tous (voir l'API).
+function mergeIdentical(buzzes: BuzzItem[]): BuzzItem[] {
+  const firstByKey = new Map<string, BuzzItem>();
+  const result: BuzzItem[] = [];
+  for (const b of buzzes) {
+    if (b.isCorrect) {
+      result.push(b);
+      continue;
+    }
+    const key = `${b.secretId}|${normalize(b.guessedName)}`;
+    const first = firstByKey.get(key);
+    if (first) {
+      (first.also ??= []).push({ firstName: b.fromPlayer.firstName, createdAt: b.createdAt });
+    } else {
+      const copy = { ...b, also: [] };
+      firstByKey.set(key, copy);
+      result.push(copy);
+    }
+  }
+  return result;
+}
+
 export default function AdminBuzzPending({ buzzes }: { buzzes: BuzzItem[] }) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
@@ -64,7 +90,7 @@ export default function AdminBuzzPending({ buzzes }: { buzzes: BuzzItem[] }) {
   if (buzzes.length === 0)
     return <p style={{ color: "#64748b", fontSize: 14 }}>Aucun buzz en attente.</p>;
 
-  const groups = groupByDay(buzzes);
+  const groups = groupByDay(mergeIdentical(buzzes));
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
@@ -104,6 +130,22 @@ export default function AdminBuzzPending({ buzzes }: { buzzes: BuzzItem[] }) {
                     </span>
                   </div>
                 </div>
+                {b.also && b.also.length > 0 && (
+                  <div className="row">
+                    <div className="label">Aussi</div>
+                    <div className="value" style={{ fontWeight: 700 }}>
+                      {b.also
+                        .map(
+                          (a) =>
+                            `${a.firstName} (${new Date(a.createdAt).toLocaleTimeString("fr-FR", { timeZone: "Europe/Paris", hour: "2-digit", minute: "2-digit" })})`
+                        )
+                        .join(", ")}
+                      <span style={{ display: "block", fontSize: 12, fontWeight: 400, color: "#64748b" }}>
+                        {b.also.length + 1} personnes ont donné la même réponse : votre décision s&apos;applique à toutes.
+                      </span>
+                    </div>
+                  </div>
+                )}
                 <div className="row">
                   <div className="label">Secret</div>
                   <div className="value" style={{ fontStyle: "italic" }}>&quot;{b.secret.content}&quot;</div>
