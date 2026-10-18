@@ -12,6 +12,7 @@ const styles = StyleSheet.create({
   value: { flex: 1 },
   block: { marginBottom: 3 },
   empty: { color: "#94a3b8" },
+  criterionComment: { fontSize: 9, color: "#475569", marginLeft: 12, marginBottom: 4 },
   divider: { borderBottomWidth: 1, borderBottomColor: "#e2e8f0", marginVertical: 12 },
 });
 
@@ -46,11 +47,19 @@ export function PlayerReportPage({ report }: { report: PlayerReport }) {
               <Text style={styles.empty}>Aucun critère configuré.</Text>
             ) : (
               day.criteria.map((c, i) => (
-                <View key={i} style={styles.row}>
-                  <Text style={styles.label}>{c.label}</Text>
-                  <Text style={c.stateLabel ? styles.value : [styles.value, styles.empty]}>
-                    {c.stateLabel || "Non observé"}
-                  </Text>
+                <View key={i} wrap={false}>
+                  <View style={styles.row}>
+                    <Text style={styles.label}>{c.label}</Text>
+                    <Text style={c.stateLabel ? styles.value : [styles.value, styles.empty]}>
+                      {c.stateLabel || "Non observé"}
+                    </Text>
+                  </View>
+                  {c.comment ? (
+                    <Text style={styles.criterionComment}>
+                      {c.justification ? "À approfondir : " : "Commentaire : "}
+                      {c.comment}
+                    </Text>
+                  ) : null}
                 </View>
               ))
             )}

@@ -36,12 +36,17 @@ export async function GET(req: Request) {
   const ratings = await prisma.criterionRating.findMany({ where: { playerId } });
   const values: Record<string, string> = {};
   for (const r of ratings) values[`${r.criterionId}:${r.day}`] = r.value;
-  if (!auth.ok) return NextResponse.json({ ok: true, values });
+  // Nouvelle échelle : niveau et commentaire, visibles aussi par le stagiaire (justifications comprises).
+  const details: Record<string, { level: number | null; comment: string | null }> = {};
+  if (evaluationV2Enabled()) {
+    for (const r of ratings) details[`${r.criterionId}:${r.day}`] = { level: r.level, comment: r.comment };
+  }
+  if (!auth.ok) return NextResponse.json({ ok: true, values, ...(evaluationV2Enabled() ? { details } : {}) });
 
   // Équipe : version (pour les saisies concurrentes) et auteur de la version actuelle.
   const meta: Record<string, { version: number; author: string | null }> = {};
   for (const r of ratings) meta[`${r.criterionId}:${r.day}`] = { version: r.version, author: r.authorLabel };
-  return NextResponse.json({ ok: true, values, meta });
+  return NextResponse.json({ ok: true, values, meta, ...(evaluationV2Enabled() ? { details } : {}) });
 }
 
 function readKey(body: Record<string, unknown>) {
@@ -59,6 +64,7 @@ function conflict(current: { version: number; authorLabel: string | null } | nul
       error: `Cette appréciation vient d'être modifiée${current?.authorLabel ? ` par ${current.authorLabel}` : ""}. Recharge pour voir la version actuelle.`,
       conflict: true,
       currentVersion: current?.version ?? null,
+      author: current?.authorLabel ?? null,
     },
     { status: 409 }
   );

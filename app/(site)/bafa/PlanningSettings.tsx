@@ -81,6 +81,7 @@ export default function PlanningSettings({
   initialCriterionStates,
   sessionType,
   canEditLegacyStates,
+  ratingLevels = null,
 }: {
   initialPostes: Poste[];
   family: "BAFA" | "BAFD";
@@ -89,6 +90,7 @@ export default function PlanningSettings({
   initialCriterionStates: CriterionStateDef[];
   sessionType: string;
   canEditLegacyStates: boolean; // anciens états, communs à toutes les sessions : super-admin seulement
+  ratingLevels?: { level: number; label: string }[] | null; // nouvelle méthode (EVALUATION_V2), sinon null
 }) {
   const [postes, setPostes] = useState<Poste[]>(initialPostes);
   const [criteria, setCriteria] = useState<Criterion[]>(initialCriteria);
@@ -222,6 +224,18 @@ export default function PlanningSettings({
           </div>
           <CriteriaManager criteria={criteria} onAdd={addCriterion} onPatch={patchCriterion} onRemove={removeCriterion} />
         </section>
+        {ratingLevels && (
+          <section className="set-card">
+            <div className="set-card__head">
+              <h2 className="set-card__title">Appréciations de la session</h2>
+              <p className="set-card__sub">
+                Trois appréciations, du point d&apos;appui à ce qui reste à consolider. Vous pouvez adapter leurs intitulés pour cette
+                session ; leur ordre ne change pas, et la dernière demande toujours une justification.
+              </p>
+            </div>
+            <RatingLevelsManager initial={ratingLevels} />
+          </section>
+        )}
         {canEditLegacyStates && (
           <section className="set-card">
             <div className="set-card__head">
@@ -649,6 +663,86 @@ function CriterionStateManager({
           + Ajouter
         </button>
       </div>
+    </div>
+  );
+}
+
+function RatingLevelsManager({ initial }: { initial: { level: number; label: string }[] }) {
+  const sorted = [...initial].sort((a, b) => b.level - a.level);
+  const [saved, setSaved] = useState(sorted);
+  const [drafts, setDrafts] = useState<Record<number, string>>(Object.fromEntries(sorted.map((l) => [l.level, l.label])));
+  const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
+  const [busy, setBusy] = useState<number | null>(null);
+  const [history, setHistory] = useState<{ level: number; previousLabel: string; newLabel: string; author: string | null; changedAt: string }[] | null>(null);
+
+  async function save(level: number) {
+    setBusy(level);
+    setMessage(null);
+    const res = await fetch("/api/rating-levels", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ level, label: drafts[level] }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (res.ok) {
+      setSaved((ls) => ls.map((l) => (l.level === level ? { ...l, label: drafts[level].trim() } : l)));
+      setMessage({ ok: true, text: "Intitulé enregistré ✓" });
+      setHistory(null);
+    } else {
+      setMessage({ ok: false, text: data.error || "Enregistrement impossible." });
+    }
+    setBusy(null);
+  }
+
+  async function showHistory() {
+    const res = await fetch("/api/rating-levels", { cache: "no-store" });
+    const data = await res.json().catch(() => ({}));
+    setHistory(data.history ?? []);
+  }
+
+  return (
+    <div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+        {saved.map((l) => {
+          const dirty = (drafts[l.level] ?? "").trim() !== l.label;
+          return (
+            <div key={l.level} style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <span style={{ fontSize: 12, color: "#94a3b8", width: 18, textAlign: "center" }} aria-hidden>
+                {l.level === 3 ? "▲" : l.level === 2 ? "■" : "▼"}
+              </span>
+              <input
+                aria-label={`Intitulé de l'appréciation de niveau ${l.level}`}
+                value={drafts[l.level] ?? ""}
+                maxLength={40}
+                onChange={(e) => setDrafts((d) => ({ ...d, [l.level]: e.target.value }))}
+                style={crInput}
+              />
+              {dirty && (
+                <button className="btn btn-main" style={crSmall} disabled={busy === l.level || !drafts[l.level]?.trim()} onClick={() => save(l.level)}>
+                  Enregistrer
+                </button>
+              )}
+              {l.level === 1 && <span style={{ fontSize: 12, color: "#9a3412", width: "100%", paddingLeft: 26 }}>Justification obligatoire : « Que doit approfondir le stagiaire ? »</span>}
+            </div>
+          );
+        })}
+      </div>
+      {message && <p style={{ fontSize: 13, fontWeight: 600, color: message.ok ? "#15803d" : "#dc2626", margin: "8px 0 0" }}>{message.text}</p>}
+      <button className="btn btn-ghost" style={{ ...crSmall, marginTop: 10 }} onClick={showHistory}>
+        🕘 Historique des intitulés
+      </button>
+      {history && (
+        <div style={{ marginTop: 8, fontSize: 13, color: "#475569" }}>
+          {history.length === 0
+            ? "Aucun changement d'intitulé."
+            : history.map((h, i) => (
+                <div key={i}>
+                  {new Date(h.changedAt).toLocaleDateString("fr-FR", { timeZone: "Europe/Paris" })} : « {h.previousLabel} » → « {h.newLabel} »
+                  {h.author && <span style={{ color: "#94a3b8" }}> · {h.author}</span>}
+                </div>
+              ))}
+        </div>
+      )}
     </div>
   );
 }

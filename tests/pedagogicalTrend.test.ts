@@ -74,3 +74,16 @@ test("le résultat ne dépend pas de l'ordre des données", () => {
   const data = [r("a", 2, 3), r("a", 0, 1), r("a", 1, 2)];
   assert.deepEqual(computeDayTrends(data, 4), computeDayTrends([...data].reverse(), 4));
 });
+
+test("première observation mêlée à une comparaison : seule la comparaison compte", () => {
+  const d = at([r("a", 0, 2), r("a", 1, 2), r("b", 1, 1)], 1);
+  assert.equal(d.status, "stable");
+  assert.equal(d.compared, 1);
+  assert.equal(d.details.find((x) => x.criterionId === "b")?.change, "premiere");
+});
+
+test("ancienne et nouvelle échelle le même jour : la nouvelle est lue, l'ancienne comptée à part", () => {
+  const d = at([r("a", 0, 1), r("a", 1, 3), r("b", 1, null)], 1);
+  assert.equal(d.status, "progression");
+  assert.equal(d.legacyCount, 1);
+});

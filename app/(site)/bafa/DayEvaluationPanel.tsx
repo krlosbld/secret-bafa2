@@ -3,7 +3,15 @@
 import type { Poste, Criterion } from "./PlanningTab";
 import EvaluationBoard, { type EvalBlock } from "./EvaluationBoard";
 import CriteriaBoard, { type CriterionState } from "./CriteriaBoard";
+import CriteriaBoardV2, { type RatingDetail, type RatingLevelDef, type RatingMeta } from "./CriteriaBoardV2";
 import { dateForDayIndex, formatDayHeader } from "@/lib/planningConfig";
+
+// Données de la nouvelle méthode (null tant qu'EVALUATION_V2 n'est pas activé).
+export type EvaluationV2Data = {
+  levels: RatingLevelDef[];
+  details: Record<string, RatingDetail>;
+  meta: Record<string, RatingMeta>;
+};
 
 export default function DayEvaluationPanel({
   blocks,
@@ -19,6 +27,7 @@ export default function DayEvaluationPanel({
   initialRatingValues,
   canEdit,
   playerId,
+  v2 = null,
 }: {
   blocks: EvalBlock[];
   postes: Poste[];
@@ -33,6 +42,7 @@ export default function DayEvaluationPanel({
   initialRatingValues: Record<string, string>;
   canEdit: boolean;
   playerId: string;
+  v2?: EvaluationV2Data | null;
 }) {
   return (
     <div>
@@ -92,14 +102,28 @@ export default function DayEvaluationPanel({
 
       <div>
         <div style={{ fontWeight: 800, marginBottom: 10, color: "#0f172a" }}>Critères du jour</div>
-        <CriteriaBoard
-          criteria={criteria}
-          states={criterionStates}
-          activeDay={activeDay}
-          initialValues={initialRatingValues}
-          canEdit={canEdit}
-          playerId={playerId}
-        />
+        {v2 ? (
+          <CriteriaBoardV2
+            criteria={criteria}
+            levels={v2.levels}
+            legacyStates={criterionStates}
+            activeDay={activeDay}
+            initialValues={initialRatingValues}
+            initialDetails={v2.details}
+            initialMeta={v2.meta}
+            canEdit={canEdit}
+            playerId={playerId}
+          />
+        ) : (
+          <CriteriaBoard
+            criteria={criteria}
+            states={criterionStates}
+            activeDay={activeDay}
+            initialValues={initialRatingValues}
+            canEdit={canEdit}
+            playerId={playerId}
+          />
+        )}
       </div>
     </div>
   );

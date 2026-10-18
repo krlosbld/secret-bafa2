@@ -7,6 +7,13 @@ import PlanningTab from "./PlanningTab";
 import PlanningSettings from "./PlanningSettings";
 import { getSessionPostes } from "@/lib/posteLibrary";
 import { getSessionCriteria, getSessionCriteriaWithUsage } from "@/lib/sessionCriteria";
+import { evaluationV2Enabled } from "@/lib/features";
+import { getSessionLevels } from "@/lib/ratingLevels";
+import { loadDayTrends, type TrendCell } from "@/lib/trendData";
+import NewTrendCircle from "@/components/TrendCircle";
+import { TREND_DISPLAY } from "@/lib/pedagogicalTrend";
+import type { EvaluationV2Data } from "./DayEvaluationPanel";
+import type { RatingDetail, RatingMeta } from "./CriteriaBoardV2";
 import { blockApplies, blockShownForPlayer } from "@/lib/evaluationScope";
 import { legacyDailyLevel, legacyScoreAngle, legacyScoreColor } from "@/lib/legacyTrend";
 import { currentActivePlayer, getGameStatus } from "@/lib/gameAccess";
@@ -18,7 +25,7 @@ import PersonalSpaceBody from "./PersonalSpaceBody";
 import GroupGenerator from "./GroupGenerator";
 import StagiaireCardMenu from "./StagiaireCardMenu";
 import ReactivateButton from "./ReactivateButton";
-import { DEFAULT_SESSION_TYPE, todayISO, daysForType, todayDayIndex } from "@/lib/planningConfig";
+import { DEFAULT_SESSION_TYPE, todayISO, daysForType, todayDayIndex, dateForDayIndex, formatDayHeader } from "@/lib/planningConfig";
 import { getPlayerNotes } from "@/lib/playerNotes";
 import { resolveAuthorNames } from "@/lib/authorNames";
 import { resolveAdminFormationId } from "@/lib/formation";
@@ -145,6 +152,20 @@ async function getEvaluationData(playerId: string, formationId: string, staff: b
   const ratingValues: Record<string, string> = {};
   for (const r of ratings) ratingValues[`${r.criterionId}:${r.day}`] = r.value;
 
+  // Nouvelle méthode (EVALUATION_V2) : appréciations de la session, niveau et commentaire de chaque
+  // note (visibles aussi par le stagiaire), version et auteur pour l'équipe seulement.
+  let v2: EvaluationV2Data | null = null;
+  if (evaluationV2Enabled()) {
+    const levels = await getSessionLevels(formationId);
+    const details: Record<string, RatingDetail> = {};
+    const meta: Record<string, RatingMeta> = {};
+    for (const r of ratings) {
+      details[`${r.criterionId}:${r.day}`] = { level: r.level, comment: r.comment };
+      if (staff) meta[`${r.criterionId}:${r.day}`] = { version: r.version, author: r.authorLabel };
+    }
+    v2 = { levels: levels.map((l) => ({ level: l.level, label: l.label })), details, meta };
+  }
+
   // L'auteur n'est renseigné que côté staff — jamais exposé au stagiaire qui consulte son propre espace.
   const noteAuthors: Record<string, string | null> = {};
   if (staff) {
@@ -152,7 +173,7 @@ async function getEvaluationData(playerId: string, formationId: string, staff: b
     for (const e of evaluations) noteAuthors[e.blockId] = e.authorId ? authorNames.get(e.authorId) ?? null : null;
   }
 
-  return { evalBlocks, postes, criteria, criterionStates, startDate, dayCount, notes, noteAuthors, ratingValues };
+  return { evalBlocks, postes, criteria, criterionStates, startDate, dayCount, notes, noteAuthors, ratingValues, v2 };
 }
 
 async function getStagiaireIndicators(dayCount: number, formationId: string, playerIds?: string[]) {
@@ -301,7 +322,7 @@ async function PersonalSpace({
   nextId?: string | null;
   requestedDay?: number;
 }) {
-  const { evalBlocks, postes, criteria, criterionStates, startDate, dayCount, notes, noteAuthors, ratingValues } =
+  const { evalBlocks, postes, criteria, criterionStates, startDate, dayCount, notes, noteAuthors, ratingValues, v2 } =
     await getEvaluationData(playerId, formationId, canEditEvaluations);
   const { dailyFillRatio, dailyTrend } = await getStagiaireIndicators(dayCount, formationId, [playerId]);
   const playerNotes = await getPlayerNotes(playerId, canEditEvaluations);
@@ -326,6 +347,7 @@ async function PersonalSpace({
 
   const fillRatios = Array.from({ length: dayCount }, (_, d) => dailyFillRatio(playerId, d));
   const trends = Array.from({ length: dayCount }, (_, d) => dailyTrend(playerId, d));
+  const trendCells = v2 ? (await loadDayTrends(formationId, dayCount, [playerId])).get(playerId) ?? null : null;
 
   return (
     <>
@@ -398,6 +420,8 @@ async function PersonalSpace({
         canEditEvaluations={canEditEvaluations}
         fillRatios={fillRatios}
         trends={trends}
+        trendCells={trendCells}
+        v2={v2}
         playerNotes={playerNotes}
         initialRemarks={remarks}
         initialRemarkAuthors={remarkAuthors}
@@ -414,6 +438,7 @@ type StagiaireRow = {
   groups: string[];
   dayRatios: number[];
   trends: (number | null)[];
+  trendCells: TrendCell[] | null; // nouvelle méthode (EVALUATION_V2), sinon null
   values: Record<string, number | boolean>;
   hasComplementary: boolean; // entretien complémentaire rédigé → badge EC à côté du nom
 };
@@ -434,12 +459,14 @@ function StagiaireTable({
   dayCount,
   abandonedCount,
   canEditSettings,
+  dayLabels,
 }: {
   rows: StagiaireRow[];
   columns: StagiaireColumn[];
   dayCount: number;
   abandonedCount: number;
   canEditSettings: boolean;
+  dayLabels: string[];
 }) {
   const days = Array.from({ length: dayCount }, (_, d) => d);
   // Colonne Stagiaire à largeur fixe (--st-name-w, réduite sur téléphone), colonnes configurables
@@ -480,6 +507,19 @@ function StagiaireTable({
         )}
         <span className="st-hint__aside"> · Clic droit sur une ligne pour marquer un abandon.</span>
       </p>
+      {rows.some((r) => r.trendCells) && (
+        <p className="st-legend" aria-label="Légende des cercles d'évolution">
+          {(["progression", "contrastee", "stable", "recul", "insuffisant"] as const).map((k) => (
+            <span key={k} className="st-legend__item">
+              <span className="st-legend__dot" style={{ background: TREND_DISPLAY[k].color }} aria-hidden>
+                {TREND_DISPLAY[k].symbol}
+              </span>
+              {TREND_DISPLAY[k].label}
+            </span>
+          ))}
+          <span className="st-hint__aside">Cliquer sur un cercle pour voir le détail, critère par critère.</span>
+        </p>
+      )}
 
       {rows.length === 0 ? (
         <p style={{ color: "#64748b" }}>Aucun stagiaire pour l&apos;instant.</p>
@@ -558,7 +598,19 @@ function StagiaireTable({
                   <div aria-hidden />
                   {days.map((d) => (
                     <div key={d} className="st-cell st-center">
-                      <TrendCircle day={d} score={r.trends[d]} href={`/bafa?as=${r.id}&day=${d}`} />
+                      {r.trendCells ? (
+                        <NewTrendCircle
+                          playerId={r.id}
+                          day={d}
+                          status={r.trendCells[d].status}
+                          compared={r.trendCells[d].compared}
+                          dayName={`J${d + 1}`}
+                          dayLabel={dayLabels[d]}
+                          ficheHref={`/bafa?as=${r.id}&day=${d}`}
+                        />
+                      ) : (
+                        <TrendCircle day={d} score={r.trends[d]} href={`/bafa?as=${r.id}&day=${d}`} />
+                      )}
                     </div>
                   ))}
                 </div>
@@ -688,6 +740,9 @@ export default async function BafaPage({
             initialCriterionStates={criterionStates}
             sessionType={typeRow?.value ?? DEFAULT_SESSION_TYPE}
             canEditLegacyStates={isSuperAdmin(adminSession)}
+            ratingLevels={
+              evaluationV2Enabled() ? (await getSessionLevels(formationId)).map((l) => ({ level: l.level, label: l.label })) : null
+            }
           />
         </div>
       </main>
@@ -966,12 +1021,15 @@ export default async function BafaPage({
         select: { id: true, firstName: true, code: true, ems: true, retourEms: true, finalAppraisal: true, complementaryNote: true },
       }),
       prisma.player.count({ where: { role: "STAGIAIRE", active: false, formationId } }),
-      prisma.config.findMany({ where: { formationId, key: { in: ["planningSessionType"] } } }),
+      prisma.config.findMany({ where: { formationId, key: { in: ["planningSessionType", "planningStartDate"] } } }),
       getGroupAssignment(formationId),
     ]);
     const sessionType = configRows.find((r) => r.key === "planningSessionType")?.value ?? DEFAULT_SESSION_TYPE;
     const dayCount = daysForType(sessionType);
     const { dailyFillRatio, dailyTrend } = await getStagiaireIndicators(dayCount, formationId);
+    const startDate = configRows.find((r) => r.key === "planningStartDate")?.value ?? todayISO();
+    const dayLabels = Array.from({ length: dayCount }, (_, d) => formatDayHeader(dateForDayIndex(startDate, d)));
+    const newTrends = evaluationV2Enabled() ? await loadDayTrends(formationId, dayCount, players.map((p) => p.id)) : null;
     const sessionName = canEditSettings
       ? (await prisma.formation.findUnique({ where: { id: formationId }, select: { name: true } }))?.name ?? "la session"
       : "";
@@ -1002,6 +1060,7 @@ export default async function BafaPage({
       groups: groupsByPlayerId[p.id] ?? [],
       dayRatios: Array.from({ length: dayCount }, (_, d) => dailyFillRatio(p.id, d)),
       trends: Array.from({ length: dayCount }, (_, d) => dailyTrend(p.id, d)),
+      trendCells: newTrends?.get(p.id) ?? null,
       hasComplementary: !!p.complementaryNote.trim(),
       values: Object.fromEntries(
         visibleColumns.map((c) => [
@@ -1022,6 +1081,7 @@ export default async function BafaPage({
             dayCount={dayCount}
             abandonedCount={abandonedCount}
             canEditSettings={canEditSettings}
+            dayLabels={dayLabels}
           />
         </div>
       </main>

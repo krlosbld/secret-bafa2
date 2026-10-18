@@ -1,12 +1,14 @@
 import { prisma } from "@/lib/prisma";
 import { getSessionCriteria } from "@/lib/sessionCriteria";
 import { blockShownForPlayer } from "@/lib/evaluationScope";
+import { evaluationV2Enabled } from "@/lib/features";
+import { getSessionLevels, JUSTIFICATION_LEVEL } from "@/lib/ratingLevels";
 import { DEFAULT_SESSION_TYPE, todayISO, daysForType, dateForDayIndex, formatDayHeader } from "@/lib/planningConfig";
 
 export type DayReport = {
   dayLabel: string;
   evaluations: { time: string; label: string; note: string }[];
-  criteria: { label: string; stateLabel: string | null }[];
+  criteria: { label: string; stateLabel: string | null; comment: string | null; justification: boolean }[];
   remark: string;
 };
 
@@ -72,6 +74,8 @@ export async function buildPlayerReport(playerId: string, formationId: string): 
   const memberGroupIds = new Set(groupMemberships.map((m) => m.groupId));
   const evaluatedBlockIds = new Set(evaluations.filter((e) => e.note.trim()).map((e) => e.blockId));
   const stateLabelById = new Map(criterionStates.map((s) => [s.id, s.label]));
+  const v2 = evaluationV2Enabled();
+  const levelLabelByLevel = new Map((await getSessionLevels(formationId)).map((l) => [l.level, l.label]));
   const remarkByDay = new Map(remarkRows.map((r) => [r.day, r.note]));
 
   const days: DayReport[] = Array.from({ length: dayCount }, (_, day) => {
@@ -99,8 +103,16 @@ export async function buildPlayerReport(playerId: string, formationId: string): 
       .filter((c) => !c.archived || ratingsByKey.has(`${c.id}:${day}`))
       .map((c) => {
         const rating = ratingsByKey.get(`${c.id}:${day}`);
-        const stateLabel = rating ? rating.levelLabel ?? stateLabelById.get(rating.value) ?? null : null;
-        return { label: c.label, stateLabel };
+        // Nouvelle méthode : intitulé actuel de la session pour ce niveau, et commentaire (visible
+        // par le stagiaire, comme sur sa fiche). Ancienne méthode : intitulé d'origine, signalé
+        // comme tel une fois la nouvelle méthode activée.
+        let stateLabel: string | null = null;
+        if (rating?.level != null) stateLabel = levelLabelByLevel.get(rating.level) ?? rating.levelLabel;
+        else if (rating) {
+          const legacy = stateLabelById.get(rating.value) ?? null;
+          stateLabel = legacy && v2 ? `${legacy} (ancienne méthode)` : legacy;
+        }
+        return { label: c.label, stateLabel, comment: rating?.comment ?? null, justification: rating?.level === JUSTIFICATION_LEVEL };
       });
 
     return {

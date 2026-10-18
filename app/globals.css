@@ -1823,3 +1823,67 @@ a {
   margin: 6px 0;
   padding-left: 18px;
 }
+
+/* ── Évolution pédagogique (nouvelle méthode) : cercles cliquables et détail ── */
+.tc {
+  --tc: #cbd5e1;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: none;
+  background: var(--tc);
+  color: #fff;
+  font-size: 17px;
+  font-weight: 900;
+  line-height: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+  box-shadow: inset 0 0 0 1px rgba(15, 23, 42, 0.06);
+  transition: transform 0.12s;
+}
+.tc:hover { transform: scale(1.08); }
+.tc:focus-visible { outline: 2px solid #0f172a; outline-offset: 2px; }
+.tc--empty { color: #64748b; }
+.tc--strip { width: 28px; height: 28px; font-size: 15px; }
+.tcd { max-width: 520px; max-height: 85vh; overflow-y: auto; text-align: left; }
+.tcd__status {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  background: #f8fafc;
+  border-left: 4px solid var(--tc);
+  border-radius: 10px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+}
+.tcd__status p { margin: 4px 0 0; font-size: 13px; color: #475569; }
+.tcd__symbol { font-size: 22px; font-weight: 900; color: var(--tc); line-height: 1.1; }
+.tcd__count { font-size: 13px; color: #64748b; }
+.tcd__list { list-style: none; margin: 0 0 12px; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.tcd__item { border: 1px solid #e2e8f0; border-radius: 10px; padding: 9px 11px; }
+.tcd__row { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.tcd__crit { font-weight: 700; font-size: 14px; }
+.tcd__chip {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--tc);
+  border: 1.5px solid var(--tc);
+  border-radius: 999px;
+  padding: 1px 9px;
+  white-space: nowrap;
+}
+.tcd__levels { font-size: 13px; color: #0f172a; margin-top: 4px; }
+.tcd__muted { color: #94a3b8; font-weight: 400; }
+.tcd__comment { margin-top: 6px; font-size: 13px; background: #f8fafc; border-radius: 8px; padding: 6px 9px; white-space: pre-wrap; }
+.tcd__comment--focus { background: #fff7ed; }
+.tcd__comment-label { display: block; font-size: 11px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.4px; color: #64748b; margin-bottom: 2px; }
+.tcd__legacy { border: 1px dashed #cbd5e1; border-radius: 10px; padding: 9px 11px; margin-bottom: 12px; font-size: 13px; }
+.tcd__legacy ul { margin: 4px 0 0; padding-left: 18px; }
+.tcd__legacy-title { font-weight: 800; color: #475569; }
+.tcd__note { font-size: 12px; color: #94a3b8; margin: 0 0 10px; }
+.st-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; font-size: 12px; color: #475569; margin: -4px 0 14px; }
+.st-legend__item { display: inline-flex; align-items: center; gap: 5px; }
+.st-legend__dot { width: 18px; height: 18px; border-radius: 50%; color: #fff; font-size: 11px; font-weight: 900; display: inline-flex; align-items: center; justify-content: center; }
