@@ -5,6 +5,8 @@ import { resolveAdminFormationId } from "@/lib/formation";
 import { generateUniquePlayerCode } from "@/lib/playerCode";
 import { findNameCollision, nameCollisionError } from "@/lib/nameCollision";
 import { tooCloseToRealSecret } from "@/lib/secretArchive";
+import { audit } from "@/lib/adminActor";
+import { getGameMasterAuth } from "@/lib/gameAccess";
 
 export const runtime = "nodejs";
 
@@ -34,9 +36,16 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Le nombre de points doit être entre 1 et 20." }, { status: 400 });
   }
 
-  if (await tooCloseToRealSecret(content)) {
+  // Texte proche d'un vrai secret : refusé, sauf si le maître du jeu choisit explicitement de le
+  // publier tel quel et en prend la responsabilité (choix inscrit au journal).
+  const asIs = body.acceptResponsibility === true;
+  const close = await tooCloseToRealSecret(content);
+  if (close && !asIs) {
     return NextResponse.json(
-      { error: "Ce texte est trop proche d'un vrai secret : reformule-le (change des mots et des détails) pour qu'on ne reconnaisse pas son auteur." },
+      {
+        error: "Ce texte est trop proche d'un vrai secret : reformule-le (change des mots et des détails) pour qu'on ne reconnaisse pas son auteur, ou coche la case pour le publier tel quel sous ta responsabilité.",
+        tooClose: true,
+      },
       { status: 400 }
     );
   }
@@ -62,5 +71,12 @@ export async function POST(req: Request) {
     include: { secret: true },
   });
 
+  if (close) {
+    const gm = await getGameMasterAuth();
+    await audit({ kind: "directeur", userId: null, label: gm.ok ? gm.label : "Maître du jeu" }, "DECOY_CREATED_AS_IS", {
+      formationId,
+      details: "Faux secret repris d'un vrai secret sans reformulation, sous la responsabilité du maître du jeu",
+    });
+  }
   return NextResponse.json({ ok: true, secret: player.secret });
 }

@@ -29,6 +29,8 @@ export function AdminDecoyCreator() {
   const [showDecoyForm, setShowDecoyForm] = useState(false);
   const [decoyProposal, setDecoyProposal] = useState<{ firstName: string; content: string; source?: string; original?: string } | null>(null);
   const [decoyPoints, setDecoyPoints] = useState(3);
+  const [asIs, setAsIs] = useState(false); // publier tel quel un texte proche d'un vrai secret
+  const [serverTooClose, setServerTooClose] = useState(false);
   const [decoyError, setDecoyError] = useState("");
   const [generatingDecoy, setGeneratingDecoy] = useState(false);
   const [creatingDecoy, setCreatingDecoy] = useState(false);
@@ -44,6 +46,8 @@ export function AdminDecoyCreator() {
         return;
       }
       setDecoyProposal({ firstName: data.firstName, content: data.content, source: data.source });
+      setAsIs(false);
+      setServerTooClose(false);
     } catch {
       setDecoyError("Erreur réseau.");
     } finally {
@@ -63,6 +67,8 @@ export function AdminDecoyCreator() {
         return;
       }
       setDecoyProposal({ firstName: data.firstName, content: data.content, source: "archive", original: data.original });
+      setAsIs(false);
+      setServerTooClose(false);
     } catch {
       setDecoyError("Erreur réseau.");
     } finally {
@@ -78,7 +84,7 @@ export function AdminDecoyCreator() {
     void generateDecoy();
   }
 
-  const tooClose = !!decoyProposal?.original && similarity(decoyProposal.original, decoyProposal.content) >= TOO_CLOSE;
+  const tooClose = serverTooClose || (!!decoyProposal?.original && similarity(decoyProposal.original, decoyProposal.content) >= TOO_CLOSE);
 
   async function createDecoy() {
     if (!decoyProposal) return;
@@ -88,10 +94,11 @@ export function AdminDecoyCreator() {
       const res = await fetch("/api/admin/secrets/decoy", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ firstName: decoyProposal.firstName, content: decoyProposal.content, points: decoyPoints }),
+        body: JSON.stringify({ firstName: decoyProposal.firstName, content: decoyProposal.content, points: decoyPoints, acceptResponsibility: tooClose && asIs }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
+        if (data?.tooClose) setServerTooClose(true);
         setDecoyError(data?.error || "Erreur.");
         return;
       }
@@ -140,16 +147,27 @@ export function AdminDecoyCreator() {
                 <span>Secret proposé</span>
                 <textarea
                   value={decoyProposal.content}
-                  onChange={(e) => setDecoyProposal((p) => (p ? { ...p, content: e.target.value } : p))}
+                  onChange={(e) => {
+                    setServerTooClose(false);
+                    setDecoyProposal((p) => (p ? { ...p, content: e.target.value } : p));
+                  }}
                   rows={3}
                   disabled={creatingDecoy}
                   style={{ resize: "vertical" }}
                 />
               </label>
               {tooClose && (
-                <p style={{ margin: "4px 0 0", fontSize: 13, fontWeight: 700, color: "#b45309" }}>
-                  ✍️ Encore trop proche de l&apos;original : continue à le reformuler.
-                </p>
+                <>
+                  <p style={{ margin: "4px 0 0", fontSize: 13, fontWeight: 700, color: "#b45309" }}>
+                    ✍️ Encore trop proche de l&apos;original : reformule-le, ou publie-le tel quel sous ta responsabilité.
+                  </p>
+                  <label style={{ display: "flex", gap: 8, alignItems: "flex-start", marginTop: 8, fontSize: 13, fontWeight: 600, color: "#7c2d12", background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 10, padding: "8px 10px", cursor: "pointer" }}>
+                    <input type="checkbox" checked={asIs} onChange={(e) => setAsIs(e.target.checked)} disabled={creatingDecoy} style={{ marginTop: 2 }} />
+                    <span>
+                      Je valide ce texte tel quel et j&apos;en prends la responsabilité : son auteur d&apos;origine pourrait être reconnu.
+                    </span>
+                  </label>
+                </>
               )}
               <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginTop: 6, marginBottom: 6 }}>
                 <button className="btn btn-ghost" onClick={generateDecoy} disabled={creatingDecoy}>
@@ -182,7 +200,7 @@ export function AdminDecoyCreator() {
             <button className="btn btn-ghost" onClick={() => setShowDecoyForm(false)} disabled={creatingDecoy}>
               Annuler
             </button>
-            <button className="btn btn-main" onClick={createDecoy} disabled={creatingDecoy || !decoyProposal || tooClose}>
+            <button className="btn btn-main" onClick={createDecoy} disabled={creatingDecoy || !decoyProposal || (tooClose && !asIs)}>
               {creatingDecoy ? "Création…" : "Créer"}
             </button>
           </div>
