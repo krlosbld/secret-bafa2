@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { todayISO } from "@/lib/planningConfig";
 import { expireOverdueParticipants, getGameStatus } from "@/lib/gameAccess";
+import { applyPointsOnce } from "@/lib/gamePoints";
 
 export const runtime = "nodejs";
 
@@ -71,11 +72,11 @@ async function runNightlyJob(req: Request) {
           select: { playerId: true },
         });
 
-    if (unpublished.length > 0) {
-      await prisma.player.updateMany({
-        where: { id: { in: unpublished.map((s) => s.playerId) } },
-        data: { points: { increment: 1 } },
-      });
+    // Une ligne de journal par auteur et par nuit (clé jour + joueur) : un passage relancé ne
+    // redonne rien.
+    const day = todayISO();
+    for (const { playerId } of unpublished) {
+      await applyPointsOnce({ formationId, playerId, delta: 1, kind: "NIGHTLY", key: `nightly:${formationId}:${day}:${playerId}`, note: "Secret non trouvé cette nuit" });
     }
 
     await prisma.config.upsert({

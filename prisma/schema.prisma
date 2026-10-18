@@ -29,6 +29,7 @@ model Formation {
   groups            Group[]
   criteria          Criterion[]
   ratingLevels      RatingLevel[]
+  pointTransactions PointTransaction[]
 }
 
 // Un groupe persistant de stagiaires (+ formateurs rattachés). Plusieurs groupes coexistent en
@@ -136,20 +137,21 @@ model Player {
   member                FormationMember? // compte BafaPilot représenté par cette fiche, s'il y en a un
 
   // Panneau latéral de la page stagiaire
-  personalNote              String  @default("") // écrit par le stagiaire lui-même
-  ems                       String  @default("") // entretien de mi-stage
-  emsVisible                Boolean @default(false)
+  personalNote              String             @default("") // écrit par le stagiaire lui-même
+  ems                       String             @default("") // entretien de mi-stage
+  emsVisible                Boolean            @default(false)
   emsAuthorId               String? // id du formateur/directeur qui a écrit la version actuelle
-  retourEms                 String  @default("") // retour suite à l'EMS
-  retourEmsVisible          Boolean @default(false)
+  retourEms                 String             @default("") // retour suite à l'EMS
+  retourEmsVisible          Boolean            @default(false)
   retourEmsAuthorId         String?
-  complementaryNote         String  @default("") // entretien complémentaire
-  complementaryVisible      Boolean @default(false)
+  complementaryNote         String             @default("") // entretien complémentaire
+  complementaryVisible      Boolean            @default(false)
   complementaryNoteAuthorId String?
-  finalOpinion              String  @default("EN_ATTENTE") // avis : EN_ATTENTE | FAVORABLE | DEFAVORABLE
-  finalAppraisal            String  @default("") // appréciation finale
-  finalAppraisalVisible     Boolean @default(false)
+  finalOpinion              String             @default("EN_ATTENTE") // avis : EN_ATTENTE | FAVORABLE | DEFAVORABLE
+  finalAppraisal            String             @default("") // appréciation finale
+  finalAppraisalVisible     Boolean            @default(false)
   finalAppraisalAuthorId    String?
+  pointTransactions         PointTransaction[]
 
   @@unique([formationId, code])
   @@index([directorAccountId])
@@ -574,4 +576,29 @@ model CriterionLabelHistory {
   criterion     Criterion @relation(fields: [criterionId], references: [id], onDelete: Cascade)
 
   @@index([criterionId])
+}
+
+// Journal des points du Jeu des secrets (depuis sa mise en service, sans reprise des anciens scores).
+// Chaque opération qui modifie Player.points passe par lib/gamePoints.ts, dans la même transaction :
+// le score et la ligne du journal sont écrits ensemble ou pas du tout. idempotencyKey (unique) empêche
+// qu'une même opération soit appliquée deux fois (double clic, rechargement, traitement relancé).
+model PointTransaction {
+  id             String    @id @default(cuid())
+  formationId    String
+  playerId       String? // null si la fiche a été supprimée depuis (faux secret retiré, remise à zéro)
+  playerLabel    String // prénom au moment de l'opération
+  delta          Int // variation réellement appliquée
+  balanceAfter   Int
+  kind           String // BUZZ_WIN | NIGHTLY | END_BONUS | HISTORY_REVEAL | MANUAL_SET | MANUAL_AWARD | GAME_RESET | …
+  refType        String? // buzz | secret | …
+  refId          String?
+  idempotencyKey String    @unique
+  actorLabel     String? // intervention humaine (maître du jeu, admin) ; null = automatique ou joueur
+  note           String?
+  createdAt      DateTime  @default(now())
+  formation      Formation @relation(fields: [formationId], references: [id], onDelete: Cascade)
+  player         Player?   @relation(fields: [playerId], references: [id], onDelete: SetNull)
+
+  @@index([formationId, createdAt])
+  @@index([playerId])
 }

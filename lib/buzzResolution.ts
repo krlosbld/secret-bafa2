@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { matchesName } from "@/lib/nameCollision";
+import { applyPoints, isDuplicateKey } from "@/lib/gamePoints";
 
 // Chaîne fixe utilisée comme `guessedName` pour une réclamation "faux secret" — pas un vrai prénom,
 // à exclure partout où on liste des prénoms devinés (ex. la révélation payante d'historique).
@@ -29,20 +30,37 @@ export async function resolveWinningBuzz(params: {
   secretPlayerFirstName: string;
   formationId: string;
 }): Promise<number> {
+  // Renvoie les points gagnés, ou 0 si le secret avait déjà été trouvé entre-temps.
   const points = secretReward({ bonus: params.secretBonus, isDecoy: params.secretIsDecoy });
 
-  await prisma.$transaction([
-    prisma.buzz.update({ where: { id: params.buzzId }, data: { status: "VALIDATED" } }),
-    prisma.player.update({ where: { id: params.fromPlayerId }, data: { points: { increment: points } } }),
-    prisma.secret.update({
-      where: { id: params.secretId },
-      data: { status: "FOUND", foundByPlayerId: params.fromPlayerId },
-    }),
-    prisma.buzz.updateMany({
-      where: { secretId: params.secretId, id: { not: params.buzzId } },
-      data: { status: "REJECTED" },
-    }),
-  ]);
+  // Un secret ne se trouve qu'une fois : la bascule en FOUND est conditionnelle, et les points passent
+  // par le journal avec une clé propre au secret. Deux validations simultanées n'en donnent qu'une.
+  const won = await prisma
+    .$transaction(async (tx) => {
+      const claimed = await tx.secret.updateMany({
+        where: { id: params.secretId, status: { not: "FOUND" } },
+        data: { status: "FOUND", foundByPlayerId: params.fromPlayerId },
+      });
+      if (claimed.count === 0) return false;
+      await tx.buzz.update({ where: { id: params.buzzId }, data: { status: "VALIDATED" } });
+      await tx.buzz.updateMany({ where: { secretId: params.secretId, id: { not: params.buzzId } }, data: { status: "REJECTED" } });
+      await applyPoints(tx, {
+        formationId: params.formationId,
+        playerId: params.fromPlayerId,
+        delta: points,
+        kind: "BUZZ_WIN",
+        key: `buzz-win:${params.secretId}`,
+        refType: "buzz",
+        refId: params.buzzId,
+        note: params.secretIsDecoy ? "Faux secret démasqué" : `Secret de ${params.secretPlayerFirstName}`,
+      });
+      return true;
+    })
+    .catch((e) => {
+      if (isDuplicateKey(e)) return false;
+      throw e;
+    });
+  if (!won) return 0;
 
   // Chaque personne n'a qu'un seul secret : une fois le sien trouvé, tout autre buzz en attente
   // (sur n'importe quel autre secret de la formation) qui devinait son prénom ne peut plus être

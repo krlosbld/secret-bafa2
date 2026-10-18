@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getGameStatus } from "@/lib/gameAccess";
+import { applyPointsOnce, requestKey } from "@/lib/gamePoints";
+import { getGameMasterAuth, getGameStatus } from "@/lib/gameAccess";
 import { prisma } from "@/lib/prisma";
 import { getGameAdminAuth } from "@/lib/gameAdminAuth";
 
@@ -7,7 +8,8 @@ export const runtime = "nodejs";
 
 type Params = { params: Promise<{ id: string }> };
 
-export async function POST(_req: Request, { params }: Params) {
+export async function POST(req: Request, { params }: Params) {
+  const body = await req.json().catch(() => ({}));
   const auth = await getGameAdminAuth();
   const { id: formationId } = await params;
   if (!auth.ok || (auth.formationId && auth.formationId !== formationId)) {
@@ -23,10 +25,18 @@ export async function POST(_req: Request, { params }: Params) {
     select: { playerId: true },
   });
 
-  if (unpublished.length > 0) {
-    await prisma.player.updateMany({
-      where: { id: { in: unpublished.map((s) => s.playerId) } },
-      data: { points: { increment: 1 } },
+  // Une clé par clic (fournie par l'interface) : un double clic n'attribue qu'une fois.
+  const request = requestKey(body.requestId);
+  const actor = await getGameMasterAuth();
+  for (const { playerId } of unpublished) {
+    await applyPointsOnce({
+      formationId,
+      playerId,
+      delta: 1,
+      kind: "MANUAL_AWARD",
+      key: `manual-award:${request}:${playerId}`,
+      actorLabel: actor.ok ? actor.label : "Administration",
+      note: "+1 point (secret non trouvé), attribué à la main",
     });
   }
 

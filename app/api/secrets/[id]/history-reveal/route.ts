@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { applyPointsOnce, InsufficientPointsError, requestKey } from "@/lib/gamePoints";
 import { prisma } from "@/lib/prisma";
 import { CLAIM_FAKE_GUESS_LABEL, historyRevealCost } from "@/lib/buzzResolution";
 import { getFormationFromCookie, hasNotStartedYet } from "@/lib/formationSession";
@@ -54,11 +55,25 @@ export async function POST(_req: Request, { params }: Params) {
   }
 
   const cost = historyRevealCost(secret);
-  if (player.points < cost) {
-    return NextResponse.json({ error: `Il te faut au moins ${cost} points.` }, { status: 400 });
+  // Débit au journal, solde vérifié sous verrou ; une clé par ouverture de la fenêtre : un double clic
+  // ne débite qu'une fois.
+  const body = await _req.json().catch(() => ({}));
+  try {
+    await applyPointsOnce({
+      formationId,
+      playerId: player.id,
+      delta: -cost,
+      kind: "HISTORY_REVEAL",
+      key: `history:${player.id}:${secretId}:${requestKey(body.requestId)}`,
+      refType: "secret",
+      refId: secretId,
+      requireFunds: true,
+      note: "Historique payant d'un secret",
+    });
+  } catch (e) {
+    if (e instanceof InsufficientPointsError) return NextResponse.json({ error: `Il te faut au moins ${cost} points.` }, { status: 400 });
+    throw e;
   }
-
-  await prisma.player.update({ where: { id: player.id }, data: { points: { decrement: cost } } });
 
   const wrongBuzzes = await prisma.buzz.findMany({
     where: { secretId, isCorrect: false, guessedName: { not: CLAIM_FAKE_GUESS_LABEL } },

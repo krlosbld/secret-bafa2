@@ -10,6 +10,8 @@ import AdminEndGame from "../../admin/AdminEndGame";
 import AdminGameRules from "../../admin/AdminGameRules";
 import AdminReset from "../../admin/AdminReset";
 import { GAME_RULES } from "@/lib/gameRules";
+import { getRuleSettings } from "@/lib/gameRuleSettings";
+import AdminPointsLedger from "../../admin/AdminPointsLedger";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -104,6 +106,7 @@ export default async function GameAdminPanel({
   const gameEnded = gameEndedConfig?.value === "true";
   const buzzPaused = buzzPausedConfig?.value === "true";
   const ruleValues = new Map(ruleRows.map((r) => [r.key, r.value]));
+  const ruleSettings = await getRuleSettings(formationId);
   const initialRules = Object.fromEntries(GAME_RULES.map((r) => [r.key, ruleValues.get(r.key) === "true"]));
 
   let lastNightlyRun: { at: string; updated: number } | null = null;
@@ -132,7 +135,7 @@ export default async function GameAdminPanel({
       )}
 
       <Section title="⚙️ Règles du jeu">
-        <AdminGameRules initialRules={initialRules} />
+        <AdminGameRules initialRules={initialRules} initialParams={ruleSettings.params} />
       </Section>
 
       <Section title={`Buzz à valider (${pendingBuzzes.length})`}>
@@ -151,6 +154,10 @@ export default async function GameAdminPanel({
       </Section>
 
       <>
+          <Section title="📒 Journal des points">
+            <AdminPointsLedger players={players.map((p: { id: string; firstName: string }) => ({ id: p.id, firstName: p.firstName }))} />
+          </Section>
+
           <Section title={`Joueurs (${players.length})`}>
             {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
             <AdminPlayers players={players as any} quota={quota} canManageIdentity={canManageIdentity} />

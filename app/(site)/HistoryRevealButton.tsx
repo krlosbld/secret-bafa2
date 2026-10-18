@@ -8,9 +8,13 @@ export default function HistoryRevealButton({ secretId, cost }: { secretId: stri
   const [error, setError] = useState("");
   const [result, setResult] = useState<{ wrongNames: string[]; pointsRemaining: number } | null>(null);
 
+  // Une clé par ouverture de la fenêtre : un double clic sur « Débloquer » ne débite qu'une fois.
+  const [requestId, setRequestId] = useState("");
+
   function handleOpen() {
     setError("");
     setResult(null);
+    setRequestId(crypto.randomUUID());
     setOpen(true);
   }
 
@@ -21,7 +25,7 @@ export default function HistoryRevealButton({ secretId, cost }: { secretId: stri
       const res = await fetch(`/api/secrets/${secretId}/history-reveal`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: "{}",
+        body: JSON.stringify({ requestId }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {

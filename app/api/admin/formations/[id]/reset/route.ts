@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { applyPoints } from "@/lib/gamePoints";
 import { prisma } from "@/lib/prisma";
 import { getSession, isSuperAdmin } from "@/lib/auth";
 
@@ -23,17 +24,32 @@ export async function DELETE(_req: Request, { params }: Params) {
   });
   const decoyIds = decoyPlayers.map((p) => p.id);
 
-  await prisma.$transaction([
-    prisma.buzz.deleteMany({ where: { OR: [{ secret: { formationId } }, { fromPlayer: { formationId } }] } }),
-    prisma.secret.deleteMany({ where: { formationId } }),
-    prisma.player.deleteMany({ where: { id: { in: decoyIds } } }),
-    prisma.player.updateMany({
+  // La remise à zéro des scores est inscrite au journal (une ligne par joueur qui avait des points) :
+  // le journal des points, lui, n'est jamais effacé.
+  const resetId = crypto.randomUUID();
+  await prisma.$transaction(async (tx) => {
+    const scored = await tx.player.findMany({ where: { formationId, points: { not: 0 } }, select: { id: true, points: true } });
+    for (const p of scored) {
+      await applyPoints(tx, {
+        formationId,
+        playerId: p.id,
+        delta: -p.points,
+        kind: "GAME_RESET",
+        key: `reset:${resetId}:${p.id}`,
+        actorLabel: "Super-admin",
+        note: "Remise à zéro du jeu",
+      });
+    }
+    await tx.buzz.deleteMany({ where: { OR: [{ secret: { formationId } }, { fromPlayer: { formationId } }] } });
+    await tx.secret.deleteMany({ where: { formationId } });
+    await tx.player.deleteMany({ where: { id: { in: decoyIds } } });
+    await tx.player.updateMany({
       where: { formationId },
-      data: { points: 0, buzzCount: 0, buzzQuotaOverride: null, isGameMaster: false, gameParticipation: null, gameParticipationAt: null, gameExitAt: null, gameExitBy: null },
-    }),
+      data: { buzzCount: 0, buzzQuotaOverride: null, isGameMaster: false, gameParticipation: null, gameParticipationAt: null, gameExitAt: null, gameExitBy: null },
+    });
     // Le jeu redevient « non lancé » : le directeur pourra le relancer et les stagiaires seront réinvités.
-    prisma.config.deleteMany({ where: { formationId, key: { in: ["gameEnded", "buzzPaused", "lastNightlyRun", "gameLaunchedAt", "gameLaunchedBy", "gameStartedAt", "lastNightlyAwardDate"] } } }),
-  ]);
+    await tx.config.deleteMany({ where: { formationId, key: { in: ["gameEnded", "buzzPaused", "lastNightlyRun", "gameLaunchedAt", "gameLaunchedBy", "gameStartedAt", "lastNightlyAwardDate"] } } });
+  });
 
   return NextResponse.json({ ok: true });
 }

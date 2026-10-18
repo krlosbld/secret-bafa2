@@ -196,6 +196,11 @@ export async function POST(req: Request) {
           secretPlayerFirstName: secret.player.firstName,
           formationId,
         });
+        if (points === 0) {
+          // Trouvé par quelqu'un d'autre une fraction de seconde avant : ce buzz ne gagne rien.
+          await prisma.buzz.update({ where: { id: buzz.id }, data: { status: "REJECTED" } });
+          return NextResponse.json({ error: "Ce secret vient d'être trouvé par quelqu'un d'autre." }, { status: 409 });
+        }
         claimFakeResult = { correct: true, points };
       } else {
         claimFakeResult = { correct: false };

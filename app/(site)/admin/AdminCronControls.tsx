@@ -7,6 +7,7 @@ export default function AdminCronControls({ formationId }: { formationId: string
   const router = useRouter();
   const [loading, setLoading] = useState<"reset" | "award" | null>(null);
   const [message, setMessage] = useState("");
+  const [awardRequest, setAwardRequest] = useState(() => crypto.randomUUID());
 
   async function resetBuzz() {
     if (!confirm("Remettre à zéro le compteur de buzz de tous les joueurs de cette formation ?")) return;
@@ -27,7 +28,13 @@ export default function AdminCronControls({ formationId }: { formationId: string
     if (!confirm("Attribuer +1 point à chaque auteur d'un secret publié pas encore trouvé ?")) return;
     setLoading("award");
     setMessage("");
-    const res = await fetch(`/api/admin/formations/${formationId}/award-points`, { method: "POST" });
+    // Une clé par clic : un double clic ne donne pas deux fois le point.
+    const res = await fetch(`/api/admin/formations/${formationId}/award-points`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ requestId: awardRequest }),
+    });
+    setAwardRequest(crypto.randomUUID());
     const data = await res.json().catch(() => ({}));
     setLoading(null);
     if (res.ok) {

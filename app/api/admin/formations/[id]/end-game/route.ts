@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
-import { getGameStatus } from "@/lib/gameAccess";
+import { applyPoints } from "@/lib/gamePoints";
+import { getGameMasterAuth, getGameStatus } from "@/lib/gameAccess";
 import { prisma } from "@/lib/prisma";
 import { getGameAdminAuth } from "@/lib/gameAdminAuth";
 
@@ -26,22 +27,32 @@ export async function POST(_req: Request, { params }: Params) {
 
   const unfound = await prisma.secret.findMany({
     where: { status: "PUBLISHED", formationId, isDecoy: false }, // un faux secret n'a pas d'auteur à récompenser
-    select: { playerId: true, bonus: true },
+    select: { id: true, playerId: true, bonus: true },
   });
 
-  await prisma.$transaction([
-    ...unfound.map((s) =>
-      prisma.player.update({
-        where: { id: s.playerId },
-        data: { points: { increment: s.bonus + 10 } },
-      })
-    ),
-    prisma.config.upsert({
+  // Clôture et bonus dans une seule transaction ; un bonus par secret (clé du secret) : une fin de
+  // partie relancée ne le redonne pas.
+  const actor = await getGameMasterAuth();
+  await prisma.$transaction(async (tx) => {
+    await tx.config.upsert({
       where: { formationId_key: { formationId, key: "gameEnded" } },
       update: { value: "true" },
       create: { formationId, key: "gameEnded", value: "true" },
-    }),
-  ]);
+    });
+    for (const s of unfound) {
+      await applyPoints(tx, {
+        formationId,
+        playerId: s.playerId,
+        delta: s.bonus + 10,
+        kind: "END_BONUS",
+        key: `end-bonus:${s.id}`,
+        refType: "secret",
+        refId: s.id,
+        actorLabel: actor.ok ? actor.label : "Administration",
+        note: "Secret jamais trouvé : bonus + 10",
+      });
+    }
+  });
 
   return NextResponse.json({ ok: true, updated: unfound.length });
 }

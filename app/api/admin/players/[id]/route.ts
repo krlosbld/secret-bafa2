@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { applyPoints } from "@/lib/gamePoints";
 import { prisma } from "@/lib/prisma";
 import { getSession, isSuperAdmin } from "@/lib/auth";
 import { getPlayerSession } from "@/lib/playerAuth";
@@ -49,9 +50,8 @@ export async function PATCH(req: Request, { params }: Params) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
 
-  if (typeof body.points === "number" && Number.isFinite(body.points)) {
-    data.points = Math.max(0, body.points);
-  }
+  // Le score passe par le journal (correction manuelle tracée), pas par une écriture directe.
+  const newPoints = typeof body.points === "number" && Number.isFinite(body.points) ? Math.max(0, Math.round(body.points)) : null;
   if (body.resetBuzz === true) {
     data.buzzCount = 0;
   }
@@ -71,11 +71,29 @@ export async function PATCH(req: Request, { params }: Params) {
   if (body.role === "STAGIAIRE" || body.role === "FORMATEUR" || body.role === "DIRECTEUR") {
     data.role = body.role;
   }
-  if (Object.keys(data).length === 0) {
+  if (Object.keys(data).length === 0 && newPoints === null) {
     return NextResponse.json({ error: "Aucun champ valide." }, { status: 400 });
   }
 
-  const updated = await prisma.player.update({ where: { id }, data });
+  const actor = newPoints === null ? null : await getGameMasterAuth();
+  const updated = await prisma.$transaction(async (tx) => {
+    if (newPoints !== null) {
+      const [row] = await tx.$queryRaw<{ points: number }[]>`SELECT "points" FROM "Player" WHERE "id" = ${id} FOR UPDATE`;
+      const delta = newPoints - (row?.points ?? 0);
+      if (delta !== 0) {
+        await applyPoints(tx, {
+          formationId: target.formationId,
+          playerId: id,
+          delta,
+          kind: "MANUAL_SET",
+          key: `manual-set:${crypto.randomUUID()}`,
+          actorLabel: actor?.ok ? actor.label : "Administration",
+          note: `Score corrigé à ${newPoints}`,
+        });
+      }
+    }
+    return Object.keys(data).length > 0 ? tx.player.update({ where: { id }, data }) : tx.player.findUniqueOrThrow({ where: { id } });
+  });
   return NextResponse.json({ ok: true, player: updated });
 }
 
