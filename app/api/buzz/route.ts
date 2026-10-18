@@ -1,28 +1,15 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { matchesName } from "@/lib/nameCollision";
-import { resolveWinningBuzz, CLAIM_FAKE_GUESS_LABEL } from "@/lib/buzzResolution";
+import { CLAIM_FAKE_GUESS_LABEL } from "@/lib/buzzResolution";
 import { isSecretCurrentlyVisible } from "@/lib/secretVisibility";
 import { getFormationFromCookie, hasNotStartedYet } from "@/lib/formationSession";
 import { getPlayerSession } from "@/lib/playerAuth";
 import { currentActivePlayer, getGameStatus } from "@/lib/gameAccess";
+import { isWithinBuzzHours } from "@/lib/buzzWindow";
+import { claimFakeSecret } from "@/lib/buzzClaims";
 
 export const runtime = "nodejs";
-
-function isWithinBuzzHours(): boolean {
-  const parts = new Intl.DateTimeFormat("fr-FR", {
-    timeZone: "Europe/Paris",
-    hour: "2-digit",
-    minute: "2-digit",
-    hour12: false,
-  }).formatToParts(new Date());
-
-  const hour = Number(parts.find((p) => p.type === "hour")?.value ?? "0");
-  const minute = Number(parts.find((p) => p.type === "minute")?.value ?? "0");
-  const totalMin = hour * 60 + minute;
-
-  return totalMin >= 9 * 60 && totalMin < 18 * 60; // 09h00 à 17h59
-}
 
 export async function POST(req: Request) {
   if (!(await currentActivePlayer())) {
@@ -181,30 +168,18 @@ export async function POST(req: Request) {
     let claimFakeResult: { correct: boolean; points?: number } | undefined;
 
     if (claimFake) {
-      const buzz = await prisma.buzz.create({
-        data: { secretId, fromPlayerId: player.id, guessedName, status: isCorrect ? "PENDING" : "REJECTED", isCorrect },
+      const result = await claimFakeSecret({
+        secretId,
+        playerId: player.id,
+        formationId,
+        isDecoy: secret.isDecoy,
+        bonus: secret.bonus,
+        authorFirstName: secret.player.firstName,
       });
-      await prisma.player.update({ where: { id: player.id }, data: { buzzCount: { increment: 1 } } });
-
-      if (isCorrect) {
-        const points = await resolveWinningBuzz({
-          buzzId: buzz.id,
-          secretId,
-          fromPlayerId: player.id,
-          secretBonus: secret.bonus,
-          secretIsDecoy: secret.isDecoy,
-          secretPlayerFirstName: secret.player.firstName,
-          formationId,
-        });
-        if (points === 0) {
-          // Trouvé par quelqu'un d'autre une fraction de seconde avant : ce buzz ne gagne rien.
-          await prisma.buzz.update({ where: { id: buzz.id }, data: { status: "REJECTED" } });
-          return NextResponse.json({ error: "Ce secret vient d'être trouvé par quelqu'un d'autre." }, { status: 409 });
-        }
-        claimFakeResult = { correct: true, points };
-      } else {
-        claimFakeResult = { correct: false };
+      if (result.alreadyFound) {
+        return NextResponse.json({ error: "Ce secret vient d'être trouvé par quelqu'un d'autre." }, { status: 409 });
       }
+      claimFakeResult = result.correct ? { correct: true, points: result.points } : { correct: false };
     } else {
       await prisma.$transaction([
         prisma.buzz.create({

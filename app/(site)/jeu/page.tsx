@@ -1,3 +1,4 @@
+import { randomInt } from "crypto";
 import { prisma } from "@/lib/prisma";
 import { hasNotStartedYet } from "@/lib/formationSession";
 import { getGameFormation } from "@/lib/gameFormation";
@@ -157,7 +158,14 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
               : "Inscriptions en cours : la partie n'a pas encore commencé."}
           </div>
         )}
-        {showSecrets && <SecretsClient initial={secrets} historyRevealEnabled={historyRevealEnabled} canPlay={!!active && state.status === "en_cours"} />}
+        {showSecrets && (
+          <SecretsClient
+            initial={secrets}
+            historyRevealEnabled={historyRevealEnabled}
+            canPlay={!!active && state.status === "en_cours"}
+            shuffleSeed={randomInt(2 ** 31)}
+          />
+        )}
       </div>
     </main>
   );

@@ -84,7 +84,10 @@ export default function MySecretPanel({
                 <strong>Motif :</strong> {reason}
               </div>
             )}
-            <div style={{ fontSize: 14, color: "#475569", marginTop: 4 }}>{t.text}</div>
+            {/* Délai restant calculé à l'heure de chacun (serveur, navigateur) : écart de minute toléré. */}
+            <div style={{ fontSize: 14, color: "#475569", marginTop: 4 }} suppressHydrationWarning>
+              {t.text}
+            </div>
           </div>
         </div>
         {canPropose && (
