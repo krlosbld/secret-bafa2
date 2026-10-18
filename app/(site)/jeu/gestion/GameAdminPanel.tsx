@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import ParticipantsBoard from "./ParticipantsBoard";
 import { loadReadiness } from "@/lib/gameReadiness";
 import { getGameStatus } from "@/lib/gameAccess";
-import { AdminSecretsPending, AdminSecretsPublished } from "../../admin/AdminSecrets";
+import { AdminDecoyCreator, AdminSecretsPending, AdminSecretsPublished } from "../../admin/AdminSecrets";
 import AdminBuzzPending from "../../admin/AdminBuzzPending";
 import AdminPlayers from "../../admin/AdminPlayers";
 import AdminCronControls from "../../admin/AdminCronControls";
@@ -117,6 +117,10 @@ export default async function GameAdminPanel({
 
   return (
     <div>
+      <Section title="Faux secrets">
+        <AdminDecoyCreator />
+      </Section>
+
       <Section title={status === "inscriptions_ouvertes" ? "Participants et démarrage de la partie" : "Participants"}>
         <ParticipantsBoard status={status === "non_configure" ? "inscriptions_ouvertes" : status} participants={readiness.participants} />
       </Section>

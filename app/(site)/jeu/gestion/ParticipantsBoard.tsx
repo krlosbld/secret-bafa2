@@ -99,7 +99,7 @@ export default function ParticipantsBoard({
       {group("Secrets refusés — nouvelle proposition attendue", rejected, (p) => row(p, p.lastReason ? `· motif : ${p.lastReason}` : "", true))}
       {group("Inscrits sans secret", noSecret, (p) => row(p, p.deadline ? `· ${left(p.deadline)}` : "", true))}
       {group("Exclus ou expirés", out, (p) =>
-        row(p, `· ${p.participation === "EXCLUDED" ? "exclu" : "expiré"}${p.exitAt ? ` le ${new Date(p.exitAt).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}` : ""}${p.exitBy && p.participation === "EXCLUDED" ? ` par ${p.exitBy}` : ""}`, false)
+        row(p, `· ${p.participation === "EXCLUDED" ? "exclu" : "expiré"}${p.exitAt ? ` le ${new Date(p.exitAt).toLocaleString("fr-FR", { dateStyle: "short", timeStyle: "short" })}` : ""}${p.exitBy && p.participation === "EXCLUDED" ? (p.exitBy.startsWith("Démarrage du jeu") ? ` — ${p.exitBy.replace("Démarrage du jeu", "au démarrage du jeu")}` : ` par ${p.exitBy}`) : ""}`, false)
       )}
       {group("Ont refusé de jouer", declined, (p) => row(p, "", false))}
       {registering && group("Pas encore répondu à l'invitation", invited, (p) => row(p, "", false))}

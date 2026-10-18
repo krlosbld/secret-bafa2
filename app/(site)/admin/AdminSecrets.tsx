@@ -22,17 +22,13 @@ type Secret = {
   _count?: { rejections: number }; // propositions déjà refusées pour ce joueur
 };
 
-export function AdminSecretsPending({ secrets }: { secrets: Secret[] }) {
+// « 🎭 Générer un faux secret » (maître du jeu) : affiché tout en haut de « Gestion du jeu ». Le faux
+// secret est créé en attente, puis publié avec les autres au démarrage de la partie.
+export function AdminDecoyCreator() {
   const router = useRouter();
-  const [loading, setLoading] = useState<string | null>(null);
-  const [loadingAll, setLoadingAll] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editValue, setEditValue] = useState("");
   const [showDecoyForm, setShowDecoyForm] = useState(false);
   const [decoyProposal, setDecoyProposal] = useState<{ firstName: string; content: string; source?: string; original?: string } | null>(null);
   const [decoyPoints, setDecoyPoints] = useState(3);
-  const [refusingId, setRefusingId] = useState<string | null>(null); // refus en cours : motif à saisir
-  const [refuseReason, setRefuseReason] = useState("");
   const [decoyError, setDecoyError] = useState("");
   const [generatingDecoy, setGeneratingDecoy] = useState(false);
   const [creatingDecoy, setCreatingDecoy] = useState(false);
@@ -109,53 +105,13 @@ export function AdminSecretsPending({ secrets }: { secrets: Secret[] }) {
     }
   }
 
-  async function patch(id: string, data: object) {
-    setLoading(id);
-    await fetch(`/api/admin/secrets/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
-    });
-    router.refresh();
-    setLoading(null);
-  }
-
-  async function saveContent(id: string) {
-    if (!editValue.trim()) return;
-    setLoading(id);
-    await fetch(`/api/admin/secrets/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: editValue.trim() }),
-    });
-    setEditingId(null);
-    router.refresh();
-    setLoading(null);
-  }
-
-  async function publishAll() {
-    if (!confirm(`Valider les ${secrets.length} secrets en attente ?`)) return;
-    setLoadingAll(true);
-    await fetch("/api/admin/secrets/publish-all", { method: "POST" });
-    router.refresh();
-    setLoadingAll(false);
-  }
-
   return (
-    <>
-      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
-        {secrets.length > 0 && (
-          <button className="btn btn-main" onClick={publishAll} disabled={loadingAll}>
-            {loadingAll ? "Validation…" : `✅ Tout valider (${secrets.length})`}
-          </button>
-        )}
-        <button className="btn btn-ghost" onClick={() => (showDecoyForm ? setShowDecoyForm(false) : openDecoyForm())}>
-          🎭 Générer un faux secret
-        </button>
-      </div>
-
+    <div className="decoy-creator">
+      <button className="btn btn-main" onClick={() => (showDecoyForm ? setShowDecoyForm(false) : openDecoyForm())}>
+        🎭 Générer un faux secret
+      </button>
       {showDecoyForm && (
-        <div className="card" style={{ marginBottom: 14 }}>
+        <div className="card" style={{ marginTop: 12 }}>
           {generatingDecoy || !decoyProposal ? (
             <p style={{ color: "#64748b", fontSize: 14 }}>Génération…</p>
           ) : (
@@ -232,6 +188,61 @@ export function AdminSecretsPending({ secrets }: { secrets: Secret[] }) {
           </div>
         </div>
       )}
+
+    </div>
+  );
+}
+
+export function AdminSecretsPending({ secrets }: { secrets: Secret[] }) {
+  const router = useRouter();
+  const [loading, setLoading] = useState<string | null>(null);
+  const [loadingAll, setLoadingAll] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [refusingId, setRefusingId] = useState<string | null>(null); // refus en cours : motif à saisir
+  const [refuseReason, setRefuseReason] = useState("");
+
+  async function patch(id: string, data: object) {
+    setLoading(id);
+    await fetch(`/api/admin/secrets/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    router.refresh();
+    setLoading(null);
+  }
+
+  async function saveContent(id: string) {
+    if (!editValue.trim()) return;
+    setLoading(id);
+    await fetch(`/api/admin/secrets/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ content: editValue.trim() }),
+    });
+    setEditingId(null);
+    router.refresh();
+    setLoading(null);
+  }
+
+  async function publishAll() {
+    if (!confirm(`Valider les ${secrets.length} secrets en attente ?`)) return;
+    setLoadingAll(true);
+    await fetch("/api/admin/secrets/publish-all", { method: "POST" });
+    router.refresh();
+    setLoadingAll(false);
+  }
+
+  return (
+    <>
+      <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 14 }}>
+        {secrets.length > 0 && (
+          <button className="btn btn-main" onClick={publishAll} disabled={loadingAll}>
+            {loadingAll ? "Validation…" : `✅ Tout valider (${secrets.length})`}
+          </button>
+        )}
+      </div>
 
       {secrets.length === 0 ? (
         <p style={{ color: "#64748b", fontSize: 14 }}>Aucun secret en attente.</p>
