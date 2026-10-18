@@ -1,7 +1,9 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getSecretsAdminAuth } from "@/lib/gameAdminAuth";
-import { resolveWinningBuzz } from "@/lib/buzzResolution";
+import { CLAIM_FAKE_GUESS_LABEL, resolveWinningBuzz } from "@/lib/buzzResolution";
+import { audit } from "@/lib/adminActor";
+import { getGameMasterAuth } from "@/lib/gameAccess";
 
 export const runtime = "nodejs";
 
@@ -13,7 +15,7 @@ export async function PATCH(req: Request, { params }: Params) {
   if (!auth.ok) return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
 
   const { id } = await params;
-  const { action } = await req.json(); // "validate" | "reject"
+  const { action } = await req.json(); // "validate" | "reject" | "accept_as_correct"
 
   const buzz = await prisma.buzz.findUnique({
     where: { id },
@@ -32,7 +34,24 @@ export async function PATCH(req: Request, { params }: Params) {
     return NextResponse.json({ ok: true });
   }
 
-  if (action === "validate") {
+  // « Accepter quand même » : le maître du jeu juge que la réponse désigne bien l'auteur malgré une
+  // faute de frappe que la tolérance automatique (une lettre) n'a pas reconnue. Le buzz devient
+  // correct puis suit la règle habituelle : le premier buzz correct en attente sur ce secret gagne.
+  if (action === "accept_as_correct") {
+    if (buzz.guessedName === CLAIM_FAKE_GUESS_LABEL) {
+      return NextResponse.json({ error: "Une réclamation « faux secret » se résout automatiquement." }, { status: 400 });
+    }
+    if (buzz.secret.status === "FOUND") return NextResponse.json({ error: "Ce secret a déjà été trouvé." }, { status: 400 });
+    await prisma.buzz.update({ where: { id }, data: { isCorrect: true } });
+    const gm = await getGameMasterAuth();
+    await audit({ kind: "directeur", userId: null, label: gm.ok ? gm.label : "Maître du jeu" }, "BUZZ_ACCEPTED_AS_CORRECT", {
+      formationId: buzz.secret.formationId,
+      details: `« ${buzz.guessedName} » accepté pour ${buzz.secret.player.firstName}`,
+    });
+    buzz.isCorrect = true;
+  }
+
+  if (action === "validate" || action === "accept_as_correct") {
     if (buzz.isCorrect && buzz.secret.status !== "FOUND") {
       // Si plusieurs buzz corrects sont en attente sur ce secret, les points vont au premier
       // chronologiquement — peu importe lequel a été cliqué ici.

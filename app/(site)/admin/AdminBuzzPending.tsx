@@ -50,7 +50,7 @@ export default function AdminBuzzPending({ buzzes }: { buzzes: BuzzItem[] }) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
 
-  async function act(id: string, action: "validate" | "reject") {
+  async function act(id: string, action: "validate" | "reject" | "accept_as_correct") {
     setLoading(id);
     await fetch(`/api/admin/buzz/${id}`, {
       method: "PATCH",
@@ -120,6 +120,14 @@ export default function AdminBuzzPending({ buzzes }: { buzzes: BuzzItem[] }) {
                     {b.guessedName} {b.isCorrect ? "✅ correct" : "❌ incorrect"}
                   </div>
                 </div>
+                {!b.isCorrect && !b.guessedName.startsWith("🎭") && (
+                  <div className="row">
+                    <div className="label">Auteur</div>
+                    <div className="value" style={{ color: "#475569" }}>
+                      {b.secret.player.firstName}
+                    </div>
+                  </div>
+                )}
                 {b.isCorrect && (
                   <div className="row">
                     <div className="label">Gain</div>
@@ -143,6 +151,23 @@ export default function AdminBuzzPending({ buzzes }: { buzzes: BuzzItem[] }) {
                   >
                     ❌ Rejeter
                   </button>
+                  {!b.isCorrect && !b.guessedName.startsWith("🎭") && (
+                    <button
+                      className="btn btn-ghost"
+                      disabled={loading === b.id}
+                      title={`Le secret est celui de ${b.secret.player.firstName}`}
+                      onClick={() => {
+                        if (
+                          window.confirm(
+                            `Accepter « ${b.guessedName} » comme bonne réponse ? Le secret est celui de ${b.secret.player.firstName}. ${b.fromPlayer.firstName} gagnera les points et le secret sera marqué trouvé.`
+                          )
+                        )
+                          void act(b.id, "accept_as_correct");
+                      }}
+                    >
+                      ✍️ Accepter quand même (faute de frappe)
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
