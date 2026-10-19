@@ -25,7 +25,7 @@ export async function POST(_req: Request, { params }: Params) {
     const gm = await getGameMasterAuth();
     await audit({ kind: "directeur", userId: null, label: gm.ok ? gm.label : "Administration" }, "SECRET_TO_DECOY", {
       formationId,
-      details: `Secret de ${done.authorFirstName} transformé en faux secret (prénom inventé : ${done.decoyFirstName})`,
+      details: `Secret de ${done.authorFirstName} transformé en faux secret (prénom inventé : ${done.decoyFirstName})${done.closedBuzzes ? ` ; ${done.closedBuzzes} buzz en attente jugés faux` : ""}`,
     });
     return NextResponse.json({ ok: true, ...done });
   } catch (e) {

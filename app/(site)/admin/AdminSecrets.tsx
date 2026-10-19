@@ -20,7 +20,7 @@ type Secret = {
   player: { firstName: string; code: string; fakeVisible?: boolean };
   foundBy: { firstName: string } | null;
   convertedFrom?: { firstName: string } | null; // vrai secret transformé en faux : son ancien auteur
-  _count?: { rejections: number }; // propositions déjà refusées pour ce joueur
+  _count?: { rejections?: number; buzzes?: number }; // propositions refusées · buzz en attente sur ce secret
 };
 
 // « 🎭 Générer un faux secret » (maître du jeu) : affiché tout en haut de « Gestion du jeu ». Le faux
@@ -461,7 +461,11 @@ export function AdminSecretsPublished({ secrets }: { secrets: Secret[] }) {
   async function toDecoy(s: Secret) {
     if (
       !confirm(
-        `Transformer le secret de ${s.player.firstName} en faux secret ?\n\nIl reste en jeu : seule la réponse « faux secret » sera juste. ${s.player.firstName} garde ses points, ne pourra pas buzzer dessus et devra proposer un nouveau secret. Impossible à annuler.`
+        `Transformer le secret de ${s.player.firstName} en faux secret ?\n\nIl reste en jeu : seule la réponse « faux secret » sera juste. ${s.player.firstName} garde ses points, ne pourra pas buzzer dessus et devra proposer un nouveau secret.${
+          s._count?.buzzes
+            ? `\n\n${s._count.buzzes} buzz en attente sur ce secret (bonnes réponses comprises) seront jugés faux : aucun point.`
+            : ""
+        }\n\nImpossible à annuler.`
       )
     )
       return;

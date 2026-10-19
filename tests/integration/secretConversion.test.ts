@@ -86,14 +86,30 @@ test("l'auteur n'est pas exclu par le délai de 24 h sans secret (les autres, si
   }
 });
 
-test("refus : buzz en attente, mise à prix non réglée, fausse identité active, secret trouvé, partie terminée", async () => {
+test("buzz en attente, bonne réponse comprise : la transformation passe et les rend faux (aucun point)", async () => {
+  const s = await scenario();
+  try {
+    const right = await prisma.buzz.create({ data: { fromPlayerId: s.P.cam.id, secretId: s.S.ana, guessedName: "Ana", isCorrect: true, status: "PENDING" } });
+    const wrong = await prisma.buzz.create({ data: { fromPlayerId: s.P.cam.id, secretId: s.S.ana, guessedName: "Zoé", isCorrect: false, status: "PENDING" } });
+    const before = (await prisma.player.findUniqueOrThrow({ where: { id: s.P.cam.id } })).points;
+    const done = await convertSecretToDecoy({ formationId: s.f.id, secretId: s.S.ana });
+    assert.equal(done.closedBuzzes, 2);
+    for (const id of [right.id, wrong.id]) {
+      const b = await prisma.buzz.findUniqueOrThrow({ where: { id } });
+      assert.deepEqual([b.status, b.isCorrect], ["REJECTED", false]);
+    }
+    assert.equal((await prisma.player.findUniqueOrThrow({ where: { id: s.P.cam.id } })).points, before, "la bonne réponse annulée ne rapporte rien");
+    const secret = await prisma.secret.findUniqueOrThrow({ where: { id: s.S.ana } });
+    assert.deepEqual([secret.isDecoy, secret.status], [true, "PUBLISHED"]);
+  } finally {
+    await cleanup(s);
+  }
+});
+
+test("refus : mise à prix non réglée, fausse identité active, secret trouvé, partie terminée", async () => {
   const s = await scenario();
   const ended = await scenario({ ended: true });
   try {
-    const pending = await prisma.buzz.create({ data: { fromPlayerId: s.P.cam.id, secretId: s.S.ana, guessedName: "Ana", isCorrect: true, status: "PENDING" } });
-    await refused(convertSecretToDecoy({ formationId: s.f.id, secretId: s.S.ana }), /buzz attendent/);
-    await prisma.buzz.delete({ where: { id: pending.id } });
-
     const bounty = await prisma.gamePower.create({ data: { formationId: s.f.id, playerId: s.P.ana.id, kind: "BOUNTY", cost: 3, endsAt: new Date(Date.now() - 3600_000), status: "EXPIRED" } });
     await refused(convertSecretToDecoy({ formationId: s.f.id, secretId: s.S.ana }), /mise à prix/);
     await prisma.gamePower.update({ where: { id: bounty.id }, data: { stakeSettledAt: new Date(), stakeOutcome: "REFUNDED" } });

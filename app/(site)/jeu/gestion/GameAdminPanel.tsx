@@ -59,6 +59,7 @@ export default async function GameAdminPanel({
         player: { select: { firstName: true, code: true, fakeVisible: true } },
         foundBy: { select: { firstName: true } },
         convertedFrom: { select: { firstName: true } },
+        _count: { select: { buzzes: { where: { status: "PENDING" } } } }, // annoncés à la transformation en faux
       },
     }),
     prisma.buzz.findMany({
