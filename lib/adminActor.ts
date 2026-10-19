@@ -69,4 +69,5 @@ export const AUDIT_LABELS: Record<string, string> = {
   GAME_MASTER_CHANGED: "Maître du jeu changé",
   GAME_STARTED: "Partie du Jeu des secrets commencée",
   GAME_PARTICIPANT_EXCLUDED: "Participant exclu du Jeu des secrets",
+  SECRET_TO_DECOY: "Vrai secret transformé en faux secret",
 };

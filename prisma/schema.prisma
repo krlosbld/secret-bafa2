@@ -133,6 +133,7 @@ model Player {
   secret                Secret?
   buzzesSent            Buzz[]            @relation("BuzzFrom")
   foundSecrets          Secret[]          @relation("FoundBy")
+  convertedSecrets      Secret[]          @relation("ConvertedFrom") // anciens secrets transformés en faux secrets
   evaluations           Evaluation[]
   criterionRatings      CriterionRating[]
   blockAssignments      BlockAssignment[]
@@ -143,24 +144,24 @@ model Player {
   member                FormationMember? // compte BafaPilot représenté par cette fiche, s'il y en a un
 
   // Panneau latéral de la page stagiaire
-  personalNote              String             @default("") // écrit par le stagiaire lui-même
-  ems                       String             @default("") // entretien de mi-stage
-  emsVisible                Boolean            @default(false)
+  personalNote              String                   @default("") // écrit par le stagiaire lui-même
+  ems                       String                   @default("") // entretien de mi-stage
+  emsVisible                Boolean                  @default(false)
   emsAuthorId               String? // id du formateur/directeur qui a écrit la version actuelle
-  retourEms                 String             @default("") // retour suite à l'EMS
-  retourEmsVisible          Boolean            @default(false)
+  retourEms                 String                   @default("") // retour suite à l'EMS
+  retourEmsVisible          Boolean                  @default(false)
   retourEmsAuthorId         String?
-  complementaryNote         String             @default("") // entretien complémentaire
-  complementaryVisible      Boolean            @default(false)
+  complementaryNote         String                   @default("") // entretien complémentaire
+  complementaryVisible      Boolean                  @default(false)
   complementaryNoteAuthorId String?
-  finalOpinion              String             @default("EN_ATTENTE") // avis : EN_ATTENTE | FAVORABLE | DEFAVORABLE
-  finalAppraisal            String             @default("") // appréciation finale
-  finalAppraisalVisible     Boolean            @default(false)
+  finalOpinion              String                   @default("EN_ATTENTE") // avis : EN_ATTENTE | FAVORABLE | DEFAVORABLE
+  finalAppraisal            String                   @default("") // appréciation finale
+  finalAppraisalVisible     Boolean                  @default(false)
   finalAppraisalAuthorId    String?
   pointTransactions         PointTransaction[]
   secretQuestions           SecretQuestion[]
-  gamePowers                GamePower[]        @relation("PowerOwner")
-  gamePowersAlias           GamePower[]        @relation("PowerAlias")
+  gamePowers                GamePower[]              @relation("PowerOwner")
+  gamePowersAlias           GamePower[]              @relation("PowerAlias")
   leaderDays                LeaderDay[]
   challengeRecipients       GameChallengeRecipient[]
 
@@ -319,11 +320,16 @@ model Secret {
   limitedVisibilitySince   DateTime? // instant d'activation — ancre le cycle horaire
   limitedVisibilityMinutes Int               @default(5) // durée visible par heure, choisie par l'admin
   foundByPlayerId          String?
+  // Vrai secret transformé en faux par le maître du jeu : son ancien auteur (qui ne peut pas buzzer
+  // dessus et propose un nouveau secret) et la date de la transformation.
+  convertedFromPlayerId    String?
+  convertedAt              DateTime?
   createdAt                DateTime          @default(now())
   updatedAt                DateTime          @updatedAt
   formation                Formation         @relation(fields: [formationId], references: [id], onDelete: Cascade)
   player                   Player            @relation(fields: [playerId], references: [id], onDelete: Cascade)
   foundBy                  Player?           @relation("FoundBy", fields: [foundByPlayerId], references: [id])
+  convertedFrom            Player?           @relation("ConvertedFrom", fields: [convertedFromPlayerId], references: [id], onDelete: SetNull)
   buzzes                   Buzz[]
   rejections               SecretRejection[]
   secretQuestions          SecretQuestion[]

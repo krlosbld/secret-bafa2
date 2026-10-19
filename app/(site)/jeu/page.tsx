@@ -74,19 +74,23 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   }
 
   // Ma proposition (participant) : statut, délai de 24 h, motif du dernier refus.
-  let mySecret: { status: MySecretStatus; deadline: string | null; reason: string | null } | null = null;
+  let mySecret: { status: MySecretStatus; deadline: string | null; reason: string | null; replace: boolean } | null = null;
   if (active) {
     const row = await prisma.player.findUnique({
       where: { id: active.id },
       select: {
         gameParticipationAt: true,
         secret: { select: { status: true, rejections: { orderBy: { rejectedAt: "desc" }, take: 1, select: { reason: true } } } },
+        _count: { select: { convertedSecrets: true } },
       },
     });
+    // Secret transformé en faux par le maître du jeu : un nouveau secret à proposer, sans délai de 24 h.
+    const replace = !!row?._count.convertedSecrets;
     mySecret = {
-      status: (row?.secret?.status ?? "NONE") as MySecretStatus,
-      deadline: !row?.secret && row?.gameParticipationAt ? new Date(row.gameParticipationAt.getTime() + PROPOSAL_DELAY_MS).toISOString() : null,
+      status: (row?.secret?.status ?? (replace ? "CONVERTED" : "NONE")) as MySecretStatus,
+      deadline: !row?.secret && !replace && row?.gameParticipationAt ? new Date(row.gameParticipationAt.getTime() + PROPOSAL_DELAY_MS).toISOString() : null,
       reason: row?.secret?.status === "REJECTED" ? row.secret.rejections[0]?.reason ?? null : null,
+      replace,
     };
   }
 
@@ -169,6 +173,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
             phase={state.status}
             deadline={mySecret.deadline}
             reason={mySecret.reason}
+            replace={mySecret.replace}
             autoOpen={proposer === "1"}
           />
         )}

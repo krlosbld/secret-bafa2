@@ -132,6 +132,10 @@ export async function POST(req: Request) {
         { status: 400 }
       );
     }
+    // Ni son ancien secret transformé en faux par le maître du jeu (il en connaît le texte).
+    if (secret.convertedFromPlayerId === player.id) {
+      return NextResponse.json({ error: "C'était ton secret : tu ne peux pas buzzer dessus." }, { status: 400 });
+    }
 
     // Chaque personne n'a qu'un seul secret : si celui de la personne devinée a déjà été trouvé
     // (sur n'importe quel autre secret), cette réponse ne peut plus être correcte nulle part. Avec

@@ -3,11 +3,12 @@ import { prisma } from "@/lib/prisma";
 import { isFlagged } from "@/lib/contentFilter";
 import { getFormationFromCookie } from "@/lib/formationSession";
 import { currentActivePlayer, getGameStatus } from "@/lib/gameAccess";
+import { mustReplaceSecret } from "@/lib/secretConversion";
 
 export const runtime = "nodejs";
 
 // Proposer son secret (fenêtre dédiée) : réservé aux stagiaires participants, pendant la phase
-// d'inscription. La première proposition doit arriver dans les 24 h suivant l'acceptation (sinon la
+// d'inscription — ou pendant la partie pour un joueur dont le secret a été transformé en faux. La première proposition doit arriver dans les 24 h suivant l'acceptation (sinon la
 // participation expire). Une seule proposition à la fois : après un refus, la nouvelle remplace
 // l'ancienne (gardée avec son motif dans SecretRejection) et repart en attente.
 export async function POST(req: Request) {
@@ -31,15 +32,17 @@ export async function POST(req: Request) {
       return NextResponse.json({ ok: false, message: "Connecte-toi avec ton compte BafaPilot pour proposer ton secret." }, { status: 401 });
     }
     const status = await getGameStatus(formation.id);
-    if (status !== "inscriptions_ouvertes") {
-      const message = status === "en_cours" ? "La partie est en cours : les propositions de secrets sont fermées." : "Le jeu n'est pas ouvert aux propositions.";
-      return NextResponse.json({ ok: false, message }, { status: 403 });
+    if (status !== "inscriptions_ouvertes" && status !== "en_cours") {
+      return NextResponse.json({ ok: false, message: "Le jeu n'est pas ouvert aux propositions." }, { status: 403 });
     }
     // Délai de 24 h vérifié ici même : un traitement automatique en retard ne doit rien permettre.
     const player = await currentActivePlayer();
     if (!player || player.formationId !== formation.id) {
       const message = "Tu ne participes pas (ou plus) au Jeu des secrets de cette session.";
       return NextResponse.json({ ok: false, error: message, message }, { status: 403 });
+    }
+    if (status === "en_cours" && !(await mustReplaceSecret(player.id))) {
+      return NextResponse.json({ ok: false, message: "La partie est en cours : les propositions de secrets sont fermées." }, { status: 403 });
     }
 
     const existingSecret = await prisma.secret.findUnique({ where: { playerId: player.id }, select: { id: true, status: true } });

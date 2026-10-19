@@ -19,6 +19,7 @@ type Secret = {
   createdAt: string;
   player: { firstName: string; code: string; fakeVisible?: boolean };
   foundBy: { firstName: string } | null;
+  convertedFrom?: { firstName: string } | null; // vrai secret transformé en faux : son ancien auteur
   _count?: { rejections: number }; // propositions déjà refusées pour ce joueur
 };
 
@@ -455,6 +456,23 @@ export function AdminSecretsPublished({ secrets }: { secrets: Secret[] }) {
     setLoading(null);
   }
 
+  // Vrai secret → faux secret (choix du maître du jeu) : l'auteur garde ses points, ne peut plus buzzer
+  // dessus et propose un nouveau secret.
+  async function toDecoy(s: Secret) {
+    if (
+      !confirm(
+        `Transformer le secret de ${s.player.firstName} en faux secret ?\n\nIl reste en jeu : seule la réponse « faux secret » sera juste. ${s.player.firstName} garde ses points, ne pourra pas buzzer dessus et devra proposer un nouveau secret. Impossible à annuler.`
+      )
+    )
+      return;
+    setLoading(s.id);
+    const res = await fetch(`/api/admin/secrets/${s.id}/to-decoy`, { method: "POST" }).catch(() => null);
+    const d = res ? await res.json().catch(() => ({})) : {};
+    if (!res?.ok) alert(d.error || "Transformation impossible.");
+    router.refresh();
+    setLoading(null);
+  }
+
   async function unpublish(id: string) {
     if (!confirm("Repasser ce secret en attente ? Il ne sera plus visible sur la page publique.")) return;
     setLoading(id);
@@ -481,7 +499,7 @@ export function AdminSecretsPublished({ secrets }: { secrets: Secret[] }) {
         >
           {s.isDecoy && (
             <div style={{ background: "#6b21a8", color: "#fff", fontWeight: 800, fontSize: 12, borderRadius: 6, padding: "3px 10px", marginBottom: 8, display: "inline-block" }}>
-              🎭 Faux secret
+              🎭 Faux secret{s.convertedFrom ? ` · ancien secret de ${s.convertedFrom.firstName}` : ""}
             </div>
           )}
           {s.flagged && (
@@ -599,6 +617,11 @@ export function AdminSecretsPublished({ secrets }: { secrets: Secret[] }) {
             >
               ↩️ Repasser en attente
             </button>
+            {!s.isDecoy && s.status === "PUBLISHED" && (
+              <button className="btn btn-ghost" disabled={loading === s.id} onClick={() => toDecoy(s)}>
+                🎭 Transformer en faux secret
+              </button>
+            )}
             <button
               className="btn btn-danger"
               disabled={loading === s.id}

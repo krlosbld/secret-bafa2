@@ -6,8 +6,9 @@ import SubmitSecretModal from "@/components/SubmitSecretModal";
 
 // « Mon secret » (onglet Jeu, participant) : où en est sa proposition — à envoyer (avec le délai de
 // 24 h), en attente, validée, trouvée ou refusée (avec le motif) — et la fenêtre pour proposer,
-// ouverte d'office juste après avoir accepté de jouer.
-export type MySecretStatus = "NONE" | "PENDING" | "PUBLISHED" | "FOUND" | "REJECTED";
+// ouverte d'office juste après avoir accepté de jouer. CONVERTED : le maître du jeu a transformé son
+// secret en faux secret — il en propose un nouveau, même partie commencée (replace).
+export type MySecretStatus = "NONE" | "PENDING" | "PUBLISHED" | "FOUND" | "REJECTED" | "CONVERTED";
 
 function timeLeft(deadline: string): string {
   const ms = new Date(deadline).getTime() - Date.now();
@@ -22,16 +23,19 @@ export default function MySecretPanel({
   phase,
   deadline,
   reason,
+  replace = false,
   autoOpen,
 }: {
   status: MySecretStatus;
   phase: "inscriptions_ouvertes" | "en_cours" | "termine";
   deadline: string | null; // fin des 24 h pour une première proposition
   reason: string | null; // motif du dernier refus
+  replace?: boolean; // secret transformé en faux : nouvelle proposition possible pendant la partie
   autoOpen: boolean;
 }) {
   const router = useRouter();
-  const canPropose = phase === "inscriptions_ouvertes" && (status === "NONE" || status === "REJECTED");
+  const canPropose =
+    (phase === "inscriptions_ouvertes" || (replace && phase === "en_cours")) && (status === "NONE" || status === "REJECTED" || status === "CONVERTED");
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
@@ -62,6 +66,12 @@ export default function MySecretPanel({
       tone: "#15803d",
     },
     FOUND: { icon: "🎯", title: "Ton secret a été trouvé", text: "Quelqu'un a deviné qu'il était à toi. Tu gardes tes points !", tone: "#15803d" },
+    CONVERTED: {
+      icon: "🎭",
+      title: "Ton secret a été transformé en faux secret",
+      text: "Le maître du jeu en a fait un faux secret : il reste en jeu, mais tu ne peux pas buzzer dessus. Propose un nouveau secret, il passera par sa validation.",
+      tone: "#6b21a8",
+    },
     REJECTED: {
       icon: "❌",
       title: "Ton précédent secret n'a pas été accepté",
@@ -92,7 +102,7 @@ export default function MySecretPanel({
         </div>
         {canPropose && (
           <button className="btn btn-main" onClick={() => setOpen(true)} style={{ padding: "9px 16px", fontSize: 14 }}>
-            {status === "REJECTED" ? "Proposer un autre secret" : "Proposer mon secret"}
+            {status === "NONE" ? "Proposer mon secret" : "Proposer un autre secret"}
           </button>
         )}
       </div>

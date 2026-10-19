@@ -79,6 +79,7 @@ export async function expireOverdueParticipants(formationId?: string): Promise<n
       gameParticipation: "ACCEPTED",
       gameParticipationAt: { lt: new Date(Date.now() - PROPOSAL_DELAY_MS) },
       secret: { is: null },
+      convertedSecrets: { none: {} }, // secret transformé en faux : il garde sa place
     },
     data: { gameParticipation: "EXPIRED", gameExitAt: new Date(), gameExitBy: "Expiration automatique (aucun secret en 24 h)" },
   });
@@ -90,11 +91,15 @@ type GamePlayer = { id: string; role: string; formationId: string; isGameMaster:
 // Participation réelle d'un membre de la session, délai de 24 h compris (appliqué et enregistré au passage).
 export async function effectiveParticipation(player: { id: string; gameParticipation: string | null }): Promise<string | null> {
   if (player.gameParticipation !== "ACCEPTED") return player.gameParticipation;
-  const row = await prisma.player.findUnique({ where: { id: player.id }, select: { gameParticipationAt: true, secret: { select: { id: true } } } });
-  const overdue = !row?.secret && !!row?.gameParticipationAt && row.gameParticipationAt.getTime() < Date.now() - PROPOSAL_DELAY_MS;
+  const row = await prisma.player.findUnique({
+    where: { id: player.id },
+    select: { gameParticipationAt: true, secret: { select: { id: true } }, _count: { select: { convertedSecrets: true } } },
+  });
+  const overdue =
+    !row?.secret && !row?._count.convertedSecrets && !!row?.gameParticipationAt && row.gameParticipationAt.getTime() < Date.now() - PROPOSAL_DELAY_MS;
   if (!overdue) return "ACCEPTED";
   await prisma.player.updateMany({
-    where: { id: player.id, gameParticipation: "ACCEPTED", secret: { is: null } },
+    where: { id: player.id, gameParticipation: "ACCEPTED", secret: { is: null }, convertedSecrets: { none: {} } },
     data: { gameParticipation: "EXPIRED", gameExitAt: new Date(), gameExitBy: "Expiration automatique (aucun secret en 24 h)" },
   });
   return "EXPIRED";

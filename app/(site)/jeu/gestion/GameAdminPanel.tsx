@@ -58,6 +58,7 @@ export default async function GameAdminPanel({
       include: {
         player: { select: { firstName: true, code: true, fakeVisible: true } },
         foundBy: { select: { firstName: true } },
+        convertedFrom: { select: { firstName: true } },
       },
     }),
     prisma.buzz.findMany({
