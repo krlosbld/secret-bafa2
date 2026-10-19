@@ -3,7 +3,7 @@
 import { test, after } from "node:test";
 import assert from "node:assert/strict";
 import { prisma } from "@/lib/prisma";
-import { convertSecretToDecoy, mustReplaceSecret, ConversionError } from "@/lib/secretConversion";
+import { convertSecretToDecoy, mustReplaceSecret, authorsAwaitingNewSecret, ConversionError } from "@/lib/secretConversion";
 import { effectiveParticipation, expireOverdueParticipants } from "@/lib/gameAccess";
 
 if (!process.env.DATABASE_URL?.includes("bafapilot_test")) throw new Error("Base de test uniquement (bafapilot_test).");
@@ -109,6 +109,23 @@ test("refus : buzz en attente, mise à prix non réglée, fausse identité activ
   } finally {
     await cleanup(s);
     await cleanup(ended);
+  }
+});
+
+test("point de nuit : l'auteur le garde en attendant son nouveau secret, plus après validation (compté comme auteur) ni si trouvé", async () => {
+  const s = await scenario();
+  try {
+    assert.deepEqual(await authorsAwaitingNewSecret(s.f.id), []);
+    await convertSecretToDecoy({ formationId: s.f.id, secretId: s.S.ana });
+    assert.deepEqual(await authorsAwaitingNewSecret(s.f.id), [s.P.ana.id], "sans secret");
+    const fresh = await prisma.secret.create({ data: { formationId: s.f.id, playerId: s.P.ana.id, content: "nouveau", bonus: 1, status: "PENDING" } });
+    assert.deepEqual(await authorsAwaitingNewSecret(s.f.id), [s.P.ana.id], "nouveau secret en attente");
+    await prisma.secret.update({ where: { id: fresh.id }, data: { status: "PUBLISHED" } });
+    assert.deepEqual(await authorsAwaitingNewSecret(s.f.id), [], "validé : compté comme tout auteur");
+    await prisma.secret.update({ where: { id: fresh.id }, data: { status: "FOUND" } });
+    assert.deepEqual(await authorsAwaitingNewSecret(s.f.id), [], "trouvé : plus de point");
+  } finally {
+    await cleanup(s);
   }
 });
 

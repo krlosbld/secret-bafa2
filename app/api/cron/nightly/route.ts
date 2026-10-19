@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { todayISO } from "@/lib/planningConfig";
 import { expireOverdueParticipants, getGameStatus } from "@/lib/gameAccess";
 import { applyPointsOnce } from "@/lib/gamePoints";
+import { authorsAwaitingNewSecret } from "@/lib/secretConversion";
 
 export const runtime = "nodejs";
 
@@ -71,6 +72,13 @@ async function runNightlyJob(req: Request) {
           where: { status: "PUBLISHED", formationId, OR: [{ isDecoy: false }, { player: { fakeVisible: true } }] },
           select: { playerId: true },
         });
+    // Secret transformé en faux par le maître du jeu : l'auteur garde son point de nuit en attendant
+    // que son nouveau secret soit validé.
+    if (awardToday) {
+      for (const playerId of await authorsAwaitingNewSecret(formationId)) {
+        if (!unpublished.some((u) => u.playerId === playerId)) unpublished.push({ playerId });
+      }
+    }
 
     // Une ligne de journal par auteur et par nuit (clé jour + joueur) : un passage relancé ne
     // redonne rien.

@@ -83,3 +83,20 @@ export async function mustReplaceSecret(playerId: string): Promise<boolean> {
   ]);
   return converted > 0 && (!own || own.status === "REJECTED");
 }
+
+// Points de nuit (et +1 manuel) : l'auteur d'un secret transformé continue de gagner son point chaque
+// nuit pendant qu'il attend la validation de son nouveau secret (seul son secret change). Une fois le
+// nouveau secret validé, il est compté comme tout auteur ; s'il est trouvé, plus de point.
+export async function authorsAwaitingNewSecret(formationId: string): Promise<string[]> {
+  const rows = await prisma.player.findMany({
+    where: {
+      formationId,
+      active: true,
+      gameParticipation: "ACCEPTED",
+      convertedSecrets: { some: {} },
+      OR: [{ secret: { is: null } }, { secret: { is: { status: { in: ["PENDING", "REJECTED"] } } } }],
+    },
+    select: { id: true },
+  });
+  return rows.map((r) => r.id);
+}

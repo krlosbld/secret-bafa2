@@ -3,6 +3,7 @@ import { applyPointsOnce, requestKey } from "@/lib/gamePoints";
 import { getGameMasterAuth, getGameStatus } from "@/lib/gameAccess";
 import { prisma } from "@/lib/prisma";
 import { getGameAdminAuth } from "@/lib/gameAdminAuth";
+import { authorsAwaitingNewSecret } from "@/lib/secretConversion";
 
 export const runtime = "nodejs";
 
@@ -24,6 +25,10 @@ export async function POST(req: Request, { params }: Params) {
     where: { status: "PUBLISHED", formationId, isDecoy: false }, // un faux secret n'a pas d'auteur à récompenser
     select: { playerId: true },
   });
+  // Secret transformé en faux : l'auteur garde son point en attendant son nouveau secret.
+  for (const playerId of await authorsAwaitingNewSecret(formationId)) {
+    if (!unpublished.some((u) => u.playerId === playerId)) unpublished.push({ playerId });
+  }
 
   // Une clé par clic (fournie par l'interface) : un double clic n'attribue qu'une fois.
   const request = requestKey(body.requestId);
