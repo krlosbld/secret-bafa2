@@ -4,6 +4,7 @@ import { loadReadiness } from "@/lib/gameReadiness";
 import { getGameStatus } from "@/lib/gameAccess";
 import { AdminDecoyCreator, AdminSecretsPending, AdminSecretsPublished } from "../../admin/AdminSecrets";
 import AdminBuzzPending from "../../admin/AdminBuzzPending";
+import BuzzPendingButton from "../../admin/BuzzPendingButton";
 import AdminPlayers from "../../admin/AdminPlayers";
 import AdminCronControls from "../../admin/AdminCronControls";
 import AdminEndGame from "../../admin/AdminEndGame";
@@ -156,9 +157,12 @@ export default async function GameAdminPanel({
         </Section>
       )}
 
-      <Section title={status === "inscriptions_ouvertes" ? "Participants et démarrage de la partie" : "Participants"}>
-        <ParticipantsBoard status={status === "non_configure" ? "inscriptions_ouvertes" : status} participants={readiness.participants} />
-      </Section>
+      {/* Participants : utiles pendant les inscriptions (démarrage de la partie), masqués ensuite. */}
+      {(status === "inscriptions_ouvertes" || status === "non_configure") && (
+        <Section title="Participants et démarrage de la partie">
+          <ParticipantsBoard status="inscriptions_ouvertes" participants={readiness.participants} />
+        </Section>
+      )}
 
       {status !== "inscriptions_ouvertes" && (
         <Section title="Fin du jeu">
@@ -170,10 +174,12 @@ export default async function GameAdminPanel({
         <AdminGameRules initialRules={initialRules} initialParams={ruleSettings.params} />
       </Section>
 
-      <Section title={`Buzz à valider (${pendingBuzzes.length})`}>
-        {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-        <AdminBuzzPending buzzes={pendingBuzzes as any} />
-      </Section>
+      <section style={{ marginBottom: 40 }}>
+        <BuzzPendingButton count={pendingBuzzes.length}>
+          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+          <AdminBuzzPending buzzes={pendingBuzzes as any} />
+        </BuzzPendingButton>
+      </section>
 
       <Section title={`Secrets en attente (${pendingSecrets.length})`}>
         {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
