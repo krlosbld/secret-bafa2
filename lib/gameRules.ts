@@ -46,9 +46,10 @@ export const ALL_GAME_RULES: GameRule[] = [
   {
     key: "rule_fakeIdentity",
     label: "Fausse identité 🎭",
-    description: "Un joueur achète 24 h de camouflage : sur son secret, son vrai prénom comme le prénom emprunté sont jugés faux. Une fois par partie.",
+    description:
+      "Un joueur dont le secret n'est pas encore trouvé achète 24 h de camouflage en empruntant le prénom d'un autre participant : sur SON secret, un buzz proposant son vrai prénom ou le prénom emprunté est jugé faux (le buzz est consommé). Jamais révélé aux joueurs. Une fois par partie.",
     section: "pouvoirs",
-    available: false,
+    available: true,
     params: [{ key: "cost", label: "Coût", min: 1, max: 30, default: 5, unit: "points" }],
     incompatibleWith: ["rule_bounty"],
   },

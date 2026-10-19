@@ -13,6 +13,7 @@ import { getPlayerSession } from "@/lib/playerAuth";
 import MySecretPanel, { type MySecretStatus } from "@/components/MySecretPanel";
 import MyPowers from "@/components/MyPowers";
 import { getMysteryState } from "@/lib/mysteryBuzz";
+import { getFakeIdentityState } from "@/lib/fakeIdentity";
 import DirectorGameControls from "./gestion/DirectorGameControls";
 import { loadDirectorControls } from "./gestion/directorControls";
 import { getSession, isSuperAdmin } from "@/lib/auth";
@@ -89,6 +90,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
 
   // Mes pouvoirs (Buzz mystère) : les données du joueur connecté seulement.
   const mystery = active ? await getMysteryState(formation.id, active.id) : null;
+  const fakeIdentity = active ? await getFakeIdentityState(formation.id, active.id) : null;
   const myOwnSecretId = mystery?.available ? (await prisma.secret.findUnique({ where: { playerId: active!.id }, select: { id: true } }))?.id ?? null : null;
 
   const showSecrets = state.status === "en_cours" || state.status === "termine";
@@ -148,7 +150,9 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           </div>
         )}
         {directorControls && <DirectorGameControls {...directorControls} compact />}
-        {mystery && (mystery.enabled || mystery.questions.length > 0) && <MyPowers initial={mystery} />}
+        {mystery && fakeIdentity && (mystery.enabled || mystery.questions.length > 0 || fakeIdentity.enabled || fakeIdentity.used) && (
+          <MyPowers initial={{ mystery, fakeIdentity }} />
+        )}
         {mySecret && state.status !== "termine" && (
           <MySecretPanel
             status={mySecret.status}

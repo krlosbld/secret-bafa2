@@ -76,10 +76,14 @@ export default function AdminGameRules({
                       <div>
                         <div style={{ fontWeight: 700 }}>{r.label}</div>
                         <div style={{ fontSize: 12, color: "#64748b", marginTop: 2 }}>{r.description}</div>
-                        {r.incompatibleWith && r.incompatibleWith.length > 0 && (
+                        {(r.incompatibleWith ?? []).some((k) => GAME_RULES.some((x) => x.key === k)) && (
                           <div style={{ fontSize: 12, color: "#9a3412", marginTop: 2 }}>
-                            Incompatible avec : {r.incompatibleWith.map((k) => GAME_RULES.find((x) => x.key === k)?.label ?? k).join(", ")} (pour un
-                            même joueur, en même temps)
+                            Incompatible avec :{" "}
+                            {(r.incompatibleWith ?? [])
+                              .map((k) => GAME_RULES.find((x) => x.key === k)?.label)
+                              .filter(Boolean)
+                              .join(", ")}{" "}
+                            (pour un même joueur, en même temps)
                           </div>
                         )}
                         {(r.params ?? []).map((p) => {

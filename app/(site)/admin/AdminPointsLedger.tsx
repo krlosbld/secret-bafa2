@@ -24,6 +24,7 @@ const KIND_LABEL: Record<string, string> = {
   MANUAL_SET: "Score corrigé",
   MANUAL_AWARD: "+1 manuel",
   GAME_RESET: "Remise à zéro",
+  POWER_PURCHASE: "Achat d'un pouvoir",
 };
 
 export default function AdminPointsLedger({ players }: { players: { id: string; firstName: string }[] }) {

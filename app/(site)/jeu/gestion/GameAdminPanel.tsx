@@ -13,6 +13,7 @@ import { GAME_RULES } from "@/lib/gameRules";
 import { getRuleSettings } from "@/lib/gameRuleSettings";
 import AdminPointsLedger from "../../admin/AdminPointsLedger";
 import AdminQuestions from "../../admin/AdminQuestions";
+import AdminFakeIdentities from "../../admin/AdminFakeIdentities";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -109,6 +110,7 @@ export default async function GameAdminPanel({
   const ruleValues = new Map(ruleRows.map((r) => [r.key, r.value]));
   const ruleSettings = await getRuleSettings(formationId);
   const questionCount = await prisma.secretQuestion.count({ where: { formationId } });
+  const fakeIdentityCount = await prisma.gamePower.count({ where: { formationId, kind: "FAKE_IDENTITY" } });
   const initialRules = Object.fromEntries(GAME_RULES.map((r) => [r.key, ruleValues.get(r.key) === "true"]));
 
   let lastNightlyRun: { at: string; updated: number } | null = null;
@@ -125,6 +127,12 @@ export default async function GameAdminPanel({
       <Section title="Faux secrets">
         <AdminDecoyCreator />
       </Section>
+
+      {(ruleSettings.enabled["rule_fakeIdentity"] || fakeIdentityCount > 0) && (
+        <Section title="🎭 Fausses identités">
+          <AdminFakeIdentities />
+        </Section>
+      )}
 
       {(ruleSettings.enabled["rule_mysteryBuzz"] || questionCount > 0) && (
         <Section title="❓ Questions des joueurs">

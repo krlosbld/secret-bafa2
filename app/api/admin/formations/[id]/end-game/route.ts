@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { applyPoints } from "@/lib/gamePoints";
 import { closePendingQuestions } from "@/lib/mysteryBuzz";
+import { endPowersAtGameEnd } from "@/lib/fakeIdentity";
 import { getGameMasterAuth, getGameStatus } from "@/lib/gameAccess";
 import { prisma } from "@/lib/prisma";
 import { getGameAdminAuth } from "@/lib/gameAdminAuth";
@@ -36,6 +37,7 @@ export async function POST(_req: Request, { params }: Params) {
   const actor = await getGameMasterAuth();
   await prisma.$transaction(async (tx) => {
     await closePendingQuestions(tx, formationId); // questions sans réponse : closes
+    await endPowersAtGameEnd(tx, formationId); // plus aucun pouvoir actif
     await tx.config.upsert({
       where: { formationId_key: { formationId, key: "gameEnded" } },
       update: { value: "true" },

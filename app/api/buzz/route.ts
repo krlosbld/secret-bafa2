@@ -8,6 +8,7 @@ import { getPlayerSession } from "@/lib/playerAuth";
 import { currentActivePlayer, getGameStatus } from "@/lib/gameAccess";
 import { isWithinBuzzHours } from "@/lib/buzzWindow";
 import { claimFakeSecret } from "@/lib/buzzClaims";
+import { evaluateNameBuzz } from "@/lib/fakeIdentity";
 
 export const runtime = "nodejs";
 
@@ -160,7 +161,12 @@ export async function POST(req: Request) {
     }
 
     // Calculer si la réponse est correcte
-    const isCorrect = claimFake ? secret.isDecoy : matchesName(secret.player.firstName, guessedName);
+    // Prénom : évalué à l'heure de l'envoi, fausse identité éventuelle comprise (jamais révélée).
+    const submittedAt = new Date();
+    const evaluation = claimFake
+      ? { isCorrect: secret.isDecoy, camouflagePowerId: null }
+      : await evaluateNameBuzz({ authorPlayerId: secret.playerId, authorFirstName: secret.player.firstName, guessedName, at: submittedAt });
+    const isCorrect = evaluation.isCorrect;
 
     // Une réclamation "faux secret" a une réponse binaire déjà connue du logiciel (secret.isDecoy) —
     // contrairement à une devinette de prénom (correspondance floue, pas fiable à 100%), elle se
@@ -183,7 +189,7 @@ export async function POST(req: Request) {
     } else {
       await prisma.$transaction([
         prisma.buzz.create({
-          data: { secretId, fromPlayerId: player.id, guessedName, status: "PENDING", isCorrect },
+          data: { secretId, fromPlayerId: player.id, guessedName, status: "PENDING", isCorrect, camouflagePowerId: evaluation.camouflagePowerId, createdAt: submittedAt },
         }),
         prisma.player.update({
           where: { id: player.id },

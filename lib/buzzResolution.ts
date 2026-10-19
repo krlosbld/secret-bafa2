@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { matchesName } from "@/lib/nameCollision";
 import { applyPoints, isDuplicateKey } from "@/lib/gamePoints";
+import { endCamouflageOnFound } from "@/lib/fakeIdentity";
 
 // Chaîne fixe utilisée comme `guessedName` pour une réclamation "faux secret" — pas un vrai prénom,
 // à exclure partout où on liste des prénoms devinés (ex. la révélation payante d'historique).
@@ -42,6 +43,9 @@ export async function resolveWinningBuzz(params: {
         data: { status: "FOUND", foundByPlayerId: params.fromPlayerId },
       });
       if (claimed.count === 0) return false;
+      // Secret trouvé (bonne réponse envoyée avant un éventuel camouflage) : le camouflage prend fin.
+      const owner = await tx.secret.findUnique({ where: { id: params.secretId }, select: { playerId: true } });
+      if (owner) await endCamouflageOnFound(tx, owner.playerId);
       await tx.buzz.update({ where: { id: params.buzzId }, data: { status: "VALIDATED" } });
       await tx.buzz.updateMany({ where: { secretId: params.secretId, id: { not: params.buzzId } }, data: { status: "REJECTED" } });
       await applyPoints(tx, {

@@ -10,6 +10,7 @@ type BuzzItem = {
   also?: { firstName: string; createdAt: string }[]; // buzz identiques regroupés (même secret, même prénom)
   guessedName: string;
   isCorrect: boolean;
+  camouflagePowerId?: string | null; // fausse identité active à l'envoi (réponse jugée fausse)
   createdAt: string;
   fromPlayer: { firstName: string; code: string };
   secret: {
@@ -167,6 +168,11 @@ export default function AdminBuzzPending({ buzzes }: { buzzes: BuzzItem[] }) {
                     <div className="label">Auteur</div>
                     <div className="value" style={{ color: "#475569" }}>
                       {b.secret.player.firstName}
+                      {b.camouflagePowerId && (
+                        <span style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#6b21a8" }}>
+                          🎭 Fausse identité active à l&apos;envoi : réponse jugée fausse (ne pas accepter).
+                        </span>
+                      )}
                     </div>
                   </div>
                 )}
@@ -193,7 +199,7 @@ export default function AdminBuzzPending({ buzzes }: { buzzes: BuzzItem[] }) {
                   >
                     ❌ Rejeter
                   </button>
-                  {!b.isCorrect && !b.guessedName.startsWith("🎭") && (
+                  {!b.isCorrect && !b.guessedName.startsWith("🎭") && !b.camouflagePowerId && (
                     <button
                       className="btn btn-ghost"
                       disabled={loading === b.id}

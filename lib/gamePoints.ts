@@ -16,7 +16,8 @@ export type PointKind =
   | "HISTORY_REVEAL" // historique payant
   | "MANUAL_SET" // score corrigé à la main
   | "MANUAL_AWARD" // « +1 point » déclenché à la main
-  | "GAME_RESET"; // remise à zéro de la partie
+  | "GAME_RESET" // remise à zéro de la partie
+  | "POWER_PURCHASE"; // achat d'un pouvoir (fausse identité…)
 
 export type PointOperation = {
   formationId: string;

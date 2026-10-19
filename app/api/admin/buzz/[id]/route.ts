@@ -56,6 +56,10 @@ export async function PATCH(req: Request, { params }: Params) {
       return NextResponse.json({ error: "Une réclamation « faux secret » se résout automatiquement." }, { status: 400 });
     }
     if (buzz.secret.status === "FOUND") return NextResponse.json({ error: "Ce secret a déjà été trouvé." }, { status: 400 });
+    // Une réponse jugée fausse à cause d'une fausse identité active à l'envoi n'est pas une faute de frappe.
+    if (buzz.camouflagePowerId) {
+      return NextResponse.json({ error: "Une fausse identité était active sur ce secret à l'envoi de ce buzz : la réponse reste fausse." }, { status: 409 });
+    }
     await prisma.buzz.update({ where: { id }, data: { isCorrect: true } });
     const gm = await getGameMasterAuth();
     await audit({ kind: "directeur", userId: null, label: gm.ok ? gm.label : "Maître du jeu" }, "BUZZ_ACCEPTED_AS_CORRECT", {

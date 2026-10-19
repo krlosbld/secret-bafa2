@@ -31,6 +31,7 @@ model Formation {
   ratingLevels      RatingLevel[]
   pointTransactions PointTransaction[]
   secretQuestions   SecretQuestion[]
+  gamePowers        GamePower[]
 }
 
 // Un groupe persistant de stagiaires (+ formateurs rattachés). Plusieurs groupes coexistent en
@@ -154,6 +155,8 @@ model Player {
   finalAppraisalAuthorId    String?
   pointTransactions         PointTransaction[]
   secretQuestions           SecretQuestion[]
+  gamePowers                GamePower[]        @relation("PowerOwner")
+  gamePowersAlias           GamePower[]        @relation("PowerAlias")
 
   @@unique([formationId, code])
   @@index([directorAccountId])
@@ -338,15 +341,16 @@ model SecretRejection {
 }
 
 model Buzz {
-  id           String   @id @default(cuid())
-  secretId     String
-  fromPlayerId String
-  guessedName  String
-  status       String   @default("PENDING") // PENDING | VALIDATED | REJECTED
-  isCorrect    Boolean  @default(false)
-  createdAt    DateTime @default(now())
-  secret       Secret   @relation(fields: [secretId], references: [id], onDelete: Cascade)
-  fromPlayer   Player   @relation("BuzzFrom", fields: [fromPlayerId], references: [id])
+  id                String   @id @default(cuid())
+  secretId          String
+  fromPlayerId      String
+  guessedName       String
+  status            String   @default("PENDING") // PENDING | VALIDATED | REJECTED
+  isCorrect         Boolean  @default(false)
+  camouflagePowerId String? // fausse identité active sur ce secret À L'ENVOI du buzz (réponse jugée fausse) ; jamais montré aux joueurs
+  createdAt         DateTime @default(now())
+  secret            Secret   @relation(fields: [secretId], references: [id], onDelete: Cascade)
+  fromPlayer        Player   @relation("BuzzFrom", fields: [fromPlayerId], references: [id])
 
   @@index([secretId])
   @@index([fromPlayerId])
@@ -629,4 +633,30 @@ model SecretQuestion {
 
   @@index([formationId, status])
   @@index([playerId, source])
+}
+
+// Pouvoirs achetés par un joueur pendant une partie. kind : FAKE_IDENTITY (fausse identité, L2) |
+// BOUNTY (secret mis à prix, L3). Une seule utilisation par joueur, par type et par partie (contrainte
+// unique ; la remise à zéro du jeu efface les pouvoirs de la session). L'effet dépend de startsAt /
+// endsAt (fiable même sans traitement automatique) ; status est tenu à jour pour l'affichage.
+model GamePower {
+  id            String    @id @default(cuid())
+  formationId   String
+  playerId      String // propriétaire (véritable auteur du secret protégé)
+  kind          String // FAKE_IDENTITY | BOUNTY
+  status        String    @default("ACTIVE") // ACTIVE | EXPIRED | ENDED
+  cost          Int       @default(0) // points débités à l'achat (journal : POWER_PURCHASE)
+  aliasPlayerId String? // fausse identité : participant dont le prénom est emprunté
+  aliasLabel    String? // prénom emprunté, figé à l'achat
+  startsAt      DateTime  @default(now())
+  endsAt        DateTime
+  endedAt       DateTime?
+  endReason     String? // « Secret trouvé », « Fin de partie »…
+  createdAt     DateTime  @default(now())
+  formation     Formation @relation(fields: [formationId], references: [id], onDelete: Cascade)
+  player        Player    @relation("PowerOwner", fields: [playerId], references: [id], onDelete: Cascade)
+  alias         Player?   @relation("PowerAlias", fields: [aliasPlayerId], references: [id], onDelete: SetNull)
+
+  @@unique([formationId, playerId, kind])
+  @@index([formationId, kind, status])
 }
