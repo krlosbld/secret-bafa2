@@ -1,65 +1,67 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 
+// Règles de base, valables dans toutes les parties. Les règles et pouvoirs optionnels actifs dans la
+// session sont chargés à l'ouverture (/api/game/rules) et affichés à la suite.
 const rules = [
   {
     emoji: "✍️",
-    title: "Soumets ton secret",
-    text: "Chaque participant soumet un secret sur lui-même via le bouton \"Ajouter mon secret\". Un seul secret par personne.",
+    title: "Propose ton secret",
+    text: "Une fois inscrit au jeu, propose un secret sur toi avec le bouton « Proposer mon secret » (un seul par personne), dans les 24 h qui suivent ton inscription. Tu lui attribues de 1 à 5 points bonus : plus il est difficile à deviner, plus tu en mets.",
   },
   {
-    emoji: "🔑",
-    title: "Ton compte suffit",
-    text: "Ton secret est rattaché à ton compte BafaPilot : aucun code à retenir. Connecte-toi et ouvre ta session pour jouer.",
+    emoji: "✅",
+    title: "Validation par le maître du jeu",
+    text: "Le maître du jeu valide les secrets. Ils apparaissent sans nom d'auteur quand la partie commence.",
   },
   {
-    emoji: "⏳",
-    title: "Attends la validation",
-    text: "L'animateur valide les secrets avant qu'ils apparaissent sur la page publique. Les secrets sont affichés anonymement.",
-  },
-  {
-    emoji: "⚡",
+    emoji: "🔥",
     title: "Buzze !",
-    text: "Tu penses reconnaître l'auteur d'un secret ? Clique sur BUZZ 🔥 et entre le prénom que tu devines.",
+    text: "Tu penses reconnaître l'auteur d'un secret ? Clique sur BUZZ 🔥 et choisis son prénom dans la liste. Buzz possibles de 9 h à 18 h, dans la limite de ton quota du jour (remis à zéro chaque nuit). Tu ne peux pas buzzer ton propre secret.",
   },
   {
-    emoji: "🎯",
-    title: "Quota de buzz",
-    text: "Tu ne peux buzzer qu'un nombre limité de fois (fixé par l'animateur). Choisis bien tes secrets !",
+    emoji: "🎭",
+    title: "Faux secrets",
+    text: "Certains secrets sont peut-être faux, inventés par le maître du jeu. Si tu en repères un, buzze « C'est un faux secret » : la réponse est immédiate, et tu gagnes ses points si tu as vu juste.",
   },
   {
-    emoji: "🚫",
-    title: "Un seul buzz par secret",
-    text: "Tu ne peux buzzer qu'une seule fois par secret.",
+    emoji: "🏅",
+    title: "Validation des buzz",
+    text: "Le maître du jeu valide les buzz. Si tu as trouvé le bon auteur, tu gagnes 2 points + les points bonus du secret. Si plusieurs personnes ont trouvé, c'est la première qui gagne.",
   },
   {
     emoji: "🌙",
-    title: "Validation le soir",
-    text: "C'est l'animateur qui valide les buzz chaque soir. Si tu as trouvé le bon auteur, tu gagnes 2 points + les points bonus attribués par l'auteur.",
-  },
-  {
-    emoji: "⭐",
-    title: "Points bonus",
-    text: "En soumettant ton secret, tu lui attribues de 1 à 5 points bonus. Plus ton secret est difficile à deviner, plus tu mets de points !",
-  },
-  {
-    emoji: "🌟",
     title: "Secret non trouvé",
-    text: "Chaque nuit, si ton secret n'a pas encore été trouvé, tu gagnes automatiquement 1 point.",
+    text: "Chaque nuit, si ton secret n'a pas encore été trouvé, tu gagnes 1 point. À la fin de la partie, un secret jamais trouvé rapporte à son auteur ses points bonus + 10.",
   },
   {
     emoji: "🏆",
     title: "Vainqueur",
-    text: "Le participant avec le plus de points à la fin du séjour remporte le jeu !",
+    text: "Le participant avec le plus de points à la fin de la partie remporte le jeu !",
   },
 ];
+
+type ActiveRule = { key: string; section: string; title: string; text: string };
 
 export default function RulesModal() {
   // Règles du Secret BAFA : seulement dans l'onglet Jeu (secrets, classement, gestion).
   const pathname = usePathname() ?? "";
   const [open, setOpen] = useState(false);
+  const [active, setActive] = useState<ActiveRule[] | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    let alive = true;
+    fetch("/api/game/rules", { cache: "no-store" })
+      .then((r) => r.json())
+      .then((d) => alive && setActive(d.rules ?? []))
+      .catch(() => alive && setActive([]));
+    return () => {
+      alive = false;
+    };
+  }, [open]);
 
   if (!pathname.startsWith("/jeu") && !pathname.startsWith("/ranking")) return null;
 
@@ -124,6 +126,20 @@ export default function RulesModal() {
                 </div>
               ))}
             </div>
+
+            {active && active.length > 0 && (
+              <>
+                <h3 style={{ fontSize: 15, margin: "20px 0 10px", color: "#0f766e" }}>Dans cette partie</h3>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  {active.map((r) => (
+                    <div key={r.key} style={{ background: r.section === "pouvoirs" ? "#faf5ff" : "#f0fdfa", borderRadius: 12, padding: "12px 14px" }}>
+                      <div style={{ fontWeight: 800, marginBottom: 2 }}>{r.title}</div>
+                      <div style={{ color: "#475569", fontSize: 14, lineHeight: 1.5 }}>{r.text}</div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

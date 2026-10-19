@@ -4,6 +4,7 @@ import { getSecretsAdminAuth } from "@/lib/gameAdminAuth";
 import { resolveAdminFormationId } from "@/lib/formation";
 import { GAME_RULES, paramConfigKey } from "@/lib/gameRules";
 import { getRuleSettings } from "@/lib/gameRuleSettings";
+import { recordRuleChange } from "@/lib/gameAnnouncements";
 
 export const runtime = "nodejs";
 
@@ -53,19 +54,27 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: `${param.label} : entre ${param.min} et ${param.max}.` }, { status: 400 });
     }
     const k = paramConfigKey(rule.key, param.key);
+    const before = await prisma.config.findUnique({ where: { formationId_key: { formationId, key: k } }, select: { value: true } });
     await prisma.config.upsert({
       where: { formationId_key: { formationId, key: k } },
       update: { value: String(value) },
       create: { formationId, key: k, value: String(value) },
     });
+    // Annonce aux joueurs si la valeur change pour une règle active.
+    if (Number(before?.value ?? param.default) !== value && (await getRuleSettings(formationId)).enabled[rule.key]) {
+      await recordRuleChange(formationId, rule.key, "PARAM");
+    }
     return NextResponse.json({ ok: true, key, param: param.key, value });
   }
 
+  const wasEnabled = (await prisma.config.findUnique({ where: { formationId_key: { formationId, key } }, select: { value: true } }))?.value === "true";
   await prisma.config.upsert({
     where: { formationId_key: { formationId, key } },
     update: { value: String(enabled) },
     create: { formationId, key, value: String(enabled) },
   });
+  // Annonce aux joueurs (une fenêtre à leur prochaine visite) si l'état change réellement.
+  if (wasEnabled !== enabled) await recordRuleChange(formationId, key, enabled ? "ENABLED" : "DISABLED");
 
   return NextResponse.json({ ok: true, key, enabled });
 }

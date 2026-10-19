@@ -2,6 +2,7 @@ import AppNav from "@/components/AppNav";
 import GameSubNav from "@/components/GameSubNav";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
 import RulesModal from "@/components/RulesModal";
+import RuleChangeAnnouncement from "@/components/RuleChangeAnnouncement";
 import PersonalNoteGate from "@/components/PersonalNoteGate";
 import PendingEvaluationsGate from "@/components/PendingEvaluationsGate";
 import GameInvitationGate from "@/components/GameInvitationGate";
@@ -36,6 +37,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
       <GameSubNav {...await gameNav()} />
       {children}
       <RulesModal />
+      <RuleChangeAnnouncement />
       <PersonalNoteGate />
       <PendingEvaluationsGate />
       <GameInvitationGate />

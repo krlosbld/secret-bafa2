@@ -15,6 +15,9 @@ export type GameRule = {
   available: boolean;
   params?: GameRuleParam[];
   incompatibleWith?: string[];
+  // Pour les joueurs (fenêtre « ? » et annonces de changement) : titre court et explication, avec les
+  // paramètres de la session (valeurs déjà résolues, clé = « <règle>:<paramètre> »).
+  player?: { title: string; text: (params: Record<string, number>) => string };
 };
 
 export const ALL_GAME_RULES: GameRule[] = [
@@ -25,6 +28,11 @@ export const ALL_GAME_RULES: GameRule[] = [
       "Dès qu'un buzz correct arrive pour un secret (même pas encore validé), plus personne ne peut buzzer ce secret avec un autre prénom, ni buzzer ce prénom pour un autre secret. Le buzz reste à valider — les points ne sont attribués qu'après ta validation.",
     section: "classique",
     available: true,
+    player: {
+      title: "🔒 Verrouillage des bonnes réponses",
+      text: () =>
+        "Dès qu'une bonne réponse attend la validation du maître du jeu sur un secret, plus personne ne peut buzzer ce secret, ni proposer ce prénom sur un autre secret.",
+    },
   },
   {
     key: "rule_paidSecretHistory",
@@ -33,6 +41,11 @@ export const ALL_GAME_RULES: GameRule[] = [
       "Sur un secret pas encore trouvé, un joueur peut payer 5 points pour voir les prénoms déjà devinés à tort dessus (pas qui a buzzé).",
     section: "classique",
     available: true,
+    player: {
+      title: "🔍 Historique payant",
+      text: () =>
+        "Sur un secret pas encore trouvé, tu peux payer quelques points (de 2 à 6 selon le secret, prix affiché sur le bouton) pour voir les prénoms déjà proposés à tort, sans savoir qui les a proposés.",
+    },
   },
   // Pouvoirs et événements stratégiques — livrés lot par lot (L1 à L5).
   {
@@ -42,6 +55,11 @@ export const ALL_GAME_RULES: GameRule[] = [
       "Une fois par partie, chaque joueur pose au maître du jeu une question fermée (oui / non) sur un secret, de 9 h à 18 h, sans jamais viser l'identité de son auteur. Tu peux refuser une question avec un motif : le joueur la reformule. Ne consomme pas le quota de buzz.",
     section: "pouvoirs",
     available: true,
+    player: {
+      title: "❓ Buzz mystère",
+      text: () =>
+        "Une fois par partie, pose au maître du jeu une question fermée sur un secret : il répond seulement Oui ou Non. Entre 9 h et 18 h, gratuit et hors quota de buzz. Pas de question sur l'auteur (prénom, groupe, rôle, genre…) : elle serait refusée et tu pourrais la reformuler. Bouton « ❓ Buzz mystère » sous les secrets, réponse dans « Mes pouvoirs ».",
+    },
   },
   {
     key: "rule_fakeIdentity",
@@ -52,6 +70,11 @@ export const ALL_GAME_RULES: GameRule[] = [
     available: true,
     params: [{ key: "cost", label: "Coût", min: 1, max: 30, default: 5, unit: "points" }],
     incompatibleWith: ["rule_bounty"],
+    player: {
+      title: "🎭 Fausse identité",
+      text: (p) =>
+        `Une fois par partie, pour ${p["rule_fakeIdentity:cost"] ?? 5} points, emprunte pendant 24 h le prénom d'un autre participant : sur ton secret, ton vrai prénom comme le prénom emprunté seront jugés faux. Personne n'est prévenu, et le secret du prénom emprunté n'est pas touché. À acheter dans « Mes pouvoirs » (secret validé et pas encore trouvé).`,
+    },
   },
   {
     key: "rule_bounty",
