@@ -7,6 +7,7 @@ import { getGameState } from "@/lib/gameAccess";
 import GameAdminPanel from "./GameAdminPanel";
 import DirectorGameControls from "./DirectorGameControls";
 import { loadDirectorControls } from "./directorControls";
+import AdminChallenges from "../../admin/AdminChallenges";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Gestion du jeu — Secret BAFA" };
@@ -34,9 +35,12 @@ export default async function GameManagementPage() {
   return (
     <main className="page">
       <div className="container">
-        <h1 className="h1" style={{ margin: "0 0 4px" }}>
-          Gestion du jeu
-        </h1>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, margin: "0 0 4px" }}>
+          <h1 className="h1" style={{ margin: 0 }}>
+            Gestion du jeu
+          </h1>
+          {(state.status === "inscriptions_ouvertes" || state.status === "en_cours" || (await prisma.gameChallenge.count({ where: { formationId: formation.id } })) > 0) && <AdminChallenges />}
+        </div>
         <p className="sub" style={{ marginBottom: 24 }}>
           {formation.name} — Jeu des secrets.
         </p>

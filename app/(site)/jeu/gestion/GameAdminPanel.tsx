@@ -16,7 +16,6 @@ import AdminQuestions from "../../admin/AdminQuestions";
 import AdminFakeIdentities from "../../admin/AdminFakeIdentities";
 import AdminBounties from "../../admin/AdminBounties";
 import AdminLeaders from "../../admin/AdminLeaders";
-import AdminChallenges from "../../admin/AdminChallenges";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -148,12 +147,6 @@ export default async function GameAdminPanel({
       {(ruleSettings.enabled["rule_leaderPrivilege"] || leaderCount > 0) && (
         <Section title="👑 Leaders du jour">
           <AdminLeaders />
-        </Section>
-      )}
-
-      {(status === "inscriptions_ouvertes" || status === "en_cours" || (await prisma.gameChallenge.count({ where: { formationId } })) > 0) && (
-        <Section title="🎯 Défis aux joueurs">
-          <AdminChallenges />
         </Section>
       )}
 
