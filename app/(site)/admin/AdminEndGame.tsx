@@ -7,10 +7,12 @@ export default function AdminEndGame({
   formationId,
   gameEnded,
   initialBuzzPaused,
+  pendingBuzzes = 0,
 }: {
   formationId: string;
   gameEnded: boolean;
   initialBuzzPaused: boolean;
+  pendingBuzzes?: number; // buzz en attente : la partie ne peut pas se terminer avant leur décision
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -58,7 +60,7 @@ export default function AdminEndGame({
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-        <button className="btn btn-danger" onClick={endGame} disabled={loading}>
+        <button className="btn btn-danger" onClick={endGame} disabled={loading || pendingBuzzes > 0}>
           {loading ? "…" : "🏁 Terminer le jeu"}
         </button>
         <label style={{ display: "flex", alignItems: "center", gap: 6, fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
@@ -66,6 +68,12 @@ export default function AdminEndGame({
           ⏸️ Bloquer tous les buzz
         </label>
       </div>
+      {pendingBuzzes > 0 && (
+        <p style={{ fontSize: 13, color: "#b45309", fontWeight: 700, margin: 0 }}>
+          {pendingBuzzes} buzz en attente de décision : valide-les ou rejette-les dans « Buzz à valider » avant de terminer — le
+          classement final en dépend. Tu peux bloquer les buzz pendant ce temps.
+        </p>
+      )}
       {buzzPaused && (
         <p style={{ fontSize: 13, color: "#dc2626", fontWeight: 700 }}>
           Les buzz sont actuellement suspendus — décoche pour les réactiver.

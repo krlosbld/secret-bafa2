@@ -41,6 +41,8 @@ export async function DELETE(_req: Request, { params }: Params) {
       });
     }
     await tx.gamePower.deleteMany({ where: { formationId } }); // nouvelle partie : pouvoirs de nouveau disponibles
+    await tx.leaderDay.deleteMany({ where: { formationId } });
+    await tx.config.deleteMany({ where: { formationId, key: { startsWith: "leaderSnapshot:" } } });
     await tx.buzz.deleteMany({ where: { OR: [{ secret: { formationId } }, { fromPlayer: { formationId } }] } });
     await tx.secret.deleteMany({ where: { formationId } });
     await tx.player.deleteMany({ where: { id: { in: decoyIds } } });

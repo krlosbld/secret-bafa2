@@ -9,6 +9,7 @@ import { currentActivePlayer, getGameStatus } from "@/lib/gameAccess";
 import { isWithinBuzzHours } from "@/lib/buzzWindow";
 import { claimFakeSecret } from "@/lib/buzzClaims";
 import { evaluateNameBuzz } from "@/lib/fakeIdentity";
+import { extraBuzzToday } from "@/lib/leaderPrivilege";
 
 export const runtime = "nodejs";
 
@@ -83,7 +84,8 @@ export async function POST(req: Request) {
 
     // Vérifier le quota (override personnel s'il existe, sinon quota de la formation)
     const config = await prisma.config.findUnique({ where: { formationId_key: { formationId, key: "buzzQuota" } } });
-    const quota = player.buzzQuotaOverride ?? Number(config?.value ?? 3);
+    // Privilège du leader « un buzz de plus » : +1 ce jour-là seulement.
+    const quota = (player.buzzQuotaOverride ?? Number(config?.value ?? 3)) + (await extraBuzzToday(formationId, player.id));
     if (player.buzzCount >= quota) {
       return NextResponse.json(
         { error: `Tu as atteint ton quota de ${quota} buzz.` },

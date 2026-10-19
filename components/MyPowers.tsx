@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import type { MysteryState } from "@/lib/mysteryBuzz";
 import type { FakeIdentityState } from "@/lib/fakeIdentity";
 import type { BountyState } from "@/lib/bounty";
+import type { LeaderState } from "@/lib/leaderPrivilege";
+import { LEADER_OPTIONS } from "@/components/LeaderPrivilegeGate";
 
 // « Mes pouvoirs » (onglet Jeu, joueur) : uniquement les pouvoirs du joueur connecté.
 // Rafraîchi régulièrement (réponse du maître du jeu, fin d'un camouflage).
@@ -14,7 +16,7 @@ const STATUS: Record<string, { label: string; tone: string }> = {
   CLOSED: { label: "Close (partie terminée)", tone: "#64748b" },
 };
 
-type Powers = { mystery: MysteryState; fakeIdentity: FakeIdentityState; bounty: BountyState };
+type Powers = { mystery: MysteryState; fakeIdentity: FakeIdentityState; bounty: BountyState; leader: LeaderState };
 
 function remaining(endsAt: string): string {
   const ms = new Date(endsAt).getTime() - Date.now();
@@ -25,14 +27,14 @@ function remaining(endsAt: string): string {
 }
 const day = (iso: string) => new Date(iso).toLocaleString("fr-FR", { timeZone: "Europe/Paris", weekday: "short", day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" });
 
-export default function MyPowers({ initial }: { initial: Powers }) {
+export default function MyPowers({ initial, secretOptions = [] }: { initial: Powers; secretOptions?: { id: string; content: string }[] }) {
   const [state, setState] = useState(initial);
   const [, setTick] = useState(0);
 
   async function reload() {
     const res = await fetch("/api/game/powers", { cache: "no-store" }).catch(() => null);
     const data = res?.ok ? await res.json().catch(() => null) : null;
-    if (data?.ok) setState({ mystery: data.mystery, fakeIdentity: data.fakeIdentity, bounty: data.bounty });
+    if (data?.ok) setState({ mystery: data.mystery, fakeIdentity: data.fakeIdentity, bounty: data.bounty, leader: data.leader });
   }
 
   useEffect(() => {
@@ -43,7 +45,7 @@ export default function MyPowers({ initial }: { initial: Powers }) {
     return () => clearInterval(id);
   }, []);
 
-  const { mystery, fakeIdentity, bounty } = state;
+  const { mystery, fakeIdentity, bounty, leader } = state;
   const showBounty = bounty.enabled || bounty.used !== null;
   const showMystery = mystery.enabled || mystery.questions.length > 0;
   const showFake = fakeIdentity.enabled || fakeIdentity.used !== null;
@@ -52,6 +54,8 @@ export default function MyPowers({ initial }: { initial: Powers }) {
   return (
     <section className="card my-powers" style={{ marginBottom: 20 }}>
       <div style={{ fontWeight: 800, marginBottom: 8 }}>Mes pouvoirs</div>
+
+      {leader.today && <LeaderItem state={leader} secretOptions={secretOptions} onChange={(l) => setState((s) => ({ ...s, leader: l }))} />}
 
       {showFake && <FakeIdentityItem state={fakeIdentity} onBought={(f) => setState((s) => ({ ...s, fakeIdentity: f }))} />}
 
@@ -330,6 +334,137 @@ function BountyItem({ state, onActivated }: { state: BountyState; onActivated: (
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function LeaderItem({ state, secretOptions, onChange }: { state: LeaderState; secretOptions: { id: string; content: string }[]; onChange: (l: LeaderState) => void }) {
+  const t = state.today!;
+  const [secretId, setSecretId] = useState("");
+  const [text, setText] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  async function post(url: string, body: object) {
+    setBusy(true);
+    setError("");
+    const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).catch(() => null);
+    const data = res ? await res.json().catch(() => ({})) : {};
+    setBusy(false);
+    if (!res?.ok) {
+      setError(data.error || "Action impossible.");
+      return false;
+    }
+    onChange(data.leader);
+    return true;
+  }
+
+  const chosen = LEADER_OPTIONS.find((o) => o.choice === t.choice);
+  const STATUS: Record<string, string> = { PENDING: "en attente de la réponse", REFUSED: "refusée — tu peux reformuler", CLOSED: "close (partie terminée)" };
+  return (
+    <div className="my-powers__item" style={{ background: "#fffbeb", borderRadius: 10, padding: 10 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+        <strong>👑 Privilège du leader</strong>
+        <span style={{ fontSize: 13, fontWeight: 700, color: "#92400e" }}>{chosen ? `${chosen.icon} ${chosen.title}` : t.canChoose ? "À choisir avant 18 h" : t.reason}</span>
+      </div>
+      <p style={{ fontSize: 13, color: "#475569", margin: "4px 0 0" }}>
+        Tu étais en tête au relevé de 9 h ({t.points} point{t.points > 1 ? "s" : ""}
+        {state.coLeaders > 1 ? `, ex æquo avec ${state.coLeaders - 1} autre${state.coLeaders > 2 ? "s" : ""}` : ""}). Un seul privilège, à utiliser
+        avant 18 h.
+      </p>
+      {t.canChoose && (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, marginTop: 8 }}>
+          {LEADER_OPTIONS.map((o) => (
+            <button
+              key={o.choice}
+              type="button"
+              disabled={busy}
+              onClick={() => post("/api/game/powers/leader", { choice: o.choice })}
+              style={{ textAlign: "left", border: "1px solid #fde68a", background: "#fff", borderRadius: 10, padding: "8px 10px", cursor: "pointer" }}
+            >
+              <strong>
+                {o.icon} {o.title}
+              </strong>
+              <span style={{ display: "block", fontSize: 12, color: "#475569" }}>{o.text}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {t.choice === "EXTRA_BUZZ" && <p style={{ fontSize: 13, margin: "6px 0 0", fontWeight: 600 }}>🔥 Tu as un buzz de plus aujourd&apos;hui.</p>}
+      {t.choice === "QUESTION" && (
+        <div style={{ marginTop: 8 }}>
+          {t.question.map((q) => (
+            <div key={q.id} style={{ fontSize: 13, border: "1px solid #e2e8f0", background: "#fff", borderRadius: 8, padding: "6px 9px", marginBottom: 6 }}>
+              <div style={{ color: "#64748b" }}>Secret : « {q.secretContent} »</div>
+              <div style={{ fontWeight: 700 }}>{q.text}</div>
+              <div style={{ fontWeight: 700, color: q.status === "ANSWERED" ? "#15803d" : q.status === "REFUSED" ? "#b91c1c" : "#b45309" }}>
+                {q.status === "ANSWERED" ? `Réponse : ${q.answer === "OUI" ? "✅ Oui" : "❌ Non"}` : `Question ${STATUS[q.status] ?? q.status}`}
+              </div>
+              {q.status === "REFUSED" && q.refusalReason && <div style={{ color: "#7f1d1d" }}>Motif : {q.refusalReason}</div>}
+            </div>
+          ))}
+          {t.canAsk && (
+            <>
+              <label className="sb-field">
+                <span>Sur quel secret ?</span>
+                <select value={secretId} onChange={(e) => setSecretId(e.target.value)} disabled={busy}>
+                  <option value="">Choisis un secret…</option>
+                  {secretOptions.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.content.length > 70 ? `${s.content.slice(0, 70)}…` : s.content}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label className="sb-field">
+                <span>Ta question fermée (réponse Oui ou Non, jamais sur l&apos;auteur)</span>
+                <textarea value={text} onChange={(e) => setText(e.target.value)} rows={2} maxLength={300} disabled={busy} />
+              </label>
+              <button
+                className="btn btn-main"
+                disabled={busy || !secretId || text.trim().length < 8}
+                onClick={async () => {
+                  if (await post("/api/game/powers/leader/question", { secretId, text })) setText("");
+                }}
+              >
+                Envoyer au maître du jeu
+              </button>
+            </>
+          )}
+        </div>
+      )}
+      {t.choice === "HISTORY" && (
+        <div style={{ marginTop: 8 }}>
+          {t.history ? (
+            <div style={{ fontSize: 13, background: "#fff", border: "1px solid #e2e8f0", borderRadius: 8, padding: "6px 9px" }}>
+              <div style={{ color: "#64748b" }}>Secret : « {t.history.secretContent} »</div>
+              <div style={{ fontWeight: 700 }}>
+                {t.history.names.length === 0 ? "Aucun prénom proposé à tort pour l'instant." : `Prénoms déjà proposés à tort : ${t.history.names.join(", ")}`}
+              </div>
+            </div>
+          ) : t.canConsult ? (
+            <>
+              <label className="sb-field">
+                <span>Quel secret consulter (une seule fois) ?</span>
+                <select value={secretId} onChange={(e) => setSecretId(e.target.value)} disabled={busy}>
+                  <option value="">Choisis un secret…</option>
+                  {secretOptions.map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.content.length > 70 ? `${s.content.slice(0, 70)}…` : s.content}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <button className="btn btn-main" disabled={busy || !secretId} onClick={() => post("/api/game/powers/leader/history", { secretId })}>
+                🔍 Consulter gratuitement
+              </button>
+            </>
+          ) : (
+            <p style={{ fontSize: 13, color: "#64748b", margin: 0 }}>{t.reason ?? "Consultation non utilisée."}</p>
+          )}
+        </div>
+      )}
+      {error && <p style={{ color: "#dc2626", fontWeight: 600, fontSize: 13, margin: "6px 0 0" }}>{error}</p>}
     </div>
   );
 }

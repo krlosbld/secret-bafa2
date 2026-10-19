@@ -33,6 +33,7 @@ model Formation {
   secretQuestions   SecretQuestion[]
   gamePowers        GamePower[]
   gameAnnouncements GameAnnouncement[]
+  leaderDays        LeaderDay[]
 }
 
 // Un groupe persistant de stagiaires (+ formateurs rattachés). Plusieurs groupes coexistent en
@@ -159,6 +160,7 @@ model Player {
   secretQuestions           SecretQuestion[]
   gamePowers                GamePower[]        @relation("PowerOwner")
   gamePowersAlias           GamePower[]        @relation("PowerAlias")
+  leaderDays                LeaderDay[]
 
   @@unique([formationId, code])
   @@index([directorAccountId])
@@ -622,6 +624,7 @@ model SecretQuestion {
   playerId      String
   secretId      String
   source        String // MYSTERY | LEADER
+  leaderDayId   String? // privilège du leader : la journée qui donne droit à cette question
   text          String
   status        String    @default("PENDING") // PENDING | ANSWERED | REFUSED | CLOSED (partie terminée sans réponse)
   answer        String? // OUI | NON
@@ -693,4 +696,28 @@ model BountyHit {
   power        GamePower @relation(fields: [powerId], references: [id], onDelete: Cascade)
 
   @@unique([powerId, fromPlayerId])
+}
+
+// Privilège quotidien du leader 👑 : relevé du classement à 9 h (heure de Paris), une ligne par vrai
+// joueur en tête ce jour-là (ex æquo compris). Attribution unique par jour (contrainte), indépendante des
+// changements de classement ensuite. Le joueur choisit UN privilège avant 18 h :
+// EXTRA_BUZZ (un buzz de plus ce jour-là) | QUESTION (question fermée au maître du jeu) | HISTORY
+// (historique gratuit d'un secret, une consultation, résultat figé).
+model LeaderDay {
+  id              String    @id @default(cuid())
+  formationId     String
+  day             String // AAAA-MM-JJ (Paris)
+  playerId        String
+  points          Int // score au relevé
+  choice          String? // EXTRA_BUZZ | QUESTION | HISTORY
+  chosenAt        DateTime?
+  historySecretId String?
+  historyResult   String? // prénoms proposés à tort, figés à la consultation (JSON)
+  historyUsedAt   DateTime?
+  createdAt       DateTime  @default(now())
+  formation       Formation @relation(fields: [formationId], references: [id], onDelete: Cascade)
+  player          Player    @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([formationId, day, playerId])
+  @@index([formationId, day])
 }

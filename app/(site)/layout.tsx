@@ -3,6 +3,7 @@ import GameSubNav from "@/components/GameSubNav";
 import ImpersonationBanner from "@/components/ImpersonationBanner";
 import RulesModal from "@/components/RulesModal";
 import RuleChangeAnnouncement from "@/components/RuleChangeAnnouncement";
+import LeaderPrivilegeGate from "@/components/LeaderPrivilegeGate";
 import PersonalNoteGate from "@/components/PersonalNoteGate";
 import PendingEvaluationsGate from "@/components/PendingEvaluationsGate";
 import GameInvitationGate from "@/components/GameInvitationGate";
@@ -38,6 +39,7 @@ export default async function SiteLayout({ children }: { children: React.ReactNo
       {children}
       <RulesModal />
       <RuleChangeAnnouncement />
+      <LeaderPrivilegeGate />
       <PersonalNoteGate />
       <PendingEvaluationsGate />
       <GameInvitationGate />

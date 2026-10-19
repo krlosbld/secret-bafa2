@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { expireOverdueParticipants } from "@/lib/gameAccess";
 import { expirePowers } from "@/lib/fakeIdentity";
 import { settleExpiredBounties } from "@/lib/bounty";
+import { snapshotLeaders } from "@/lib/leaderPrivilege";
 
 export const runtime = "nodejs";
 
@@ -18,5 +19,6 @@ export async function GET(req: Request) {
     expired: await expireOverdueParticipants(),
     powersExpired: await expirePowers(),
     bountiesSettled: await settleExpiredBounties(), // mises à prix arrivées à 24 h : rendues (sauf bonne réponse en attente)
+    leadersNamed: await snapshotLeaders(), // relevé du leader du jour (entre 9 h et 10 h, une fois par jour)
   });
 }

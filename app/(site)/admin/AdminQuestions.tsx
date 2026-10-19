@@ -76,7 +76,8 @@ export default function AdminQuestions() {
           {data.pending.map((q) => (
             <div key={q.id} className="card" style={{ borderLeftColor: "#7c3aed" }}>
               <div style={{ fontSize: 12, color: "#64748b" }}>
-                {when(q.createdAt)} · <strong style={{ color: "#0f172a" }}>{q.player.firstName}</strong> · ❓ Buzz mystère
+                {when(q.createdAt)} · <strong style={{ color: "#0f172a" }}>{q.player.firstName}</strong> ·{" "}
+                {q.source === "LEADER" ? "👑 Privilège du leader" : "❓ Buzz mystère"}
               </div>
               <div style={{ fontSize: 13, color: "#475569", margin: "6px 0 2px" }}>
                 Secret : « {q.secret.content} » <span style={{ color: "#94a3b8" }}>({q.secret.isDecoy ? "🎭 faux secret" : `auteur : ${q.secret.player.firstName}`})</span>

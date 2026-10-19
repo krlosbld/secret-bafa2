@@ -15,6 +15,7 @@ import AdminPointsLedger from "../../admin/AdminPointsLedger";
 import AdminQuestions from "../../admin/AdminQuestions";
 import AdminFakeIdentities from "../../admin/AdminFakeIdentities";
 import AdminBounties from "../../admin/AdminBounties";
+import AdminLeaders from "../../admin/AdminLeaders";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -113,6 +114,7 @@ export default async function GameAdminPanel({
   const questionCount = await prisma.secretQuestion.count({ where: { formationId } });
   const fakeIdentityCount = await prisma.gamePower.count({ where: { formationId, kind: "FAKE_IDENTITY" } });
   const bountyCount = await prisma.gamePower.count({ where: { formationId, kind: "BOUNTY" } });
+  const leaderCount = await prisma.leaderDay.count({ where: { formationId } });
   const initialRules = Object.fromEntries(GAME_RULES.map((r) => [r.key, ruleValues.get(r.key) === "true"]));
 
   let lastNightlyRun: { at: string; updated: number } | null = null;
@@ -142,7 +144,13 @@ export default async function GameAdminPanel({
         </Section>
       )}
 
-      {(ruleSettings.enabled["rule_mysteryBuzz"] || questionCount > 0) && (
+      {(ruleSettings.enabled["rule_leaderPrivilege"] || leaderCount > 0) && (
+        <Section title="👑 Leaders du jour">
+          <AdminLeaders />
+        </Section>
+      )}
+
+      {(ruleSettings.enabled["rule_mysteryBuzz"] || ruleSettings.enabled["rule_leaderPrivilege"] || questionCount > 0) && (
         <Section title="❓ Questions des joueurs">
           <AdminQuestions />
         </Section>
@@ -154,7 +162,7 @@ export default async function GameAdminPanel({
 
       {status !== "inscriptions_ouvertes" && (
         <Section title="Fin du jeu">
-          <AdminEndGame formationId={formationId} gameEnded={gameEnded} initialBuzzPaused={buzzPaused} />
+          <AdminEndGame formationId={formationId} gameEnded={gameEnded} initialBuzzPaused={buzzPaused} pendingBuzzes={pendingBuzzes.length} />
         </Section>
       )}
 

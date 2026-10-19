@@ -15,6 +15,7 @@ import MyPowers from "@/components/MyPowers";
 import { getMysteryState } from "@/lib/mysteryBuzz";
 import { getFakeIdentityState } from "@/lib/fakeIdentity";
 import { getBountyState } from "@/lib/bounty";
+import { getLeaderState } from "@/lib/leaderPrivilege";
 import DirectorGameControls from "./gestion/DirectorGameControls";
 import { loadDirectorControls } from "./gestion/directorControls";
 import { getSession, isSuperAdmin } from "@/lib/auth";
@@ -93,7 +94,10 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
   const mystery = active ? await getMysteryState(formation.id, active.id) : null;
   const bounty = active ? await getBountyState(formation.id, active.id) : null; // règle d'abord une mise échue
   const fakeIdentity = active ? await getFakeIdentityState(formation.id, active.id) : null;
-  const myOwnSecretId = mystery?.available ? (await prisma.secret.findUnique({ where: { playerId: active!.id }, select: { id: true } }))?.id ?? null : null;
+  const leader = active ? await getLeaderState(formation.id, active.id) : null;
+  // Le secret du joueur connecté (lui seul le reçoit) : pas de question ni d'historique gratuit dessus.
+  const ownSecretId = active ? (await prisma.secret.findUnique({ where: { playerId: active.id }, select: { id: true } }))?.id ?? null : null;
+  const myOwnSecretId = mystery?.available ? ownSecretId : null;
 
   const showSecrets = state.status === "en_cours" || state.status === "termine";
   const [allSecrets, historyRevealConfig] = showSecrets
@@ -152,9 +156,13 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           </div>
         )}
         {directorControls && <DirectorGameControls {...directorControls} compact />}
-        {mystery && fakeIdentity && bounty && (mystery.enabled || mystery.questions.length > 0 || fakeIdentity.enabled || fakeIdentity.used || bounty.enabled || bounty.used) && (
-          <MyPowers initial={{ mystery, fakeIdentity, bounty }} />
-        )}
+        {mystery && fakeIdentity && bounty && leader &&
+          (mystery.enabled || mystery.questions.length > 0 || fakeIdentity.enabled || fakeIdentity.used || bounty.enabled || bounty.used || leader.today) && (
+            <MyPowers
+              initial={{ mystery, fakeIdentity, bounty, leader }}
+              secretOptions={secrets.filter((s) => s.status === "PUBLISHED" && s.id !== ownSecretId).map((s) => ({ id: s.id, content: s.content }))}
+            />
+          )}
         {mySecret && state.status !== "termine" && (
           <MySecretPanel
             status={mySecret.status}

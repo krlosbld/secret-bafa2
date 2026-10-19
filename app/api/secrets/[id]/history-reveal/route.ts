@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import { applyPointsOnce, InsufficientPointsError, requestKey } from "@/lib/gamePoints";
+import { wrongNamesFor } from "@/lib/wrongNames";
 import { prisma } from "@/lib/prisma";
-import { CLAIM_FAKE_GUESS_LABEL, historyRevealCost } from "@/lib/buzzResolution";
+import { historyRevealCost } from "@/lib/buzzResolution";
 import { getFormationFromCookie, hasNotStartedYet } from "@/lib/formationSession";
 import { getPlayerSession } from "@/lib/playerAuth";
 import { currentActivePlayer, getGameStatus } from "@/lib/gameAccess";
@@ -75,11 +76,7 @@ export async function POST(_req: Request, { params }: Params) {
     throw e;
   }
 
-  const wrongBuzzes = await prisma.buzz.findMany({
-    where: { secretId, isCorrect: false, guessedName: { not: CLAIM_FAKE_GUESS_LABEL } },
-    select: { guessedName: true },
-  });
-  const wrongNames = [...new Set(wrongBuzzes.map((b) => b.guessedName))];
+  const wrongNames = await wrongNamesFor(secretId);
 
   const updated = await prisma.player.findUnique({ where: { id: player.id }, select: { points: true } });
 

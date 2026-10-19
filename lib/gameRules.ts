@@ -94,9 +94,15 @@ export const ALL_GAME_RULES: GameRule[] = [
   {
     key: "rule_leaderPrivilege",
     label: "Privilège quotidien du leader 👑",
-    description: "Chaque matin à 9 h, le ou les premiers du classement choisissent un privilège avant 18 h : un buzz de plus, une question au maître du jeu, ou un historique gratuit.",
+    description:
+      "Chaque matin à 9 h, le ou les vrais joueurs en tête du classement (ex æquo compris, au moins 1 point) choisissent un privilège avant 18 h : un buzz de plus ce jour-là, une question fermée au maître du jeu (Oui / Non, refus possible avec motif), ou l'historique gratuit d'un secret. Attribution figée pour la journée.",
     section: "pouvoirs",
-    available: false,
+    available: true,
+    player: {
+      title: "👑 Privilège du leader",
+      text: () =>
+        "Chaque matin à 9 h, le ou les premiers du classement (ex æquo compris) reçoivent un privilège à choisir avant 18 h : un buzz de plus ce jour-là, une question fermée au maître du jeu (réponse Oui ou Non, jamais sur l'auteur), ou les prénoms déjà proposés à tort sur un secret, gratuitement. Le leader est prévenu à sa connexion.",
+    },
   },
   {
     key: "rule_leaderHunt",
