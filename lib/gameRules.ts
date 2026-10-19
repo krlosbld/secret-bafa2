@@ -101,7 +101,7 @@ export const ALL_GAME_RULES: GameRule[] = [
     player: {
       title: "👑 Privilège du leader",
       text: () =>
-        "Chaque matin à 9 h, le ou les premiers du classement (ex æquo compris) reçoivent un privilège à choisir avant 18 h : un buzz de plus ce jour-là, une question fermée au maître du jeu (réponse Oui ou Non, jamais sur l'auteur), ou les prénoms déjà proposés à tort sur un secret, gratuitement. Le leader est prévenu à sa connexion.",
+        "Chaque matin à 9 h, le ou les premiers du classement (ex æquo compris) reçoivent un privilège : un buzz de plus ce jour-là, une question fermée au maître du jeu (réponse Oui ou Non, jamais sur l'auteur), ou les prénoms déjà proposés à tort sur un secret, gratuitement. À sa connexion, le leader choisit tout de suite son privilège ou y renonce (décision définitive), puis l'utilise avant 18 h.",
     },
   },
   {

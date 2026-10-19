@@ -365,7 +365,9 @@ function LeaderItem({ state, secretOptions, onChange }: { state: LeaderState; se
     <div className="my-powers__item" style={{ background: "#fffbeb", borderRadius: 10, padding: 10 }}>
       <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
         <strong>👑 Privilège du leader</strong>
-        <span style={{ fontSize: 13, fontWeight: 700, color: "#92400e" }}>{chosen ? `${chosen.icon} ${chosen.title}` : t.canChoose ? "À choisir avant 18 h" : t.reason}</span>
+        <span style={{ fontSize: 13, fontWeight: 700, color: "#92400e" }}>
+          {t.choice === "RENOUNCED" ? "Renoncé" : chosen ? `${chosen.icon} ${chosen.title}` : t.canChoose ? "À choisir avant 18 h" : t.reason}
+        </span>
       </div>
       <p style={{ fontSize: 13, color: "#475569", margin: "4px 0 0" }}>
         Tu étais en tête au relevé de 9 h ({t.points} point{t.points > 1 ? "s" : ""}
@@ -388,8 +390,20 @@ function LeaderItem({ state, secretOptions, onChange }: { state: LeaderState; se
               <span style={{ display: "block", fontSize: 12, color: "#475569" }}>{o.text}</span>
             </button>
           ))}
+          <button
+            type="button"
+            className="btn btn-ghost"
+            disabled={busy}
+            style={{ alignSelf: "flex-start", fontSize: 13 }}
+            onClick={() => {
+              if (window.confirm("Tu renonces à ton privilège du jour. Tu ne pourras plus le réclamer aujourd'hui. Confirmer ?")) void post("/api/game/powers/leader", { choice: "RENOUNCED" });
+            }}
+          >
+            Renoncer à mon privilège
+          </button>
         </div>
       )}
+      {t.choice === "RENOUNCED" && <p style={{ fontSize: 13, margin: "6px 0 0", color: "#64748b" }}>Tu as renoncé à ton privilège du jour.</p>}
       {t.choice === "EXTRA_BUZZ" && <p style={{ fontSize: 13, margin: "6px 0 0", fontWeight: 600 }}>🔥 Tu as un buzz de plus aujourd&apos;hui.</p>}
       {t.choice === "QUESTION" && (
         <div style={{ marginTop: 8 }}>

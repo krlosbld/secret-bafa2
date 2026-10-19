@@ -4,7 +4,12 @@ import { useEffect, useState } from "react";
 
 // Leaders du jour (maître du jeu) : relevé de 9 h, privilège choisi et utilisation.
 type Row = { id: string; day: string; points: number; choice: string | null; chosenAt: string | null; historyUsedAt: string | null; player: { firstName: string } };
-const LABEL: Record<string, string> = { EXTRA_BUZZ: "🔥 Un buzz de plus", QUESTION: "❓ Une question (voir « Questions des joueurs »)", HISTORY: "🔍 Historique gratuit" };
+const LABEL: Record<string, string> = {
+  EXTRA_BUZZ: "🔥 Un buzz de plus",
+  QUESTION: "❓ Une question (voir « Questions des joueurs »)",
+  HISTORY: "🔍 Historique gratuit",
+  RENOUNCED: "🚫 A renoncé à son privilège",
+};
 
 export default function AdminLeaders() {
   const [rows, setRows] = useState<Row[] | null>(null);

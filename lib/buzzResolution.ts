@@ -40,6 +40,9 @@ export async function resolveWinningBuzz(params: {
   let closedNow: string[] = []; // buzz en attente rendus définitifs ici (transferts de mise à prix)
   const won = await prisma
     .$transaction(async (tx) => {
+      // Partie terminée : plus aucune découverte (garde-fou en plus des routes).
+      const sec = await tx.secret.findUnique({ where: { id: params.secretId }, select: { formationId: true } });
+      if (sec && (await tx.config.findUnique({ where: { formationId_key: { formationId: sec.formationId, key: "gameEnded" } } }))?.value === "true") return false;
       const claimed = await tx.secret.updateMany({
         where: { id: params.secretId, status: { not: "FOUND" } },
         data: { status: "FOUND", foundByPlayerId: params.fromPlayerId },

@@ -73,7 +73,7 @@ function mergeIdentical(buzzes: BuzzItem[]): BuzzItem[] {
   return result;
 }
 
-export default function AdminBuzzPending({ buzzes }: { buzzes: BuzzItem[] }) {
+export default function AdminBuzzPending({ buzzes, locked = false }: { buzzes: BuzzItem[]; locked?: boolean }) {
   const router = useRouter();
   const [loading, setLoading] = useState<string | null>(null);
 
@@ -88,6 +88,14 @@ export default function AdminBuzzPending({ buzzes }: { buzzes: BuzzItem[] }) {
     setLoading(null);
   }
 
+  // Partie terminée : les buzz restés en attente sont conservés tels quels, en lecture seule.
+  const lockedNote = locked && buzzes.length > 0 && (
+    <p style={{ fontSize: 13, color: "#64748b", fontWeight: 700, margin: "0 0 10px" }}>
+      🏁 Partie terminée : ces buzz restés en attente sont conservés tels quels et ne peuvent plus être traités (le classement final
+      est figé).
+    </p>
+  );
+
   if (buzzes.length === 0)
     return <p style={{ color: "#64748b", fontSize: 14 }}>Aucun buzz en attente.</p>;
 
@@ -95,6 +103,7 @@ export default function AdminBuzzPending({ buzzes }: { buzzes: BuzzItem[] }) {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+      {lockedNote}
       {groups.map((group) => (
         <div key={group.key}>
           <div
@@ -184,6 +193,7 @@ export default function AdminBuzzPending({ buzzes }: { buzzes: BuzzItem[] }) {
                     </div>
                   </div>
                 )}
+                {!locked && (
                 <div className="admin-actions" style={{ marginTop: 10 }}>
                   <button
                     className="btn btn-main"
@@ -217,6 +227,7 @@ export default function AdminBuzzPending({ buzzes }: { buzzes: BuzzItem[] }) {
                     </button>
                   )}
                 </div>
+                )}
               </div>
             ))}
           </div>

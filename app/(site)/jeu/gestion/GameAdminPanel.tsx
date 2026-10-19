@@ -177,7 +177,7 @@ export default async function GameAdminPanel({
       <section style={{ marginBottom: 40 }}>
         <BuzzPendingButton count={pendingBuzzes.length}>
           {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-          <AdminBuzzPending buzzes={pendingBuzzes as any} />
+          <AdminBuzzPending buzzes={pendingBuzzes as any} locked={gameEnded} />
         </BuzzPendingButton>
       </section>
 

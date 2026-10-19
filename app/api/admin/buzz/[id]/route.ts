@@ -3,7 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { getSecretsAdminAuth } from "@/lib/gameAdminAuth";
 import { CLAIM_FAKE_GUESS_LABEL, resolveWinningBuzz } from "@/lib/buzzResolution";
 import { audit } from "@/lib/adminActor";
-import { getGameMasterAuth } from "@/lib/gameAccess";
+import { getGameMasterAuth, getGameStatus } from "@/lib/gameAccess";
 import { normalize } from "@/lib/fuzzy";
 import { settleBountyHits } from "@/lib/bounty";
 
@@ -38,6 +38,11 @@ export async function PATCH(req: Request, { params }: Params) {
   if (!buzz) return NextResponse.json({ error: "Buzz introuvable." }, { status: 404 });
   if (auth.formationId && buzz.secret.formationId !== auth.formationId) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+  }
+  // Partie terminée : plus aucun buzz ne s'accepte, ne se rejette ni ne se modifie (classement final
+  // figé, anciennes sessions comprises — leurs buzz restés en attente gardent leur statut).
+  if ((await getGameStatus(buzz.secret.formationId)) === "termine") {
+    return NextResponse.json({ error: "La partie est terminée : ce buzz ne peut plus être traité." }, { status: 409 });
   }
   if (buzz.status !== "PENDING") {
     return NextResponse.json({ error: "Buzz déjà traité." }, { status: 400 });
@@ -115,6 +120,9 @@ export async function DELETE(_req: Request, { params }: Params) {
   if (!buzz) return NextResponse.json({ error: "Introuvable." }, { status: 404 });
   if (auth.formationId && buzz.secret.formationId !== auth.formationId) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
+  }
+  if ((await getGameStatus(buzz.secret.formationId)) === "termine") {
+    return NextResponse.json({ error: "La partie est terminée : ce buzz ne peut plus être supprimé." }, { status: 409 });
   }
 
   try {

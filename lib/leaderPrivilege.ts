@@ -12,7 +12,9 @@ import { wrongNamesFor } from "@/lib/wrongNames";
 //   jamais le maître du jeu ni les faux joueurs ; une seule attribution par jour, figée ensuite ;
 //   le relevé a lieu entre 9 h et 10 h (traitement des 15 min, ou première visite) : une règle activée
 //   plus tard dans la journée donne son premier privilège le lendemain matin ;
-// - chaque bénéficiaire choisit UN privilège avant 18 h : un buzz de plus ce jour-là, une question
+// - à sa connexion, le leader décide tout de suite (fenêtre sans « plus tard ») : il choisit UN privilège
+//   ou y renonce ; les deux sont définitifs pour la journée (enregistrés côté serveur) ;
+// - privilèges, à utiliser avant 18 h : un buzz de plus ce jour-là, une question
 //   fermée au maître du jeu (envoyée avant 18 h, réponse possible plus tard, refus = droit conservé,
 //   cumulable avec le Buzz mystère), ou l'historique gratuit d'un secret (une consultation, figée) ;
 // - règle désactivée : plus de relevé ni de nouveau choix ; ce qui est déjà choisi reste utilisable ;
@@ -21,8 +23,9 @@ export const LEADER_RULE = "rule_leaderPrivilege";
 export const SNAPSHOT_FROM = 9 * 60;
 export const SNAPSHOT_UNTIL = 10 * 60;
 export const PRIVILEGE_UNTIL = 18 * 60;
-export type LeaderChoice = "EXTRA_BUZZ" | "QUESTION" | "HISTORY";
-const CHOICES: LeaderChoice[] = ["EXTRA_BUZZ", "QUESTION", "HISTORY"];
+// RENOUNCED : le leader a renoncé à son privilège du jour (définitif, comme un choix).
+export type LeaderChoice = "EXTRA_BUZZ" | "QUESTION" | "HISTORY" | "RENOUNCED";
+const CHOICES: LeaderChoice[] = ["EXTRA_BUZZ", "QUESTION", "HISTORY", "RENOUNCED"];
 
 export class LeaderError extends MysteryError {}
 
@@ -93,7 +96,8 @@ export async function getLeaderState(formationId: string, playerId: string, now 
   const beforeDeadline = parisMinutes(now) < PRIVILEGE_UNTIL;
   const playing = status === "en_cours";
   let reason: string | null = null;
-  if (row.choice) reason = null;
+  if (row.choice === "RENOUNCED") reason = "Tu as renoncé à ton privilège du jour.";
+  else if (row.choice) reason = null;
   else if (!playing) reason = "La partie n'est plus en cours.";
   else if (!enabled) reason = "Le privilège du leader a été désactivé par le maître du jeu.";
   else if (!beforeDeadline) reason = "Le choix devait être fait avant 18 h.";
@@ -136,10 +140,12 @@ export async function chooseLeaderPrivilege(params: { formationId: string; playe
   const now = params.now ?? new Date();
   if (!CHOICES.includes(params.choice as LeaderChoice)) throw new LeaderError("Choix inconnu.");
   const row = await todayRow(params.formationId, params.playerId, now);
-  if (!(await getRuleSettings(params.formationId)).enabled[LEADER_RULE]) throw new LeaderError("Le privilège du leader a été désactivé par le maître du jeu.", 403);
-  // Conditionnel : un seul choix, même en double clic.
+  if (params.choice !== "RENOUNCED" && !(await getRuleSettings(params.formationId)).enabled[LEADER_RULE]) {
+    throw new LeaderError("Le privilège du leader a été désactivé par le maître du jeu.", 403);
+  }
+  // Conditionnel : une seule décision (choix ou renonciation), même en double clic ou sur un autre appareil.
   const done = await prisma.leaderDay.updateMany({ where: { id: row.id, choice: null }, data: { choice: params.choice, chosenAt: now } });
-  if (done.count === 0) throw new LeaderError("Tu as déjà choisi ton privilège du jour.", 409);
+  if (done.count === 0) throw new LeaderError("Tu as déjà pris ta décision pour ton privilège du jour.", 409);
 }
 
 // Buzz supplémentaire du jour (quota du buzz).

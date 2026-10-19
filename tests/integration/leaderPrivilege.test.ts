@@ -5,6 +5,7 @@ import assert from "node:assert/strict";
 import { prisma } from "@/lib/prisma";
 import { snapshotLeaders, chooseLeaderPrivilege, extraBuzzToday, askLeaderQuestion, consultFreeHistory, getLeaderState, LeaderError } from "@/lib/leaderPrivilege";
 import { askMysteryQuestion, answerQuestion, closePendingQuestions, MysteryError } from "@/lib/mysteryBuzz";
+import { resolveWinningBuzz } from "@/lib/buzzResolution";
 
 if (!process.env.DATABASE_URL?.includes("bafapilot_test")) throw new Error("Base de test uniquement (bafapilot_test).");
 after(() => prisma.$disconnect());
@@ -160,6 +161,40 @@ test("fin de partie : questions en attente closes, plus de relevé ni de choix",
     assert.equal((await prisma.secretQuestion.findUniqueOrThrow({ where: { id: q.id } })).status, "CLOSED");
     assert.equal(await snapshotLeaders(s.f.id, at("09:00", "2026-10-21")), 0);
     await assert.rejects(chooseLeaderPrivilege({ formationId: s.f.id, playerId: s.P.cam.id, choice: "EXTRA_BUZZ", now: at("12:00") }), /plus en cours/);
+  } finally {
+    await cleanup(s.f.id);
+  }
+});
+
+test("renonciation : définitive, plus aucun choix ni avantage ce jour-là", async () => {
+  const s = await scenario();
+  try {
+    await snapshotLeaders(s.f.id, NINE);
+    await chooseLeaderPrivilege({ formationId: s.f.id, playerId: s.P.ana.id, choice: "RENOUNCED", now: at("09:30") });
+    const st = await getLeaderState(s.f.id, s.P.ana.id, at("10:00"));
+    assert.deepEqual([st.today?.choice, st.today?.canChoose], ["RENOUNCED", false]);
+    assert.match(st.today?.reason ?? "", /renoncé/);
+    await assert.rejects(chooseLeaderPrivilege({ formationId: s.f.id, playerId: s.P.ana.id, choice: "EXTRA_BUZZ", now: at("10:00") }), /déjà pris ta décision/);
+    assert.equal(await extraBuzzToday(s.f.id, s.P.ana.id, at("10:00")), 0);
+    await assert.rejects(askLeaderQuestion({ formationId: s.f.id, playerId: s.P.ana.id, secretId: s.S.zoe, text: "Est-ce récent ?", now: at("10:00") }), /pas la question/);
+    // Un choix ne peut pas non plus être changé en renonciation.
+    await chooseLeaderPrivilege({ formationId: s.f.id, playerId: s.P.cam.id, choice: "HISTORY", now: at("09:30") });
+    await assert.rejects(chooseLeaderPrivilege({ formationId: s.f.id, playerId: s.P.cam.id, choice: "RENOUNCED", now: at("10:00") }), /déjà pris ta décision/);
+  } finally {
+    await cleanup(s.f.id);
+  }
+});
+
+test("partie terminée : une bonne réponse restée en attente ne peut plus faire trouver le secret", async () => {
+  const s = await scenario();
+  try {
+    const b = await prisma.buzz.create({ data: { secretId: s.S.zoe, fromPlayerId: s.P.ana.id, guessedName: "Zoé", status: "PENDING", isCorrect: true } });
+    await prisma.config.create({ data: { formationId: s.f.id, key: "gameEnded", value: "true" } });
+    const won = await resolveWinningBuzz({ buzzId: b.id, secretId: s.S.zoe, fromPlayerId: s.P.ana.id, secretBonus: 2, secretIsDecoy: false, secretPlayerFirstName: "Zoé", formationId: s.f.id });
+    assert.equal(won, 0);
+    assert.equal((await prisma.buzz.findUniqueOrThrow({ where: { id: b.id } })).status, "PENDING");
+    assert.equal((await prisma.secret.findUniqueOrThrow({ where: { id: s.S.zoe } })).status, "PUBLISHED");
+    assert.equal((await prisma.player.findUniqueOrThrow({ where: { id: s.P.ana.id } })).points, 8);
   } finally {
     await cleanup(s.f.id);
   }
