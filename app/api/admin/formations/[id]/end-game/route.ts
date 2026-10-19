@@ -3,6 +3,7 @@ import { applyPoints } from "@/lib/gamePoints";
 import { closePendingQuestions } from "@/lib/mysteryBuzz";
 import { endPowersAtGameEnd } from "@/lib/fakeIdentity";
 import { settleBountiesAtGameEnd } from "@/lib/bounty";
+import { closePendingChallenges } from "@/lib/gameChallenges";
 import { getGameMasterAuth, getGameStatus } from "@/lib/gameAccess";
 import { prisma } from "@/lib/prisma";
 import { getGameAdminAuth } from "@/lib/gameAdminAuth";
@@ -48,6 +49,7 @@ export async function POST(_req: Request, { params }: Params) {
       select: { id: true, playerId: true, bonus: true },
     });
     await closePendingQuestions(tx, formationId); // questions sans réponse : closes
+    await closePendingChallenges(tx, formationId); // défis sans réponse : clos
     await settleBountiesAtGameEnd(tx, formationId); // mises à prix non réglées : rendues (une seule fois)
     await endPowersAtGameEnd(tx, formationId); // plus aucun pouvoir actif
     await tx.config.upsert({

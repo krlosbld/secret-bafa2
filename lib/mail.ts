@@ -140,3 +140,23 @@ Ce lien est personnel, valable 7 jours et utilisable une seule fois, avec l'adre
   );
   return sendMail(to, subject, text, html);
 }
+
+// Défi du maître du jeu : l'email prévient seulement qu'un message attend le joueur (le texte du défi
+// reste dans BafaPilot, pour ne rien dévoiler du jeu).
+export function sendChallengeEmail(to: string, firstName: string, sessionName: string): Promise<MailResult> {
+  const link = appUrl("/jeu");
+  const subject = "Tu as reçu un message du maître du jeu — BafaPilot";
+  const text = `Bonjour ${firstName},
+
+Tu as reçu un message du maître du jeu (Jeu des secrets, session « ${sessionName} »).
+Connecte-toi pour le découvrir et y répondre :
+${link}`;
+  const html = layout(
+    "Tu as reçu un message du maître du jeu",
+    `Bonjour ${escapeHtml(firstName)},<br><br>Tu as reçu un message du maître du jeu (Jeu des secrets, session <strong>${escapeHtml(sessionName)}</strong>). Connecte-toi pour le découvrir et y répondre.`,
+    "Voir le message",
+    link,
+    "Le message s'affiche à ta connexion à BafaPilot."
+  );
+  return sendMail(to, subject, text, html);
+}

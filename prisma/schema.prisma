@@ -34,6 +34,7 @@ model Formation {
   gamePowers        GamePower[]
   gameAnnouncements GameAnnouncement[]
   leaderDays        LeaderDay[]
+  gameChallenges    GameChallenge[]
 }
 
 // Un groupe persistant de stagiaires (+ formateurs rattachés). Plusieurs groupes coexistent en
@@ -161,6 +162,7 @@ model Player {
   gamePowers                GamePower[]        @relation("PowerOwner")
   gamePowersAlias           GamePower[]        @relation("PowerAlias")
   leaderDays                LeaderDay[]
+  challengeRecipients       GameChallengeRecipient[]
 
   @@unique([formationId, code])
   @@index([directorAccountId])
@@ -720,4 +722,36 @@ model LeaderDay {
 
   @@unique([formationId, day, playerId])
   @@index([formationId, day])
+}
+
+// Défis du maître du jeu : un message rédigé par le maître du jeu, envoyé à tous les joueurs ou à
+// certains, que chaque destinataire accepte ou refuse. Pas de points automatiques. Date limite
+// optionnelle : passé ce délai, le défi en attente ne peut plus être accepté (affiché « expiré »).
+// Fin de partie : les réponses en attente sont closes ; annulation : idem (CANCELLED).
+model GameChallenge {
+  id          String                   @id @default(cuid())
+  formationId String
+  text        String
+  deadline    DateTime?
+  createdBy   String // libellé du maître du jeu
+  createdAt   DateTime                 @default(now())
+  cancelledAt DateTime?
+  formation   Formation                @relation(fields: [formationId], references: [id], onDelete: Cascade)
+  recipients  GameChallengeRecipient[]
+
+  @@index([formationId, createdAt])
+}
+
+model GameChallengeRecipient {
+  id          String        @id @default(cuid())
+  challengeId String
+  playerId    String
+  status      String        @default("PENDING") // PENDING | ACCEPTED | REFUSED | CLOSED (fin de partie) | CANCELLED
+  respondedAt DateTime?
+  mailStatus  String? // SENT | NO_EMAIL | FAILED (null = envoi en cours)
+  challenge   GameChallenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  player      Player        @relation(fields: [playerId], references: [id], onDelete: Cascade)
+
+  @@unique([challengeId, playerId])
+  @@index([playerId, status])
 }
