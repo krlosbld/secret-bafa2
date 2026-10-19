@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import type { MysteryState } from "@/lib/mysteryBuzz";
 import type { FakeIdentityState } from "@/lib/fakeIdentity";
+import type { BountyState } from "@/lib/bounty";
 
 // « Mes pouvoirs » (onglet Jeu, joueur) : uniquement les pouvoirs du joueur connecté.
 // Rafraîchi régulièrement (réponse du maître du jeu, fin d'un camouflage).
@@ -13,7 +14,7 @@ const STATUS: Record<string, { label: string; tone: string }> = {
   CLOSED: { label: "Close (partie terminée)", tone: "#64748b" },
 };
 
-type Powers = { mystery: MysteryState; fakeIdentity: FakeIdentityState };
+type Powers = { mystery: MysteryState; fakeIdentity: FakeIdentityState; bounty: BountyState };
 
 function remaining(endsAt: string): string {
   const ms = new Date(endsAt).getTime() - Date.now();
@@ -31,7 +32,7 @@ export default function MyPowers({ initial }: { initial: Powers }) {
   async function reload() {
     const res = await fetch("/api/game/powers", { cache: "no-store" }).catch(() => null);
     const data = res?.ok ? await res.json().catch(() => null) : null;
-    if (data?.ok) setState({ mystery: data.mystery, fakeIdentity: data.fakeIdentity });
+    if (data?.ok) setState({ mystery: data.mystery, fakeIdentity: data.fakeIdentity, bounty: data.bounty });
   }
 
   useEffect(() => {
@@ -42,7 +43,8 @@ export default function MyPowers({ initial }: { initial: Powers }) {
     return () => clearInterval(id);
   }, []);
 
-  const { mystery, fakeIdentity } = state;
+  const { mystery, fakeIdentity, bounty } = state;
+  const showBounty = bounty.enabled || bounty.used !== null;
   const showMystery = mystery.enabled || mystery.questions.length > 0;
   const showFake = fakeIdentity.enabled || fakeIdentity.used !== null;
   const answered = mystery.questions.find((q) => q.status === "ANSWERED");
@@ -52,6 +54,16 @@ export default function MyPowers({ initial }: { initial: Powers }) {
       <div style={{ fontWeight: 800, marginBottom: 8 }}>Mes pouvoirs</div>
 
       {showFake && <FakeIdentityItem state={fakeIdentity} onBought={(f) => setState((s) => ({ ...s, fakeIdentity: f }))} />}
+
+      {showBounty && (
+        <BountyItem
+          state={bounty}
+          onActivated={(b) => {
+            setState((s) => ({ ...s, bounty: b }));
+            void reload(); // la fausse identité devient indisponible (incompatibilité)
+          }}
+        />
+      )}
 
       {showMystery && (
         <div className="my-powers__item">
@@ -186,6 +198,129 @@ function FakeIdentityItem({ state, onBought }: { state: FakeIdentityState; onBou
               <div style={{ display: "flex", gap: 8 }}>
                 <button className="btn btn-main" disabled={busy} onClick={buy}>
                   {busy ? "…" : `Confirmer (${state.cost} pts)`}
+                </button>
+                <button className="btn btn-ghost" disabled={busy} onClick={() => setConfirming(false)}>
+                  Retour
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BountyItem({ state, onActivated }: { state: BountyState; onActivated: (s: BountyState) => void }) {
+  const [open, setOpen] = useState(false);
+  const [stake, setStake] = useState(1);
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const maxAllowed = Math.min(state.maxStake, state.points);
+
+  async function activate() {
+    setBusy(true);
+    setError("");
+    const res = await fetch("/api/game/powers/bounty", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ stake }),
+    }).catch(() => null);
+    const data = res ? await res.json().catch(() => ({})) : {};
+    setBusy(false);
+    if (!res?.ok) {
+      setError(data.error || "Activation impossible.");
+      return;
+    }
+    onActivated(data.bounty);
+    setOpen(false);
+  }
+
+  const a = state.active;
+  const status = a
+    ? a.awaiting
+      ? { text: "24 h écoulées — en attente d'une validation", tone: "#b45309" }
+      : { text: `Active — encore ${remaining(a.endsAt)}`, tone: "#b91c1c" }
+    : state.used
+      ? { text: "Déjà utilisé", tone: "#64748b" }
+      : state.available
+        ? { text: "Disponible", tone: "#15803d" }
+        : { text: state.reason ?? "Indisponible", tone: "#b45309" };
+  const OUTCOME: Record<string, string> = { REFUNDED: "Mise rendue", WON: "Mise gagnée par celui qui a trouvé ton secret" };
+
+  return (
+    <div className="my-powers__item">
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 8, flexWrap: "wrap" }}>
+        <strong>🎯 Secret mis à prix</strong>
+        <span style={{ fontSize: 13, fontWeight: 700, color: status.tone }} suppressHydrationWarning>
+          {status.text}
+        </span>
+      </div>
+      <p style={{ fontSize: 13, color: "#475569", margin: "4px 0 0" }}>
+        Pendant {state.hours} h, mets en jeu de 1 à {state.maxStake} points : chaque adversaire qui propose ton prénom à tort te verse ta
+        mise (une fois chacun, dans la limite de ses points). Si ton secret est trouvé pendant ces {state.hours} h, ta mise va à celui
+        qui l&apos;a trouvé ; sinon elle t&apos;est rendue. Une fois par partie.
+      </p>
+      {a && (
+        <p style={{ fontSize: 13, margin: "6px 0 0", color: "#b91c1c", fontWeight: 600 }}>
+          Mise en réserve : {a.stake} point{a.stake > 1 ? "s" : ""} · {a.hits} erreur{a.hits > 1 ? "s" : ""} sur ton prénom, {a.gained} point
+          {a.gained > 1 ? "s" : ""} reçu{a.gained > 1 ? "s" : ""}.
+          {a.awaiting && " Une bonne réponse envoyée pendant la mise attend la validation du maître du jeu : ta mise sera réglée ensuite."}
+        </p>
+      )}
+      {!a && state.used && (
+        <p style={{ fontSize: 13, margin: "6px 0 0", color: "#64748b" }}>
+          Mise de {state.used.stake} point{state.used.stake > 1 ? "s" : ""} du {day(state.used.startsAt)} au {day(state.used.endsAt)} ·{" "}
+          {state.used.hits} erreur{state.used.hits > 1 ? "s" : ""} sur ton prénom, {state.used.gained} point{state.used.gained > 1 ? "s" : ""}{" "}
+          reçu{state.used.gained > 1 ? "s" : ""} · {state.used.outcome ? OUTCOME[state.used.outcome] : ""}
+        </p>
+      )}
+      {state.available && !open && (
+        <button
+          className="btn btn-main"
+          style={{ marginTop: 8, padding: "7px 14px", fontSize: 14 }}
+          onClick={() => (setOpen(true), setConfirming(false), setStake(1), setError(""))}
+        >
+          🎯 Mettre mon secret à prix
+        </button>
+      )}
+      {open && (
+        <div style={{ marginTop: 8, border: "1px solid #fecaca", background: "#fff7f7", borderRadius: 10, padding: 10 }}>
+          {!confirming ? (
+            <>
+              <label className="sb-field">
+                <span>Ta mise (tu as {state.points} point{state.points > 1 ? "s" : ""})</span>
+                <select value={stake} onChange={(e) => setStake(Number(e.target.value))} disabled={busy}>
+                  {Array.from({ length: Math.max(0, maxAllowed) }, (_, i) => i + 1).map((n) => (
+                    <option key={n} value={n}>
+                      {n} point{n > 1 ? "s" : ""}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div style={{ display: "flex", gap: 8, marginTop: 8 }}>
+                <button className="btn btn-main" disabled={maxAllowed < 1} onClick={() => setConfirming(true)}>
+                  Continuer
+                </button>
+                <button className="btn btn-ghost" onClick={() => setOpen(false)}>
+                  Annuler
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <p style={{ fontSize: 14, margin: "0 0 8px", lineHeight: 1.5 }}>
+                <strong>Confirmer la mise à prix ?</strong>
+                <br />• {stake} point{stake > 1 ? "s" : ""} retiré{stake > 1 ? "s" : ""} de ton score tout de suite, mis en réserve pendant {state.hours} h.
+                <br />• Chaque adversaire qui propose ton prénom à tort te verse {stake} point{stake > 1 ? "s" : ""} (une fois chacun, dans la limite de ses points).
+                <br />• Si ton secret est trouvé pendant ces {state.hours} h, ta mise va à celui qui l&apos;a trouvé. Sinon, elle t&apos;est rendue.
+                <br />• Une seule fois par partie, pas en même temps qu&apos;une fausse identité.
+              </p>
+              {error && <p style={{ color: "#dc2626", fontWeight: 600, fontSize: 13, margin: "0 0 8px" }}>{error}</p>}
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn btn-main" disabled={busy} onClick={activate}>
+                  {busy ? "…" : `Confirmer (${stake} pt${stake > 1 ? "s" : ""})`}
                 </button>
                 <button className="btn btn-ghost" disabled={busy} onClick={() => setConfirming(false)}>
                   Retour

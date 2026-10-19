@@ -79,11 +79,17 @@ export const ALL_GAME_RULES: GameRule[] = [
   {
     key: "rule_bounty",
     label: "Secret mis à prix 🎯",
-    description: "Un joueur met une mise en réserve pendant 24 h : chaque adversaire qui propose à tort son prénom lui en verse le montant ; si son secret est trouvé, la mise revient à celui qui l'a trouvé. Une fois par partie.",
+    description:
+      "Un joueur dont le secret n'est pas encore trouvé met une mise en réserve pendant 24 h : chaque adversaire qui propose à tort son prénom (sur un autre secret) lui verse la mise, une fois par adversaire, dans la limite de son solde. Si son secret est trouvé pendant les 24 h, la mise va à celui qui l'a trouvé ; sinon elle lui est rendue. Une fois par partie.",
     section: "pouvoirs",
-    available: false,
+    available: true,
     params: [{ key: "maxStake", label: "Mise maximale", min: 1, max: 5, default: 5, unit: "points" }],
     incompatibleWith: ["rule_fakeIdentity"],
+    player: {
+      title: "🎯 Secret mis à prix",
+      text: (p) =>
+        `Une fois par partie, mets ton secret à prix pendant 24 h avec une mise de 1 à ${p["rule_bounty:maxStake"] ?? 5} points, retirée de ton score et mise en réserve. Chaque adversaire qui propose ton prénom à tort te verse ta mise (une fois chacun, dans la limite de ses points). Si ton secret est trouvé pendant ces 24 h, ta mise va à celui qui l'a trouvé ; sinon elle t'est rendue. Pas en même temps qu'une fausse identité. Dans « Mes pouvoirs ».`,
+    },
   },
   {
     key: "rule_leaderPrivilege",

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { expireOverdueParticipants } from "@/lib/gameAccess";
 import { expirePowers } from "@/lib/fakeIdentity";
+import { settleExpiredBounties } from "@/lib/bounty";
 
 export const runtime = "nodejs";
 
@@ -12,5 +13,10 @@ export async function GET(req: Request) {
   if (!process.env.CRON_SECRET || req.headers.get("Authorization") !== `Bearer ${process.env.CRON_SECRET}`) {
     return NextResponse.json({ error: "Non autorisé." }, { status: 401 });
   }
-  return NextResponse.json({ ok: true, expired: await expireOverdueParticipants(), powersExpired: await expirePowers() });
+  return NextResponse.json({
+    ok: true,
+    expired: await expireOverdueParticipants(),
+    powersExpired: await expirePowers(),
+    bountiesSettled: await settleExpiredBounties(), // mises à prix arrivées à 24 h : rendues (sauf bonne réponse en attente)
+  });
 }

@@ -642,22 +642,26 @@ model SecretQuestion {
 // unique ; la remise à zéro du jeu efface les pouvoirs de la session). L'effet dépend de startsAt /
 // endsAt (fiable même sans traitement automatique) ; status est tenu à jour pour l'affichage.
 model GamePower {
-  id            String    @id @default(cuid())
-  formationId   String
-  playerId      String // propriétaire (véritable auteur du secret protégé)
-  kind          String // FAKE_IDENTITY | BOUNTY
-  status        String    @default("ACTIVE") // ACTIVE | EXPIRED | ENDED
-  cost          Int       @default(0) // points débités à l'achat (journal : POWER_PURCHASE)
-  aliasPlayerId String? // fausse identité : participant dont le prénom est emprunté
-  aliasLabel    String? // prénom emprunté, figé à l'achat
-  startsAt      DateTime  @default(now())
-  endsAt        DateTime
-  endedAt       DateTime?
-  endReason     String? // « Secret trouvé », « Fin de partie »…
-  createdAt     DateTime  @default(now())
-  formation     Formation @relation(fields: [formationId], references: [id], onDelete: Cascade)
-  player        Player    @relation("PowerOwner", fields: [playerId], references: [id], onDelete: Cascade)
-  alias         Player?   @relation("PowerAlias", fields: [aliasPlayerId], references: [id], onDelete: SetNull)
+  id             String      @id @default(cuid())
+  formationId    String
+  playerId       String // propriétaire (véritable auteur du secret protégé)
+  kind           String // FAKE_IDENTITY | BOUNTY
+  status         String      @default("ACTIVE") // ACTIVE | EXPIRED | ENDED
+  cost           Int         @default(0) // points débités à l'achat (journal : POWER_PURCHASE)
+  aliasPlayerId  String? // fausse identité : participant dont le prénom est emprunté
+  aliasLabel     String? // prénom emprunté, figé à l'achat
+  startsAt       DateTime    @default(now())
+  endsAt         DateTime
+  endedAt        DateTime?
+  endReason      String? // « Secret trouvé », « Fin de partie »…
+  stakeSettledAt DateTime? // mise à prix : mise réglée (rendue au propriétaire ou gagnée) — une seule fois
+  stakeOutcome   String? // REFUNDED | WON (gagnée par celui qui a trouvé le secret)
+  stakeWinnerId  String? // joueur qui a gagné la mise
+  bountyHits     BountyHit[]
+  createdAt      DateTime    @default(now())
+  formation      Formation   @relation(fields: [formationId], references: [id], onDelete: Cascade)
+  player         Player      @relation("PowerOwner", fields: [playerId], references: [id], onDelete: Cascade)
+  alias          Player?     @relation("PowerAlias", fields: [aliasPlayerId], references: [id], onDelete: SetNull)
 
   @@unique([formationId, playerId, kind])
   @@index([formationId, kind, status])
@@ -674,4 +678,19 @@ model GameAnnouncement {
   formation   Formation @relation(fields: [formationId], references: [id], onDelete: Cascade)
 
   @@index([formationId, createdAt])
+}
+
+// Secret mis à prix : un adversaire a proposé à tort le prénom du propriétaire pendant les 24 h (heure
+// d'ENVOI du buzz) ; une fois le résultat du buzz définitif, il verse la mise au propriétaire (plafonnée
+// à son solde). Un seul transfert par adversaire et par mise (contrainte unique).
+model BountyHit {
+  id           String    @id @default(cuid())
+  powerId      String
+  fromPlayerId String
+  buzzId       String
+  amount       Int // points réellement transférés (0 si l'adversaire n'en avait plus)
+  createdAt    DateTime  @default(now())
+  power        GamePower @relation(fields: [powerId], references: [id], onDelete: Cascade)
+
+  @@unique([powerId, fromPlayerId])
 }

@@ -5,6 +5,7 @@ import { CLAIM_FAKE_GUESS_LABEL, resolveWinningBuzz } from "@/lib/buzzResolution
 import { audit } from "@/lib/adminActor";
 import { getGameMasterAuth } from "@/lib/gameAccess";
 import { normalize } from "@/lib/fuzzy";
+import { settleBountyHits } from "@/lib/bounty";
 
 // Un buzz incorrect tranché par le maître du jeu tranche aussi les buzz identiques (même secret, même
 // prénom à la casse et aux accents près) encore en attente : inutile de les traiter un par un.
@@ -15,7 +16,7 @@ async function closeIdenticalPending(buzz: { id: string; secretId: string; guess
   });
   const ids = others.filter((o) => normalize(o.guessedName) === normalize(buzz.guessedName)).map((o) => o.id);
   if (ids.length > 0) await prisma.buzz.updateMany({ where: { id: { in: ids } }, data: { status } });
-  return ids.length;
+  return ids;
 }
 
 export const runtime = "nodejs";
@@ -44,8 +45,9 @@ export async function PATCH(req: Request, { params }: Params) {
 
   if (action === "reject") {
     await prisma.buzz.update({ where: { id }, data: { status: "REJECTED" } });
-    const alsoClosed = buzz.isCorrect ? 0 : await closeIdenticalPending(buzz, "REJECTED");
-    return NextResponse.json({ ok: true, alsoClosed });
+    const alsoClosed = buzz.isCorrect ? [] : await closeIdenticalPending(buzz, "REJECTED");
+    await settleBountyHits([buzz.id, ...alsoClosed]); // résultat définitif : transferts de mise à prix
+    return NextResponse.json({ ok: true, alsoClosed: alsoClosed.length });
   }
 
   // « Accepter quand même » : le maître du jeu juge que la réponse désigne bien l'auteur malgré une
@@ -90,7 +92,11 @@ export async function PATCH(req: Request, { params }: Params) {
       });
     } else {
       await prisma.buzz.update({ where: { id }, data: { status: "VALIDATED" } });
-      if (!buzz.isCorrect) return NextResponse.json({ ok: true, alsoClosed: await closeIdenticalPending(buzz, "VALIDATED") });
+      if (!buzz.isCorrect) {
+        const alsoClosed = await closeIdenticalPending(buzz, "VALIDATED");
+        await settleBountyHits([buzz.id, ...alsoClosed]);
+        return NextResponse.json({ ok: true, alsoClosed: alsoClosed.length });
+      }
     }
 
     return NextResponse.json({ ok: true });

@@ -30,13 +30,26 @@ export async function GET() {
       endsAt: true,
       endedAt: true,
       endReason: true,
+      stakeOutcome: true,
+      stakeWinnerId: true,
       player: { select: { firstName: true } },
+      bountyHits: { select: { fromPlayerId: true, amount: true, createdAt: true }, orderBy: { createdAt: "asc" } },
     },
   });
-  const powers = rows.map((p) => ({
+  // Prénoms des gagnants de mise et des adversaires qui ont versé (maître du jeu uniquement).
+  const ids = [...new Set(rows.flatMap((r) => [r.stakeWinnerId, ...r.bountyHits.map((h) => h.fromPlayerId)]).filter((x): x is string => !!x))];
+  const names = new Map((await prisma.player.findMany({ where: { id: { in: ids } }, select: { id: true, firstName: true } })).map((p) => [p.id, p.firstName]));
+  const powers = rows.map(({ stakeWinnerId, bountyHits, ...p }) => ({
     ...p,
+    stakeWinner: stakeWinnerId ? names.get(stakeWinnerId) ?? "?" : null,
+    hits: bountyHits.map((h) => ({ from: names.get(h.fromPlayerId) ?? "?", amount: h.amount, at: h.createdAt.toISOString() })),
     // L'effet dépend de l'heure de fin, même si le traitement automatique n'est pas encore passé.
-    status: p.status === "ACTIVE" && p.endsAt <= now ? "EXPIRED" : p.status,
+    status:
+      p.status === "ACTIVE" && p.endsAt <= now
+        ? p.kind === "BOUNTY" && !p.stakeOutcome
+          ? "AWAITING" // 24 h écoulées, une bonne réponse envoyée pendant la mise attend la validation
+          : "EXPIRED"
+        : p.status,
     startsAt: p.startsAt.toISOString(),
     endsAt: p.endsAt.toISOString(),
     endedAt: p.endedAt?.toISOString() ?? null,

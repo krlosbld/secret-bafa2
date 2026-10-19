@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { matchesName } from "@/lib/nameCollision";
 import { applyPoints, isDuplicateKey } from "@/lib/gamePoints";
 import { endCamouflageOnFound } from "@/lib/fakeIdentity";
+import { onSecretFound, settleBountyHits } from "@/lib/bounty";
 
 // Chaîne fixe utilisée comme `guessedName` pour une réclamation "faux secret" — pas un vrai prénom,
 // à exclure partout où on liste des prénoms devinés (ex. la révélation payante d'historique).
@@ -36,6 +37,7 @@ export async function resolveWinningBuzz(params: {
 
   // Un secret ne se trouve qu'une fois : la bascule en FOUND est conditionnelle, et les points passent
   // par le journal avec une clé propre au secret. Deux validations simultanées n'en donnent qu'une.
+  let closedNow: string[] = []; // buzz en attente rendus définitifs ici (transferts de mise à prix)
   const won = await prisma
     .$transaction(async (tx) => {
       const claimed = await tx.secret.updateMany({
@@ -46,6 +48,12 @@ export async function resolveWinningBuzz(params: {
       // Secret trouvé (bonne réponse envoyée avant un éventuel camouflage) : le camouflage prend fin.
       const owner = await tx.secret.findUnique({ where: { id: params.secretId }, select: { playerId: true } });
       if (owner) await endCamouflageOnFound(tx, owner.playerId);
+      // Mise à prix sur ce secret : gagnée si la bonne réponse a été envoyée pendant la mise, sinon rendue.
+      const winning = await tx.buzz.findUnique({ where: { id: params.buzzId }, select: { createdAt: true } });
+      if (owner && winning) await onSecretFound(tx, { ownerPlayerId: owner.playerId, winnerPlayerId: params.fromPlayerId, winningBuzzAt: winning.createdAt });
+      closedNow = (
+        await tx.buzz.findMany({ where: { secretId: params.secretId, id: { not: params.buzzId }, status: "PENDING" }, select: { id: true } })
+      ).map((b) => b.id);
       await tx.buzz.update({ where: { id: params.buzzId }, data: { status: "VALIDATED" } });
       await tx.buzz.updateMany({ where: { secretId: params.secretId, id: { not: params.buzzId } }, data: { status: "REJECTED" } });
       await applyPoints(tx, {
@@ -79,6 +87,8 @@ export async function resolveWinningBuzz(params: {
   if (staleIds.length > 0) {
     await prisma.buzz.updateMany({ where: { id: { in: staleIds } }, data: { status: "REJECTED" } });
   }
+  // Ces buzz faux sont désormais définitifs : transferts éventuels de mise à prix.
+  await settleBountyHits([...closedNow, ...staleIds]);
 
   return points;
 }

@@ -17,7 +17,12 @@ export type PointKind =
   | "MANUAL_SET" // score corrigé à la main
   | "MANUAL_AWARD" // « +1 point » déclenché à la main
   | "GAME_RESET" // remise à zéro de la partie
-  | "POWER_PURCHASE"; // achat d'un pouvoir (fausse identité…)
+  | "POWER_PURCHASE" // achat d'un pouvoir (fausse identité…)
+  | "BOUNTY_STAKE" // mise à prix : mise mise en réserve
+  | "BOUNTY_REFUND" // mise à prix : mise rendue
+  | "BOUNTY_WON" // mise à prix : mise gagnée en trouvant le secret
+  | "BOUNTY_PENALTY" // mise à prix : versée par un adversaire qui s'est trompé
+  | "BOUNTY_GAIN"; // mise à prix : reçue de cet adversaire
 
 export type PointOperation = {
   formationId: string;

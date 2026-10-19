@@ -14,6 +14,7 @@ import { getRuleSettings } from "@/lib/gameRuleSettings";
 import AdminPointsLedger from "../../admin/AdminPointsLedger";
 import AdminQuestions from "../../admin/AdminQuestions";
 import AdminFakeIdentities from "../../admin/AdminFakeIdentities";
+import AdminBounties from "../../admin/AdminBounties";
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -111,6 +112,7 @@ export default async function GameAdminPanel({
   const ruleSettings = await getRuleSettings(formationId);
   const questionCount = await prisma.secretQuestion.count({ where: { formationId } });
   const fakeIdentityCount = await prisma.gamePower.count({ where: { formationId, kind: "FAKE_IDENTITY" } });
+  const bountyCount = await prisma.gamePower.count({ where: { formationId, kind: "BOUNTY" } });
   const initialRules = Object.fromEntries(GAME_RULES.map((r) => [r.key, ruleValues.get(r.key) === "true"]));
 
   let lastNightlyRun: { at: string; updated: number } | null = null;
@@ -131,6 +133,12 @@ export default async function GameAdminPanel({
       {(ruleSettings.enabled["rule_fakeIdentity"] || fakeIdentityCount > 0) && (
         <Section title="🎭 Fausses identités">
           <AdminFakeIdentities />
+        </Section>
+      )}
+
+      {(ruleSettings.enabled["rule_bounty"] || bountyCount > 0) && (
+        <Section title="🎯 Secrets mis à prix">
+          <AdminBounties />
         </Section>
       )}
 

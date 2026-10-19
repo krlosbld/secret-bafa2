@@ -25,6 +25,11 @@ const KIND_LABEL: Record<string, string> = {
   MANUAL_AWARD: "+1 manuel",
   GAME_RESET: "Remise à zéro",
   POWER_PURCHASE: "Achat d'un pouvoir",
+  BOUNTY_STAKE: "Mise à prix : mise en réserve",
+  BOUNTY_REFUND: "Mise à prix : mise rendue",
+  BOUNTY_WON: "Mise à prix : mise gagnée",
+  BOUNTY_PENALTY: "Mise à prix : erreur sur le prénom",
+  BOUNTY_GAIN: "Mise à prix : versement reçu",
 };
 
 export default function AdminPointsLedger({ players }: { players: { id: string; firstName: string }[] }) {

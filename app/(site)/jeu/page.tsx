@@ -14,6 +14,7 @@ import MySecretPanel, { type MySecretStatus } from "@/components/MySecretPanel";
 import MyPowers from "@/components/MyPowers";
 import { getMysteryState } from "@/lib/mysteryBuzz";
 import { getFakeIdentityState } from "@/lib/fakeIdentity";
+import { getBountyState } from "@/lib/bounty";
 import DirectorGameControls from "./gestion/DirectorGameControls";
 import { loadDirectorControls } from "./gestion/directorControls";
 import { getSession, isSuperAdmin } from "@/lib/auth";
@@ -90,6 +91,7 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
 
   // Mes pouvoirs (Buzz mystère) : les données du joueur connecté seulement.
   const mystery = active ? await getMysteryState(formation.id, active.id) : null;
+  const bounty = active ? await getBountyState(formation.id, active.id) : null; // règle d'abord une mise échue
   const fakeIdentity = active ? await getFakeIdentityState(formation.id, active.id) : null;
   const myOwnSecretId = mystery?.available ? (await prisma.secret.findUnique({ where: { playerId: active!.id }, select: { id: true } }))?.id ?? null : null;
 
@@ -150,8 +152,8 @@ export default async function HomePage({ searchParams }: { searchParams: Promise
           </div>
         )}
         {directorControls && <DirectorGameControls {...directorControls} compact />}
-        {mystery && fakeIdentity && (mystery.enabled || mystery.questions.length > 0 || fakeIdentity.enabled || fakeIdentity.used) && (
-          <MyPowers initial={{ mystery, fakeIdentity }} />
+        {mystery && fakeIdentity && bounty && (mystery.enabled || mystery.questions.length > 0 || fakeIdentity.enabled || fakeIdentity.used || bounty.enabled || bounty.used) && (
+          <MyPowers initial={{ mystery, fakeIdentity, bounty }} />
         )}
         {mySecret && state.status !== "termine" && (
           <MySecretPanel

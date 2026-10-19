@@ -5,6 +5,7 @@ import { getRuleSettings } from "@/lib/gameRuleSettings";
 import { paramConfigKey } from "@/lib/gameRules";
 import { applyPoints, InsufficientPointsError } from "@/lib/gamePoints";
 import { matchesName } from "@/lib/nameCollision";
+import { activeBounty } from "@/lib/bounty";
 
 // Fausse identité 🎭 (règle rule_fakeIdentity, désactivée par défaut). Un joueur dont le secret est
 // validé et pas encore trouvé achète 24 h de camouflage en empruntant le prénom d'un autre participant.
@@ -85,6 +86,7 @@ export async function getFakeIdentityState(formationId: string, playerId: string
   if (!enabled) reason = "La fausse identité n'est pas activée dans cette partie.";
   else if (status !== "en_cours") reason = "La fausse identité n'est possible que pendant la partie.";
   else if (power) reason = isActive ? "Ta fausse identité est active." : "Tu as déjà utilisé ta fausse identité pour cette partie.";
+  else if (await activeBounty(playerId, now)) reason = "Impossible pendant que ton secret est mis à prix (les deux pouvoirs ne se cumulent pas).";
   else if (!player?.secret || player.secret.isDecoy || player.secret.status !== "PUBLISHED") reason = "Il faut un secret validé et pas encore trouvé.";
   else if (player.points < cost) reason = `Il te faut au moins ${cost} points.`;
   const available = reason === null;
@@ -118,6 +120,8 @@ export async function buyFakeIdentity(params: { formationId: string; playerId: s
       await tx.$queryRaw`SELECT "id" FROM "Player" WHERE "id" = ${playerId} FOR UPDATE`;
       const existing = await tx.gamePower.findUnique({ where: { formationId_playerId_kind: { formationId, playerId, kind: FAKE_IDENTITY_KIND } } });
       if (existing) throw new PowerError("Tu as déjà utilisé ta fausse identité pour cette partie.", 409);
+      const bounty = await tx.gamePower.findFirst({ where: { playerId, kind: "BOUNTY", status: "ACTIVE", startsAt: { lte: now }, endsAt: { gt: now } } });
+      if (bounty) throw new PowerError("Impossible pendant que ton secret est mis à prix (les deux pouvoirs ne se cumulent pas).", 409);
       const secret = await tx.secret.findUnique({ where: { playerId }, select: { status: true, isDecoy: true } });
       if (!secret || secret.isDecoy || secret.status !== "PUBLISHED") throw new PowerError("Il faut un secret validé et pas encore trouvé.");
       const power = await tx.gamePower.create({
@@ -171,7 +175,7 @@ export async function endCamouflageOnFound(tx: Prisma.TransactionClient, ownerPl
   });
 }
 
-// Fin de partie : plus aucun pouvoir actif.
+// Fin de partie : plus aucun pouvoir actif (les mises à prix sont réglées juste avant, voir lib/bounty).
 export async function endPowersAtGameEnd(tx: Prisma.TransactionClient, formationId: string) {
   await tx.gamePower.updateMany({
     where: { formationId, status: "ACTIVE" },
